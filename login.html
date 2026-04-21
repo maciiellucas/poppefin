@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PoppeFin | Login</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
+        
+        body { 
+            font-family: 'Plus Jakarta Sans', sans-serif; 
+            background: radial-gradient(circle at top right, #f8fafc, #e2e8f0); 
+            overflow: hidden;
+        }
+
+        .glass-card { 
+            background: rgba(255, 255, 255, 0.8); 
+            backdrop-filter: blur(12px); 
+            border: 1px solid rgba(255, 255, 255, 0.5); 
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05);
+        }
+
+        .loader-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: #ffffff;
+            z-index: 100;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .fade-in { animation: fadeIn 0.8s ease-out; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes progress {
+            from { width: 0%; }
+            to { width: 100%; }
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-8px); }
+            75% { transform: translateX(8px); }
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+
+    <div id="loader" class="loader-overlay">
+        <div class="relative flex items-center justify-center">
+            <div class="w-20 h-20 border-[3px] border-slate-100 border-t-indigo-600 rounded-full animate-spin"></div>
+            <i class="fas fa-database text-indigo-600 text-xl absolute"></i>
+        </div>
+        <h2 class="mt-8 text-lg font-bold text-slate-800 tracking-tight">Carregando Dados</h2>
+        <p class="text-slate-400 text-xs mt-1">Sincronizando saldos e movimentações...</p>
+        <div class="w-48 h-1.5 bg-slate-100 rounded-full mt-6 overflow-hidden">
+            <div class="h-full bg-indigo-600" style="animation: progress 2.5s linear forwards;"></div>
+        </div>
+    </div>
+
+    <div class="w-full max-w-md fade-in">
+        <div class="text-center mb-10">
+            <h1 class="text-4xl font-black text-slate-800 tracking-tighter">
+                Poppe<span class="text-indigo-600">Fin</span>
+            </h1>
+            <div id="fraseMotivacional" class="mt-4 text-slate-500 text-[11px] font-medium italic px-6 leading-relaxed"></div>
+        </div>
+
+        <div id="loginCard" class="glass-card p-10 rounded-[40px]">
+            <div class="mb-8 text-center">
+                <h2 class="text-xl font-bold text-slate-800">Identificação</h2>
+                <p class="text-slate-400 text-sm mt-1">Insira suas credenciais de acesso</p>
+            </div>
+
+            <form id="loginForm" class="space-y-6">
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 mb-2">Acesso</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-4 text-slate-400">
+                            <i class="fas fa-id-badge"></i>
+                        </span>
+                        <input type="text" id="usuario" required
+                            oninput="this.value = this.value.toUpperCase()"
+                            class="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 pl-12 pr-4 text-slate-700 placeholder-slate-300 outline-none focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50 transition-all text-sm font-medium" 
+                            placeholder="INFORME SEU USUÁRIO">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 mb-2">Senha</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-4 text-slate-400">
+                            <i class="fas fa-shield-alt"></i>
+                        </span>
+                        <input type="password" id="senha" required
+                            class="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 pl-12 pr-4 text-slate-700 placeholder-slate-300 outline-none focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50 transition-all text-sm" 
+                            placeholder="••••••••">
+                    </div>
+                </div>
+
+                <div id="erroMsg" class="hidden text-rose-500 text-[11px] font-bold text-center">
+                    <i class="fas fa-times-circle mr-1"></i> Acesso negado. Verifique os dados.
+                </div>
+
+                <button type="submit" 
+                    class="w-full bg-slate-800 text-white font-bold py-4 rounded-2xl shadow-lg hover:bg-slate-900 active:scale-[0.98] transition-all flex items-center justify-center gap-2">
+                    Entrar no Sistema <i class="fas fa-sign-in-alt text-[10px]"></i>
+                </button>
+            </form>
+        </div>
+
+        <div class="mt-12 text-center">
+            <p class="text-[9px] uppercase font-black tracking-[0.2em] text-slate-400">Conectado à Nuvem PoppeFin</p>
+        </div>
+    </div>
+
+    <script>
+        const usuariosPermitidos = {
+            "MACIEL": "37541680",
+            "DEBORA": "barbara123"
+        };
+
+        const frases = [
+            "“O dinheiro é um mestre terrível, mas um excelente servo.”",
+            "“Não poupe o que sobra após gastar, gaste o que sobra após poupar.”",
+            "“Cuidado com as pequenas despesas; um pequeno vazamento afunda um navio.”",
+            "“Investir em conhecimento rende sempre os melhores juros.”",
+            "“A riqueza é decidida por quão pouco você precisa para viver.”",
+            "“O hábito de poupar é em si uma educação.”",
+            "“Simplifique seu estilo de vida para amplificar seus sonhos.”"
+        ];
+
+        window.onload = () => {
+            const fraseAleatoria = frases[Math.floor(Math.random() * frases.length)];
+            document.getElementById('fraseMotivacional').innerText = fraseAleatoria;
+        };
+
+        document.getElementById('loginForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const user = document.getElementById('usuario').value.trim().toUpperCase();
+            const pass = document.getElementById('senha').value;
+            const erro = document.getElementById('erroMsg');
+            const loader = document.getElementById('loader');
+            const card = document.getElementById('loginCard');
+
+            if (usuariosPermitidos[user] && usuariosPermitidos[user] === pass) {
+                erro.classList.add('hidden');
+                loader.style.display = 'flex';
+                
+                // Tempo simulado para carregar os dados do dashboard (2.5 segundos)
+                setTimeout(() => {
+                    window.location.href = 'dashboard.html';
+                }, 2600);
+            } else {
+                erro.classList.remove('hidden');
+                card.style.animation = 'shake 0.4s ease-in-out';
+                setTimeout(() => card.style.animation = '', 400);
+            }
+        });
+    </script>
+</body>
+</html>

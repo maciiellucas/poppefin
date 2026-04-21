@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PoppeFin | Extrato Detalhado</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+        
+        body { 
+            font-family: 'Plus Jakarta Sans', sans-serif; 
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); 
+        }
+
+        .glass-card { 
+            background: rgba(255, 255, 255, 0.7); 
+            backdrop-filter: blur(20px); 
+            border: 1px solid rgba(255, 255, 255, 0.3); 
+            box-shadow: 0 15px 35px -5px rgba(0, 0, 0, 0.05); 
+        }
+
+        /* Estilos Originais dos Cards */
+        .card-entrada { border-left: 5px solid #10b981; background: rgba(16, 185, 129, 0.05); }
+        .card-saida { border-left: 5px solid #f43f5e; background: rgba(244, 63, 94, 0.05); }
+        .card-rendimento { border-left: 5px solid #6366f1; background: rgba(99, 102, 241, 0.05); }
+
+        /* Estilos específicos para evitar sobreposição no PDF */
+        #export-area-tecnica {
+            position: absolute;
+            left: -9999px;
+            width: 1080px; /* Largura Mobile Full HD */
+            padding: 60px;
+            background: #f8fafc;
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+        }
+
+        .logo-pdf {
+            font-size: 85px;
+            font-weight: 800;
+            color: #1e293b;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        .logo-pdf span { color: #4f46e5; }
+    </style>
+</head>
+<body class="min-h-screen p-4 md:p-8 text-slate-800">
+
+    <div id="export-area-tecnica"></div>
+
+    <div class="max-w-5xl mx-auto space-y-6">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+                <button onclick="window.location.href='dashboard.html'" class="text-indigo-600 font-bold text-sm mb-2 flex items-center gap-2 hover:underline">
+                    <i class="fas fa-arrow-left"></i> Voltar ao Dashboard
+                </button>
+                <h1 class="text-3xl font-extrabold tracking-tight">Poppe<span class="text-indigo-600">Fin</span> Extrato</h1>
+                <p class="text-slate-500 font-medium">Detalhamento histórico de movimentações</p>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="carregarDados()" class="p-3 bg-white/50 rounded-xl hover:bg-white transition-all shadow-sm">
+                    <i class="fas fa-sync-alt text-indigo-600"></i>
+                </button>
+                <button id="btnExport" onclick="exportarPDF()" class="p-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 shadow-md flex items-center gap-2 px-6 font-bold">
+                    <i class="fas fa-file-pdf text-lg"></i> Exportar PDF
+                </button>
+            </div>
+        </div>
+
+        <div class="glass-card p-6 rounded-[24px] space-y-4">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="flex flex-col">
+                    <label class="text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">Conta</label>
+                    <select id="filtroConta" onchange="filtrarExtrato()" class="bg-white border-none p-2.5 rounded-xl outline-none shadow-sm text-sm cursor-pointer"></select>
+                </div>
+                <div class="flex flex-col">
+                    <label class="text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">Operação</label>
+                    <select id="filtroTipo" onchange="filtrarExtrato()" class="bg-white border-none p-2.5 rounded-xl outline-none shadow-sm text-sm cursor-pointer">
+                        <option value="TODOS">Todos</option>
+                        <option value="Entrada">Entradas</option>
+                        <option value="Saída">Saídas</option>
+                        <option value="Rendimento">Rendimentos</option>
+                    </select>
+                </div>
+                <div class="flex flex-col">
+                    <label class="text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">Período</label>
+                    <select id="filtroPeriodo" onchange="filtrarExtrato()" class="bg-white border-none p-2.5 rounded-xl outline-none shadow-sm text-sm cursor-pointer">
+                        <option value="0">Tudo</option>
+                        <option value="1">1 Mês</option>
+                        <option value="3">3 Meses</option>
+                        <option value="12">1 Ano</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div id="painelSomas" class="grid grid-cols-2 md:grid-cols-4 gap-4"></div>
+
+        <div id="containerExtrato" class="space-y-3 pb-10"></div>
+    </div>
+
+    <script>
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxoapiR4Mtjic8yLSjCcZ4I1dsClIMyV6ReaPmzYmNxKa4wUpEEAKUGBnDmc_XAqxZ1Bw/exec';
+        let dadosRaw = [];
+
+        async function carregarDados() {
+            try {
+                const response = await fetch(`${SCRIPT_URL}?action=getDashboard&t=${Date.now()}`);
+                dadosRaw = await response.json();
+                popularFiltroContas();
+                filtrarExtrato();
+            } catch (e) { console.error(e); }
+        }
+
+        function popularFiltroContas() {
+            const select = document.getElementById('filtroConta');
+            const contas = {};
+            dadosRaw.forEach(d => { contas[d['ID Conta']] = `${d['Banco']} - ${d['Descrição']}`; });
+            select.innerHTML = '<option value="TODAS">Todas as Contas</option>';
+            Object.entries(contas).forEach(([id, nome]) => { select.innerHTML += `<option value="${id}">${nome}</option>`; });
+        }
+
+        function formatarMoeda(v) { return v.toLocaleString('pt-br', { style: 'currency', currency: 'BRL' }); }
+
+        function filtrarExtrato() {
+            const fConta = document.getElementById('filtroConta').value;
+            const fTipo = document.getElementById('filtroTipo').value;
+            const fPeriodo = parseInt(document.getElementById('filtroPeriodo').value);
+            const container = document.getElementById('containerExtrato');
+            const agora = new Date();
+            
+            container.innerHTML = '';
+            let sEntrada = 0, sSaida = 0, sRend = 0;
+
+            let filtrados = dadosRaw.filter(d => {
+                const dataMov = new Date(d['Data']);
+                const matchConta = fConta === 'TODAS' || String(d['ID Conta']) === fConta;
+                let matchTipo = true;
+                if(fTipo === 'Entrada') matchTipo = d['Tipo'] === 'Entrada';
+                else if(fTipo === 'Saída') matchTipo = d['Tipo'] === 'Saída';
+                else if(fTipo === 'Rendimento') matchTipo = parseFloat(d['Valor Rendimento']) > 0;
+
+                let matchPeriodo = true;
+                if(fPeriodo > 0) {
+                    const limite = new Date();
+                    limite.setMonth(agora.getMonth() - fPeriodo);
+                    matchPeriodo = dataMov >= limite;
+                }
+                return matchConta && matchTipo && matchPeriodo;
+            });
+
+            filtrados.sort((a, b) => new Date(b['Data']) - new Date(a['Data']));
+
+            filtrados.forEach(mov => {
+                const vA = parseFloat(mov['Valor Aporte']) || 0;
+                const vR = parseFloat(mov['Valor Rendimento']) || 0;
+                const titular = mov['Titular Conta'] || mov['Titular'] || "---";
+                const dataF = new Date(mov['Data']).toLocaleDateString('pt-br');
+
+                if(vA > 0 && (fTipo === 'TODOS' || fTipo === mov['Tipo'])) {
+                    if(mov['Tipo'] === 'Entrada') sEntrada += vA; else sSaida += vA;
+                    container.innerHTML += criarCardHTML(dataF, mov['Banco'], mov['Descrição'], titular, vA, mov['Tipo']);
+                }
+                if(vR > 0 && (fTipo === 'TODOS' || fTipo === 'Rendimento')) {
+                    sRend += vR;
+                    container.innerHTML += criarCardHTML(dataF, mov['Banco'], mov['Descrição'], titular, vR, 'Rendimento');
+                }
+            });
+            atualizarSomas(sEntrada, sSaida, sRend);
+        }
+
+        function atualizarSomas(e, s, r) {
+            document.getElementById('painelSomas').innerHTML = `
+                <div class="glass-card p-4 rounded-2xl border-b-4 border-emerald-500">
+                    <p class="text-[9px] font-bold text-slate-400 uppercase">Entradas</p>
+                    <p class="text-lg font-bold text-emerald-600">${formatarMoeda(e)}</p>
+                </div>
+                <div class="glass-card p-4 rounded-2xl border-b-4 border-rose-500">
+                    <p class="text-[9px] font-bold text-slate-400 uppercase">Saídas</p>
+                    <p class="text-lg font-bold text-rose-600">${formatarMoeda(s)}</p>
+                </div>
+                <div class="glass-card p-4 rounded-2xl border-b-4 border-indigo-500">
+                    <p class="text-[9px] font-bold text-slate-400 uppercase">Rendimento</p>
+                    <p class="text-lg font-bold text-indigo-600">${formatarMoeda(r)}</p>
+                </div>
+                <div class="glass-card p-4 rounded-2xl border-b-4 border-slate-800">
+                    <p class="text-[9px] font-bold text-slate-400 uppercase">Saldo</p>
+                    <p class="text-lg font-bold text-slate-800">${formatarMoeda(e+r-s)}</p>
+                </div>`;
+        }
+
+        function criarCardHTML(data, banco, desc, titular, valor, tipo) {
+            const icon = tipo === 'Entrada' ? 'fa-arrow-down text-emerald-500' : (tipo === 'Saída' ? 'fa-arrow-up text-rose-500' : 'fa-chart-line text-indigo-500');
+            const classe = tipo === 'Entrada' ? 'card-entrada' : (tipo === 'Saída' ? 'card-saida' : 'card-rendimento');
+            return `
+                <div class="glass-card p-4 rounded-2xl ${classe} flex items-center justify-between gap-2">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-sm shrink-0">
+                            <i class="fas ${icon}"></i>
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-[10px] font-bold uppercase text-slate-400">${data}</span>
+                                <span class="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-slate-200 text-slate-600">${tipo}</span>
+                            </div>
+                            <h4 class="font-bold text-slate-700 text-sm">${banco} <span class="font-normal text-slate-400">| ${desc}</span></h4>
+                            <p class="text-[10px] text-slate-500 italic">Titular: ${titular}</p>
+                        </div>
+                    </div>
+                    <p class="font-black ${tipo === 'Saída' ? 'text-rose-600' : 'text-emerald-600'} whitespace-nowrap">
+                        ${tipo === 'Saída' ? '-' : '+'} ${formatarMoeda(valor)}
+                    </p>
+                </div>`;
+        }
+
+        async function exportarPDF() {
+            const { jsPDF } = window.jspdf;
+            const area = document.getElementById('export-area-tecnica');
+            const btn = document.getElementById('btnExport');
+            btn.innerHTML = 'Processando...';
+
+            // Prepara o conteúdo estritamente organizado para o PDF
+            area.innerHTML = `
+                <div style="text-align: center; margin-bottom: 40px; border-bottom: 3px solid #e2e8f0; padding-bottom: 30px;">
+                    <div class="logo-pdf">Poppe<span>Fin</span></div>
+                    <p style="font-size: 30px; font-weight: 700; color: #64748b; margin: 0;">RELATÓRIO FINANCEIRO</p>
+                    <p style="font-size: 18px; color: #94a3b8; margin-top: 5px;">Gerado em ${new Date().toLocaleString('pt-br')}</p>
+                </div>
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-bottom: 40px;">
+                    ${document.getElementById('painelSomas').innerHTML}
+                </div>
+                <div id="pdf-lista-container" style="display: flex; flex-direction: column; gap: 20px;">
+                    ${document.getElementById('containerExtrato').innerHTML}
+                </div>
+                <div style="text-align: center; margin-top: 50px; color: #cbd5e1; font-size: 16px;">
+                    Documento Oficial Gerado via Sistema PoppeFin
+                </div>
+            `;
+
+            // Reset de estilos forçado para os cards no PDF para evitar sobreposição
+            area.querySelectorAll('.glass-card').forEach(card => {
+                card.style.background = '#ffffff';
+                card.style.backdropFilter = 'none';
+                card.style.boxShadow = 'none';
+                card.style.border = '2px solid #f1f5f9';
+                card.style.marginBottom = '0'; // O gap do container já resolve
+                card.style.display = 'flex';
+                card.style.justifyContent = 'space-between';
+                card.style.alignItems = 'center';
+                card.style.padding = '30px';
+                card.style.borderRadius = '25px';
+
+                // Aumentar fontes para o PDF ser legível
+                card.querySelectorAll('h4').forEach(h => h.style.fontSize = '24px');
+                card.querySelectorAll('p.font-black').forEach(p => p.style.fontSize = '28px');
+                card.querySelectorAll('span').forEach(s => s.style.fontSize = '14px');
+            });
+
+            try {
+                const canvas = await html2canvas(area, {
+                    scale: 2, 
+                    useCORS: true,
+                    backgroundColor: '#f8fafc',
+                    windowWidth: 1080 // Força o enquadramento de largura
+                });
+
+                const imgData = canvas.toDataURL('image/png');
+                const pdfWidth = 210; 
+                const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
+                const pdf = new jsPDF('p', 'mm', [pdfWidth, pdfHeight]);
+                pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
+                pdf.save(`Relatorio_PoppeFin_${Date.now()}.pdf`);
+
+            } catch (err) {
+                console.error(err);
+                alert("Erro na geração do arquivo.");
+            } finally {
+                btn.innerHTML = '<i class="fas fa-file-pdf text-lg"></i> Exportar PDF';
+                area.innerHTML = '';
+            }
+        }
+
+        carregarDados();
+    </script>
+</body>
+</html>
