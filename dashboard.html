@@ -11,10 +11,44 @@
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
         body { font-family: 'Plus Jakarta Sans', sans-serif; background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); }
         .glass-card { background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.3); box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.08); }
-        .chart-container { position: relative; height: 250px; width: 100%; }
+        .chart-container { position: relative; height: 250px; width: 100%; transition: opacity 0.3s ease; }
+        .oculto { opacity: 0 !important; pointer-events: none; }
+
+        #modalPeriodo {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+        }
     </style>
 </head>
 <body class="min-h-screen p-4 md:p-8 text-slate-800">
+
+    <div id="modalPeriodo">
+        <div class="glass-card p-8 rounded-[32px] w-full max-w-sm shadow-2xl mx-4">
+            <h3 class="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
+                <i class="fas fa-calendar-alt text-indigo-600"></i> Filtrar Período
+            </h3>
+            <div class="space-y-4">
+                <div>
+                    <label class="text-[10px] font-bold text-slate-400 uppercase ml-1">Data Inicial</label>
+                    <input type="date" id="dataInicio" max="9999-12-31" oninput="if(this.value.length > 10) this.value = this.value.slice(0, 10)" class="w-full bg-white/50 border border-slate-200 p-3 rounded-xl font-bold outline-none focus:border-indigo-500 transition-all">
+                </div>
+                <div>
+                    <label class="text-[10px] font-bold text-slate-400 uppercase ml-1">Data Final</label>
+                    <input type="date" id="dataFim" max="9999-12-31" oninput="if(this.value.length > 10) this.value = this.value.slice(0, 10)" class="w-full bg-white/50 border border-slate-200 p-3 rounded-xl font-bold outline-none focus:border-indigo-500 transition-all">
+                </div>
+                <div class="flex gap-3 pt-4">
+                    <button onclick="fecharModal()" class="flex-1 py-3 font-bold text-slate-500 hover:bg-slate-100 rounded-xl transition-all">Cancelar</button>
+                    <button onclick="aplicarFiltroPersonalizado()" class="flex-1 py-3 font-bold bg-indigo-600 text-white rounded-xl shadow-lg hover:bg-indigo-700 transition-all">Filtrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <div class="max-w-6xl mx-auto space-y-6">
         
@@ -25,6 +59,9 @@
             </div>
             <div class="flex flex-wrap items-center gap-3">
                 <div class="flex gap-2 mr-2">
+                    <button onclick="toggleOcultarValores()" id="btnOcultar" class="p-3 bg-white/50 rounded-xl hover:bg-white transition-all">
+                        <i class="fas fa-eye text-indigo-600"></i>
+                    </button>
                     <button onclick="window.location.href='extrato.html'" class="px-4 py-2 bg-white/50 border border-indigo-200 text-indigo-700 rounded-xl font-bold text-sm hover:bg-indigo-50 transition-all flex items-center gap-2">
                         <i class="fas fa-list-ul"></i> Extrato
                     </button>
@@ -41,8 +78,9 @@
                 </div>
                 <div class="flex flex-col">
                     <label class="text-[10px] font-bold text-slate-400 uppercase ml-2">Mês/Ano</label>
-                    <select id="filtroMes" onchange="atualizarDashboard()" class="bg-white/50 border border-white p-2 rounded-xl outline-none shadow-sm min-w-[120px]">
+                    <select id="filtroMes" onchange="checkFiltroMes(this.value)" class="bg-white/50 border border-white p-2 rounded-xl outline-none shadow-sm min-w-[120px]">
                         <option value="TODOS">Sempre</option>
+                        <option value="CUSTOM">Pesquisar por período...</option>
                     </select>
                 </div>
                 <button onclick="carregarDados()" class="p-3 bg-white/50 rounded-xl hover:bg-white transition-all self-end mb-0.5">
@@ -69,13 +107,13 @@
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div class="glass-card p-6 rounded-[32px]">
                 <h3 class="text-lg font-bold mb-4 italic">Evolução de Patrimônio</h3>
-                <div class="chart-container">
+                <div id="containerEvo" class="chart-container">
                     <canvas id="chartEvolucao"></canvas>
                 </div>
             </div>
             <div class="glass-card p-6 rounded-[32px]">
                 <h3 class="text-lg font-bold mb-4 italic">Alocação por Conta</h3>
-                <div class="chart-container">
+                <div id="containerDist" class="chart-container">
                     <canvas id="chartDistribuicao"></canvas>
                 </div>
             </div>
@@ -104,8 +142,7 @@
 
             <div class="glass-card p-6 rounded-[32px]">
                 <h3 class="text-lg font-bold mb-4">Resumo das Contas</h3>
-                <div id="listaContas" class="space-y-2">
-                    </div>
+                <div id="listaContas" class="space-y-2"></div>
             </div>
         </div>
     </div>
@@ -114,49 +151,88 @@
         const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxoapiR4Mtjic8yLSjCcZ4I1dsClIMyV6ReaPmzYmNxKa4wUpEEAKUGBnDmc_XAqxZ1Bw/exec';
         let dadosRaw = [];
         let mapaNomesContas = {}; 
+        let infoContas = {}; 
         let chartEvolucao = null;
         let chartDistribuicao = null;
+        
+        let valoresOcultos = false;
+        const PALETA_CORES = ['#6366f1', '#10b981', '#f43f5e', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316'];
+        let mapaCoresContas = {};
+
+        function toggleOcultarValores() {
+            valoresOcultos = !valoresOcultos;
+            const btn = document.getElementById('btnOcultar');
+            const cEvo = document.getElementById('containerEvo');
+            const cDist = document.getElementById('containerDist');
+            
+            btn.innerHTML = valoresOcultos ? '<i class="fas fa-eye-slash text-slate-400"></i>' : '<i class="fas fa-eye text-indigo-600"></i>';
+            
+            if(valoresOcultos) {
+                cEvo.classList.add('oculto');
+                cDist.classList.add('oculto');
+            } else {
+                cEvo.classList.remove('oculto');
+                cDist.classList.remove('oculto');
+            }
+            atualizarDashboard();
+        }
+
+        function checkFiltroMes(val) {
+            if (val === 'CUSTOM') {
+                document.getElementById('modalPeriodo').style.display = 'flex';
+            } else {
+                atualizarDashboard();
+            }
+        }
+
+        function fecharModal() {
+            document.getElementById('modalPeriodo').style.display = 'none';
+            document.getElementById('filtroMes').value = 'TODOS';
+        }
+
+        function aplicarFiltroPersonalizado() {
+            if (!document.getElementById('dataInicio').value || !document.getElementById('dataFim').value) return alert("Selecione as datas");
+            document.getElementById('modalPeriodo').style.display = 'none';
+            atualizarDashboard();
+        }
 
         async function carregarDados() {
             try {
                 const response = await fetch(`${SCRIPT_URL}?action=getDashboard&t=${Date.now()}`);
                 dadosRaw = await response.json();
-                
                 popularFiltros();
                 atualizarDashboard();
-            } catch (e) {
-                console.error("Erro ao carregar dados:", e);
-            }
+            } catch (e) { console.error(e); }
         }
 
         function popularFiltros() {
             const selectConta = document.getElementById('filtroConta');
             const selectMes = document.getElementById('filtroMes');
-            
             mapaNomesContas = {};
+            
             dadosRaw.forEach(d => {
                 const id = String(d['ID Conta']);
                 if (!mapaNomesContas[id]) {
                     mapaNomesContas[id] = `${d['Banco']} - ${d['Descrição']}`;
+                    if(!mapaCoresContas[d['Banco']]) {
+                        mapaCoresContas[d['Banco']] = PALETA_CORES[Object.keys(mapaCoresContas).length % PALETA_CORES.length];
+                    }
                 }
             });
 
-            const contas = Object.keys(mapaNomesContas);
             const meses = [...new Set(dadosRaw.map(d => {
                 const dt = new Date(d['Data']);
                 return `${dt.getMonth() + 1}/${dt.getFullYear()}`;
             }))];
 
             selectConta.innerHTML = '<option value="TODAS">Todas as Contas</option>';
-            contas.forEach(id => {
-                selectConta.innerHTML += `<option value="${id}">${mapaNomesContas[id]}</option>`;
-            });
-
-            selectMes.innerHTML = '<option value="TODOS">Sempre</option>';
+            Object.keys(mapaNomesContas).forEach(id => selectConta.innerHTML += `<option value="${id}">${mapaNomesContas[id]}</option>`);
+            selectMes.innerHTML = '<option value="TODOS">Sempre</option><option value="CUSTOM">Pesquisar por período...</option>';
             meses.forEach(m => selectMes.innerHTML += `<option value="${m}">${m}</option>`);
         }
 
         function formatar(v) {
+            if (valoresOcultos) return 'R$ ******';
             return v.toLocaleString('pt-br', { style: 'currency', currency: 'BRL' });
         }
 
@@ -164,41 +240,70 @@
             const fConta = document.getElementById('filtroConta').value;
             const fMes = document.getElementById('filtroMes').value;
 
-            const dadosFiltrados = dadosRaw.filter(d => {
+            const dadosFiltradosPeriodo = dadosRaw.filter(d => {
                 const dt = new Date(d['Data']);
                 const mY = `${dt.getMonth() + 1}/${dt.getFullYear()}`;
-                const matchConta = fConta === 'TODAS' || String(d['ID Conta']) === fConta;
-                const matchMes = fMes === 'TODOS' || mY === fMes;
+                const matchConta = (fConta === 'TODAS' || String(d['ID Conta']) === fConta);
+                
+                let matchMes = false;
+                if (fMes === 'TODOS') matchMes = true;
+                else if (fMes === 'CUSTOM') {
+                    const dIni = new Date(document.getElementById('dataInicio').value + "T00:00:00");
+                    const dFim = new Date(document.getElementById('dataFim').value + "T23:59:59");
+                    matchMes = dt >= dIni && dt <= dFim;
+                } else {
+                    matchMes = mY === fMes;
+                }
                 return matchConta && matchMes;
             });
 
-            let entradas = 0, rendimentos = 0, saidas = 0;
-            let contasResumo = {};
-            let rendimentosPorConta = {};
-            let infoContas = {};
-
-            dadosFiltrados.forEach(d => {
-                const vAporte = parseFloat(d['Valor Aporte']) || 0;
-                const vRend = parseFloat(d['Valor Rendimento']) || 0;
-                const tipo = d['Tipo'];
-                const idC = d['ID Conta'];
-
-                if (!infoContas[idC]) {
-                    infoContas[idC] = {
-                        banco: d['Banco'] || 'Banco',
-                        desc: d['Descrição'] || 'Conta'
-                    };
+            const dadosAteHoje = dadosRaw.filter(d => {
+                const dt = new Date(d['Data']);
+                const matchConta = (fConta === 'TODAS' || String(d['ID Conta']) === fConta);
+                let matchData = true;
+                if (fMes === 'CUSTOM') {
+                    const dFim = new Date(document.getElementById('dataFim').value + "T23:59:59");
+                    matchData = dt <= dFim;
+                } else if (fMes !== 'TODOS') {
+                    // Para meses específicos, o saldo reflete o final daquele mês
+                    const [m, y] = fMes.split('/');
+                    const dFimMes = new Date(y, m, 0, 23, 59, 59);
+                    matchData = dt <= dFimMes;
                 }
-
-                if (tipo === 'Entrada') entradas += vAporte;
-                else saidas += vAporte;
-                
-                rendimentos += vRend;
-                contasResumo[idC] = (contasResumo[idC] || 0) + (tipo === 'Entrada' ? vAporte : -vAporte) + vRend;
-                rendimentosPorConta[idC] = (rendimentosPorConta[idC] || 0) + vRend;
+                return matchConta && matchData;
             });
 
-            document.getElementById('totalGeral').innerText = formatar((entradas - saidas) + rendimentos);
+            let entradas = 0, rendimentos = 0, saidas = 0;
+            let resumoContas = {};
+            let rendasContas = {};
+
+            dadosFiltradosPeriodo.forEach(d => {
+                const vA = parseFloat(d['Valor Aporte']) || 0;
+                const vR = parseFloat(d['Valor Rendimento']) || 0;
+                if (d['Tipo'] === 'Entrada') entradas += vA; else saidas += vA;
+                rendimentos += vR;
+            });
+
+            dadosAteHoje.forEach(d => {
+                const id = d['ID Conta'];
+                const vA = parseFloat(d['Valor Aporte']) || 0;
+                const vR = parseFloat(d['Valor Rendimento']) || 0;
+                infoContas[id] = { banco: d['Banco'], desc: d['Descrição'] };
+                resumoContas[id] = (resumoContas[id] || 0) + (d['Tipo'] === 'Entrada' ? vA : -vA) + vR;
+                
+                const dt = new Date(d['Data']);
+                if (fMes === 'CUSTOM') {
+                    const dIni = new Date(document.getElementById('dataInicio').value + "T00:00:00");
+                    const dFim = new Date(document.getElementById('dataFim').value + "T23:59:59");
+                    if(dt >= dIni && dt <= dFim) rendasContas[id] = (rendasContas[id] || 0) + vR;
+                } else {
+                    rendasContas[id] = (rendasContas[id] || 0) + vR;
+                }
+            });
+
+            const saldoFinal = Object.values(resumoContas).reduce((a, b) => a + b, 0);
+
+            document.getElementById('totalGeral').innerText = formatar(saldoFinal);
             document.getElementById('totalRendimentos').innerText = formatar(rendimentos);
             document.getElementById('totalSaidasPeriodo').innerText = formatar(saidas);
             document.getElementById('totalEntradas').innerText = formatar(entradas);
@@ -210,73 +315,48 @@
 
             const lista = document.getElementById('listaContas');
             lista.innerHTML = '';
-            Object.entries(contasResumo).sort((a,b) => b[1] - a[1]).forEach(([id, val]) => {
-                const info = infoContas[id];
-                const rendDaConta = rendimentosPorConta[id] || 0;
-                lista.innerHTML += `
-                    <div class="flex justify-between items-center p-3 bg-white/40 rounded-xl border border-white/50 mb-2">
-                        <div class="flex flex-col">
-                            <span class="text-[10px] font-black text-indigo-500 uppercase tracking-tighter">${info.banco}</span>
-                            <span class="text-sm font-bold text-slate-700">${info.desc}</span>
-                        </div>
-                        <div class="text-right">
-                            <span class="text-sm font-black ${val >= 0 ? 'text-emerald-600' : 'text-rose-500'}">
-                                ${formatar(val)}
-                            </span>
-                            <span class="text-[11px] font-bold text-emerald-500 block">
-                                (<i class="fas fa-arrow-up text-[9px]"></i> ${formatar(rendDaConta)})
-                            </span>
-                        </div>
-                    </div>`;
+            Object.entries(resumoContas).sort((a,b) => b[1] - a[1]).forEach(([id, val]) => {
+                lista.innerHTML += `<div class="flex justify-between items-center p-3 bg-white/40 rounded-xl border border-white/50 mb-2">
+                    <div class="flex flex-col"><span class="text-[10px] font-black text-indigo-500 uppercase">${infoContas[id].banco}</span><span class="text-sm font-bold text-slate-700">${infoContas[id].desc}</span></div>
+                    <div class="text-right"><span class="text-sm font-black ${val >= 0 ? 'text-emerald-600' : 'text-rose-500'}">${formatar(val)}</span>
+                    <span class="text-[11px] font-bold text-emerald-500 block">(${formatar(rendasContas[id] || 0)})</span></div></div>`;
             });
 
-            renderizarGraficos(dadosFiltrados, contasResumo);
+            renderizarGraficos(dadosAteHoje, resumoContas);
         }
 
         function renderizarGraficos(dados, resumo) {
-            const ctxEvo = document.getElementById('chartEvolucao').getContext('2d');
-            const ctxDist = document.getElementById('chartDistribuicao').getContext('2d');
-
             if (chartEvolucao) chartEvolucao.destroy();
             if (chartDistribuicao) chartDistribuicao.destroy();
 
-            chartDistribuicao = new Chart(ctxDist, {
+            const labelsDist = Object.keys(resumo);
+            const coresDist = labelsDist.map(id => mapaCoresContas[infoContas[id]?.banco] || '#6366f1');
+
+            chartDistribuicao = new Chart(document.getElementById('chartDistribuicao'), {
                 type: 'doughnut',
                 data: {
-                    labels: Object.keys(resumo).map(id => mapaNomesContas[id] || `Conta ${id}`),
-                    datasets: [{
-                        data: Object.values(resumo),
-                        backgroundColor: ['#6366f1', '#10b981', '#f43f5e', '#f59e0b', '#8b5cf6'],
-                        borderWidth: 0
-                    }]
+                    labels: labelsDist.map(id => mapaNomesContas[id]),
+                    datasets: [{ data: Object.values(resumo), backgroundColor: coresDist, borderWidth: 0 }]
                 },
-                options: { maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 10 } } } } }
+                options: { maintainAspectRatio: false, plugins: { legend: { display: !valoresOcultos, position: 'bottom', labels: { boxWidth: 12, font: { size: 10 } } } } }
             });
 
             const datas = [...new Set(dados.map(d => d['Data'].split('T')[0]))].sort();
             let acumulado = 0;
             const pontos = datas.map(data => {
-                const dia = dados.filter(d => d['Data'].split('T')[0] === data);
-                dia.forEach(d => {
+                dados.filter(d => d['Data'].split('T')[0] === data).forEach(d => {
                     acumulado += (d['Tipo'] === 'Entrada' ? parseFloat(d['Valor Aporte']) : -parseFloat(d['Valor Aporte'])) + (parseFloat(d['Valor Rendimento']) || 0);
                 });
                 return acumulado;
             });
 
-            chartEvolucao = new Chart(ctxEvo, {
+            chartEvolucao = new Chart(document.getElementById('chartEvolucao'), {
                 type: 'line',
                 data: {
                     labels: datas.map(d => d.split('-').reverse().slice(0,2).join('/')),
-                    datasets: [{
-                        label: 'Saldo R$',
-                        data: pontos,
-                        borderColor: '#6366f1',
-                        backgroundColor: 'rgba(99, 102, 241, 0.1)',
-                        fill: true,
-                        tension: 0.4
-                    }]
+                    datasets: [{ label: 'Saldo R$', data: pontos, borderColor: '#6366f1', backgroundColor: 'rgba(99, 102, 241, 0.1)', fill: true, tension: 0.4 }]
                 },
-                options: { maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: false } } }
+                options: { maintainAspectRatio: false, plugins: { legend: { display: false } } }
             });
         }
 
