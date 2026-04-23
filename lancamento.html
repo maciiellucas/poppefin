@@ -124,6 +124,25 @@
                     </div>
                 </div>
 
+                <div class="read-only-panel p-5 space-y-3 border border-dashed border-indigo-200">
+                    <p class="text-[10px] font-bold text-indigo-600 uppercase tracking-widest"><i class="fas fa-calculator mr-1"></i> Calc. Automática de Rendimento</p>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
+                        <div>
+                            <p class="text-[10px] font-bold text-slate-400 uppercase ml-1 mb-1">Saldo Sistema</p>
+                            <input type="text" id="saldoSistema" readonly placeholder="R$ 0,00" class="bg-white/50 w-full text-slate-500 font-bold outline-none p-3 rounded-xl text-sm" data-valor-bruto="0">
+                        </div>
+                        <div>
+                            <p class="text-[10px] font-bold text-slate-400 uppercase ml-1 mb-1">Valor Conta Real</p>
+                            <input type="text" id="valorRealDisplay" placeholder="R$ 0,00" class="input-style w-full text-slate-700 font-bold outline-none p-3 rounded-xl text-sm transition-all">
+                        </div>
+                        <div>
+                            <button type="button" id="btnCalcularRend" class="w-full bg-indigo-100 text-indigo-700 hover:bg-indigo-200 font-bold py-3 rounded-xl text-sm transition-all shadow-sm flex items-center justify-center gap-2">
+                                <i class="fas fa-magic"></i> Calcular
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="read-only-panel p-6 space-y-4">
                     <div class="grid grid-cols-3 gap-2">
                         <div class="col-span-1">
@@ -152,6 +171,7 @@
     <script>
         const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxoapiR4Mtjic8yLSjCcZ4I1dsClIMyV6ReaPmzYmNxKa4wUpEEAKUGBnDmc_XAqxZ1Bw/exec';
         let baseContas = [];
+        let transacoesSistema = []; // Armazena dados do dashboard para o cálculo de saldo
 
         function formatarMoeda(valor) {
             valor = valor.replace(/\D/g, "");
@@ -170,30 +190,52 @@
         function gerenciarBloqueio() {
             const principal = document.getElementById('valorAporteDisplay');
             const rendimento = document.getElementById('valorRendimentoDisplay');
+            const valorReal = document.getElementById('valorRealDisplay');
+            const btnCalcular = document.getElementById('btnCalcularRend');
 
             if (descascarMoeda(principal.value) > 0) {
+                // Bloqueia o campo de Rendimento e a Calculadora
                 rendimento.disabled = true;
                 rendimento.classList.add('disabled-input');
                 rendimento.value = "R$ 0,00";
+                
+                valorReal.disabled = true;
+                valorReal.classList.add('disabled-input');
+                valorReal.value = "R$ 0,00";
+                btnCalcular.disabled = true;
+                btnCalcular.classList.add('disabled-input');
             } else if (descascarMoeda(rendimento.value) > 0) {
+                // Bloqueia o Aporte Principal, mas mantém a Calculadora livre caso queira refazer a conta
                 principal.disabled = true;
                 principal.classList.add('disabled-input');
                 principal.value = "R$ 0,00";
+
+                valorReal.disabled = false;
+                valorReal.classList.remove('disabled-input');
+                btnCalcular.disabled = false;
+                btnCalcular.classList.remove('disabled-input');
             } else {
+                // Tudo liberado
                 principal.disabled = false;
                 rendimento.disabled = false;
                 principal.classList.remove('disabled-input');
                 rendimento.classList.remove('disabled-input');
+                
+                valorReal.disabled = false;
+                valorReal.classList.remove('disabled-input');
+                btnCalcular.disabled = false;
+                btnCalcular.classList.remove('disabled-input');
             }
         }
 
-        [document.getElementById('valorAporteDisplay'), document.getElementById('valorRendimentoDisplay')].forEach(input => {
+        [document.getElementById('valorAporteDisplay'), document.getElementById('valorRendimentoDisplay'), document.getElementById('valorRealDisplay')].forEach(input => {
             input.addEventListener('input', (e) => {
                 e.target.value = formatarMoeda(e.target.value);
-                gerenciarBloqueio();
+                if(e.target.id !== 'valorRealDisplay') gerenciarBloqueio();
             });
         });
 
+        // Carrega Contas
         async function loadContas() {
             const status = document.getElementById('statusIndicator');
             try {
@@ -206,16 +248,34 @@
                 baseContas.forEach(c => {
                     let opt = document.createElement('option');
                     opt.value = c.ID;
-                    // Informações detalhadas na lista suspensa
                     const bancoInfo = c.BANCO || "";
                     const descInfo = c.DESCRIÇÃO || "";
                     const titularInfo = c['TITULAR CONTA'] || c['TITULAR'] || "";
                     opt.textContent = `${bancoInfo} | ${descInfo} | ${titularInfo}`;
                     datalist.appendChild(opt);
                 });
-                status.innerHTML = '<span class="h-2 w-2 rounded-full bg-emerald-400"></span><span class="text-[10px] font-bold text-emerald-600 uppercase tracking-widest">Conectado</span>';
+                
+                // Só muda pra conectado se carregar os dois (contas e transações)
+                if(transacoesSistema.length > 0) {
+                    status.innerHTML = '<span class="h-2 w-2 rounded-full bg-emerald-400"></span><span class="text-[10px] font-bold text-emerald-600 uppercase tracking-widest">Conectado</span>';
+                }
             } catch (e) {
                 status.innerHTML = '<span class="h-2 w-2 rounded-full bg-red-400"></span><span class="text-[10px] font-bold text-red-600 uppercase tracking-widest">Erro</span>';
+            }
+        }
+
+        // Carrega Transações (Para montar o "Saldo Sistema")
+        async function loadTransacoesSistema() {
+            const status = document.getElementById('statusIndicator');
+            try {
+                const response = await fetch(`${SCRIPT_URL}?action=getDashboard&t=${Date.now()}`);
+                transacoesSistema = await response.json();
+                
+                if(baseContas.length > 0) {
+                    status.innerHTML = '<span class="h-2 w-2 rounded-full bg-emerald-400"></span><span class="text-[10px] font-bold text-emerald-600 uppercase tracking-widest">Conectado</span>';
+                }
+            } catch (e) {
+                console.error("Erro ao puxar transações pro Saldo", e);
             }
         }
 
@@ -228,11 +288,58 @@
                 document.getElementById('descricao').value = conta.DESCRIÇÃO || "";
                 document.getElementById('titular').value = conta['TITULAR CONTA'] || conta['TITULAR'] || "";
                 document.getElementById('descricao').style.color = "#4f46e5";
+
+                // Calcula e preenche o Saldo do Sistema dinamicamente
+                let saldoAtual = 0;
+                transacoesSistema.forEach(d => {
+                    if (String(d['ID Conta']).trim() === idBuscado) {
+                        const vAporte = parseFloat(d['Valor Aporte']) || 0;
+                        const vRend = parseFloat(d['Valor Rendimento']) || 0;
+                        if (d['Tipo'] === 'Entrada') saldoAtual += vAporte;
+                        else if (d['Tipo'] === 'Saída') saldoAtual -= vAporte;
+                        saldoAtual += vRend;
+                    }
+                });
+
+                document.getElementById('saldoSistema').value = saldoAtual.toLocaleString('pt-br', { style: 'currency', currency: 'BRL' });
+                document.getElementById('saldoSistema').dataset.valorBruto = saldoAtual;
+
             } else {
-                ['banco', 'descricao', 'titular'].forEach(id => {
+                ['banco', 'descricao', 'titular', 'saldoSistema'].forEach(id => {
                     document.getElementById(id).value = '';
                     if(id === 'descricao') document.getElementById(id).style.color = "";
+                    if(id === 'saldoSistema') document.getElementById(id).dataset.valorBruto = "0";
                 });
+            }
+        });
+
+        // Ação do Botão Calcular Rendimento Automático
+        document.getElementById('btnCalcularRend').addEventListener('click', () => {
+            const saldoSistemaBruto = document.getElementById('saldoSistema').dataset.valorBruto;
+            const valorReal = descascarMoeda(document.getElementById('valorRealDisplay').value);
+            
+            if (!document.getElementById('idConta').value) {
+                alert("Preencha um ID de Conta primeiro!");
+                return;
+            }
+
+            if (valorReal <= 0) {
+                alert("Preencha o Valor Real na conta!");
+                return;
+            }
+            
+            const saldoSist = parseFloat(saldoSistemaBruto) || 0;
+            const rendimentoCalc = valorReal - saldoSist;
+            
+            if (rendimentoCalc > 0) {
+                // Transforma o float calcado em formato para a nossa função de moeda processar (ex: 100.50 -> "10050")
+                const valorFormatado = Math.round(rendimentoCalc * 100).toString(); 
+                document.getElementById('valorRendimentoDisplay').value = formatarMoeda(valorFormatado);
+                
+                // Força a validação de bloqueio
+                gerenciarBloqueio();
+            } else {
+                alert("O valor real informado é menor ou igual ao saldo que já existe no sistema.");
             }
         });
 
@@ -262,15 +369,22 @@
                 setTimeout(() => toast.style.display = 'none', 3000);
 
                 e.target.reset();
-                ['banco', 'descricao', 'titular'].forEach(id => {
+                ['banco', 'descricao', 'titular', 'saldoSistema', 'valorRealDisplay'].forEach(id => {
                     document.getElementById(id).value = '';
                     if(id === 'descricao') document.getElementById(id).style.color = "";
+                    if(id === 'saldoSistema') document.getElementById(id).dataset.valorBruto = "0";
                 });
                 
+                // Reseta estados visuais
                 document.getElementById('valorAporteDisplay').disabled = false;
                 document.getElementById('valorRendimentoDisplay').disabled = false;
+                document.getElementById('valorRealDisplay').disabled = false;
+                document.getElementById('btnCalcularRend').disabled = false;
+                
                 document.getElementById('valorAporteDisplay').classList.remove('disabled-input');
                 document.getElementById('valorRendimentoDisplay').classList.remove('disabled-input');
+                document.getElementById('valorRealDisplay').classList.remove('disabled-input');
+                document.getElementById('btnCalcularRend').classList.remove('disabled-input');
 
             } catch (err) {
                 alert('Erro ao salvar.');
@@ -280,7 +394,9 @@
             }
         });
 
+        // Inicializa as chamadas em paralelo
         loadContas();
+        loadTransacoesSistema();
     </script>
 </body>
 </html>
