@@ -2,159 +2,640 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
     <title>PoppeFin | Dashboard Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
-        body { font-family: 'Plus Jakarta Sans', sans-serif; background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); }
-        .glass-card { background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.3); box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.08); }
-        .chart-container { position: relative; height: 250px; width: 100%; transition: opacity 0.3s ease; }
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+
+        * { -webkit-tap-highlight-color: transparent; }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.08);
+        }
+
+        .chart-container { position: relative; height: 220px; width: 100%; transition: opacity 0.3s ease; }
         .oculto { opacity: 0 !important; pointer-events: none; }
 
-        #modalPeriodo {
+        /* Cards de saldo com gradiente suave */
+        .card-saldo { background: linear-gradient(135deg, rgba(255,255,255,0.9), rgba(255,255,255,0.6)); }
+
+        /* Botões mobile amigáveis */
+        .btn-nav {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 10px 16px;
+            border-radius: 14px;
+            font-weight: 700;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+        .btn-nav:active { transform: scale(0.96); }
+
+        /* Bottom Nav Bar para mobile */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(255, 255, 255, 0.92);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-top: 1px solid rgba(255,255,255,0.5);
+            box-shadow: 0 -8px 32px rgba(0,0,0,0.08);
+            z-index: 50;
+            padding: 8px 0 env(safe-area-inset-bottom);
+        }
+
+        /* Animações de entrada */
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        .slide-up { animation: slideUp 0.5s ease-out forwards; }
+        .slide-up-d1 { animation: slideUp 0.5s ease-out 0.1s both; }
+        .slide-up-d2 { animation: slideUp 0.5s ease-out 0.2s both; }
+        .slide-up-d3 { animation: slideUp 0.5s ease-out 0.3s both; }
+
+        /* Pull to refresh indicator */
+        .loading-bar {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #6366f1, #8b5cf6, #6366f1);
+            background-size: 200% 100%;
+            animation: loading-shimmer 1.5s infinite;
+            z-index: 999;
+            transform: scaleX(0);
+            transform-origin: left;
+            transition: transform 0.3s;
+        }
+
+        .loading-bar.ativo { transform: scaleX(1); animation: loading-shimmer 1.5s infinite; }
+
+        @keyframes loading-shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        /* Toast notification */
+        .toast {
+            position: fixed;
+            bottom: 90px;
+            left: 50%;
+            transform: translateX(-50%) translateY(20px);
+            background: rgba(30, 41, 59, 0.95);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 50px;
+            font-size: 12px;
+            font-weight: 600;
+            white-space: nowrap;
+            opacity: 0;
+            transition: all 0.3s;
+            z-index: 200;
+            pointer-events: none;
+        }
+        .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+        /* Modal */
+        #modalPeriodo, #modalSessao, #modalSair {
             display: none;
             position: fixed;
             inset: 0;
-            background: rgba(0, 0, 0, 0.5);
-            backdrop-filter: blur(4px);
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
             z-index: 100;
-            align-items: center;
+            align-items: flex-end;
             justify-content: center;
+        }
+
+        .modal-sheet {
+            background: white;
+            border-radius: 28px 28px 0 0;
+            padding: 8px 24px 36px;
+            width: 100%;
+            max-width: 480px;
+            animation: slideUp 0.3s ease-out;
+        }
+
+        .modal-handle {
+            width: 40px;
+            height: 4px;
+            background: #e2e8f0;
+            border-radius: 4px;
+            margin: 12px auto 20px;
+        }
+
+        /* Ticker de sessão */
+        .session-ticker {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 11px;
+            font-weight: 700;
+            color: #94a3b8;
+        }
+
+        .session-dot {
+            width: 6px;
+            height: 6px;
+            background: #10b981;
+            border-radius: 50%;
+            animation: pulse-dot 2s infinite;
+        }
+
+        .session-dot.warning { background: #f59e0b; }
+        .session-dot.danger { background: #f43f5e; }
+
+        /* Card de conta mobile */
+        .conta-card {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 14px;
+            background: rgba(255,255,255,0.5);
+            border-radius: 16px;
+            border: 1px solid rgba(255,255,255,0.6);
+            margin-bottom: 8px;
+            transition: all 0.2s;
+        }
+
+        .conta-card:active { transform: scale(0.98); }
+
+        /* Filtros mobile scroll horizontal */
+        .filtros-scroll {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            padding-bottom: 4px;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+        .filtros-scroll::-webkit-scrollbar { display: none; }
+
+        .filtro-chip {
+            white-space: nowrap;
+            padding: 6px 14px;
+            border-radius: 50px;
+            font-size: 12px;
+            font-weight: 700;
+            background: white;
+            border: 1px solid #e2e8f0;
+            color: #64748b;
+            cursor: pointer;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+
+        .filtro-chip.ativo { background: #6366f1; color: white; border-color: #6366f1; }
+
+        /* Progresso no saldo */
+        .progress-ring { transform: rotate(-90deg); }
+
+        /* Last updated badge */
+        .updated-badge {
+            font-size: 10px;
+            color: #94a3b8;
+            font-weight: 600;
+        }
+
+        /* Swipe cards */
+        @media (max-width: 768px) {
+            .chart-container { height: 180px; }
+            body { padding-bottom: 80px; }
         }
     </style>
 </head>
-<body class="min-h-screen p-4 md:p-8 text-slate-800">
+<body class="text-slate-800">
 
-    <div id="modalPeriodo">
-        <div class="glass-card p-8 rounded-[32px] w-full max-w-sm shadow-2xl mx-4">
-            <h3 class="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
+    <div id="loadingBar" class="loading-bar"></div>
+    <div id="toastMsg" class="toast"></div>
+
+    <!-- Modal Período -->
+    <div id="modalPeriodo" style="align-items: flex-end;">
+        <div class="modal-sheet">
+            <div class="modal-handle"></div>
+            <h3 class="text-lg font-bold text-slate-800 mb-5 flex items-center gap-2">
                 <i class="fas fa-calendar-alt text-indigo-600"></i> Filtrar Período
             </h3>
             <div class="space-y-4">
                 <div>
                     <label class="text-[10px] font-bold text-slate-400 uppercase ml-1">Data Inicial</label>
-                    <input type="date" id="dataInicio" max="9999-12-31" oninput="if(this.value.length > 10) this.value = this.value.slice(0, 10)" class="w-full bg-white/50 border border-slate-200 p-3 rounded-xl font-bold outline-none focus:border-indigo-500 transition-all">
+                    <input type="date" id="dataInicio" max="9999-12-31"
+                        class="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl font-bold outline-none focus:border-indigo-500 transition-all mt-1">
                 </div>
                 <div>
                     <label class="text-[10px] font-bold text-slate-400 uppercase ml-1">Data Final</label>
-                    <input type="date" id="dataFim" max="9999-12-31" oninput="if(this.value.length > 10) this.value = this.value.slice(0, 10)" class="w-full bg-white/50 border border-slate-200 p-3 rounded-xl font-bold outline-none focus:border-indigo-500 transition-all">
+                    <input type="date" id="dataFim" max="9999-12-31"
+                        class="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl font-bold outline-none focus:border-indigo-500 transition-all mt-1">
                 </div>
-                <div class="flex gap-3 pt-4">
-                    <button onclick="fecharModal()" class="flex-1 py-3 font-bold text-slate-500 hover:bg-slate-100 rounded-xl transition-all">Cancelar</button>
-                    <button onclick="aplicarFiltroPersonalizado()" class="flex-1 py-3 font-bold bg-indigo-600 text-white rounded-xl shadow-lg hover:bg-indigo-700 transition-all">Filtrar</button>
+                <div class="flex gap-3 pt-2">
+                    <button onclick="fecharModal()" class="flex-1 py-3.5 font-bold text-slate-500 bg-slate-100 rounded-xl transition-all active:scale-95">Cancelar</button>
+                    <button onclick="aplicarFiltroPersonalizado()" class="flex-1 py-3.5 font-bold bg-indigo-600 text-white rounded-xl shadow-lg active:scale-95">Filtrar</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="max-w-6xl mx-auto space-y-6">
-        
-        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-                <h1 class="text-3xl font-extrabold tracking-tight">Poppe<span class="text-indigo-600">Fin</span> Dashboard</h1>
-                <p class="text-slate-500 font-medium">Análise financeira inteligente</p>
+    <!-- Modal Aviso Sessão -->
+    <div id="modalSessao" style="align-items: center; justify-content: center;">
+        <div class="glass-card p-8 rounded-[32px] w-full max-w-sm shadow-2xl mx-4">
+            <div class="text-center">
+                <div class="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-clock text-amber-500 text-2xl"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-2">Sessão Expirando</h3>
+                <p class="text-slate-500 text-sm mb-2">Você ficou inativo por 9 minutos.</p>
+                <p class="text-slate-500 text-sm mb-6">Deseja <strong>continuar?</strong></p>
+                <div class="flex gap-3">
+                    <button onclick="sairSistema()" class="flex-1 py-3 font-bold text-slate-500 bg-slate-100 rounded-xl active:scale-95">Sair</button>
+                    <button onclick="renovarSessao()" class="flex-1 py-3 font-bold bg-indigo-600 text-white rounded-xl shadow-lg active:scale-95">Continuar</button>
+                </div>
             </div>
-            <div class="flex flex-wrap items-center gap-3">
-                <div class="flex gap-2 mr-2">
-                    <button onclick="toggleOcultarValores()" id="btnOcultar" class="p-3 bg-white/50 rounded-xl hover:bg-white transition-all">
+        </div>
+    </div>
+
+    <!-- Modal Confirmação Sair -->
+    <div id="modalSair" style="align-items: flex-end; justify-content: center;">
+        <div class="modal-sheet">
+            <div class="modal-handle"></div>
+            <div class="text-center pb-2">
+                <div class="w-14 h-14 bg-rose-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-sign-out-alt text-rose-500 text-xl"></i>
+                </div>
+                <h3 class="text-lg font-bold text-slate-800 mb-1">Sair do Sistema?</h3>
+                <p class="text-slate-400 text-sm mb-6">Você será redirecionado para o login.</p>
+                <div class="flex gap-3">
+                    <button onclick="fecharModalSair()" class="flex-1 py-3.5 font-bold text-slate-500 bg-slate-100 rounded-xl active:scale-95">Cancelar</button>
+                    <button onclick="sairSistema()" class="flex-1 py-3.5 font-bold bg-rose-500 text-white rounded-xl shadow-lg active:scale-95">
+                        <i class="fas fa-sign-out-alt mr-1"></i> Sair
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="max-w-6xl mx-auto p-4 md:p-8 space-y-5">
+
+        <!-- Header -->
+        <div class="slide-up">
+            <div class="flex items-center justify-between mb-1">
+                <div>
+                    <h1 class="text-2xl md:text-3xl font-extrabold tracking-tight">Poppe<span class="text-indigo-600">Fin</span></h1>
+                    <p class="text-slate-500 text-xs font-medium">Análise financeira inteligente</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div class="session-ticker hidden md:flex" id="sessionTicker">
+                        <div class="session-dot" id="sessionDot"></div>
+                        <span id="sessionTime">10:00</span>
+                    </div>
+                    <button onclick="toggleOcultarValores()" id="btnOcultar"
+                        class="w-10 h-10 bg-white/60 rounded-xl flex items-center justify-center shadow-sm active:scale-95">
                         <i class="fas fa-eye text-indigo-600"></i>
                     </button>
-                    <button onclick="window.location.href='extrato.html'" class="px-4 py-2 bg-white/50 border border-indigo-200 text-indigo-700 rounded-xl font-bold text-sm hover:bg-indigo-50 transition-all flex items-center gap-2">
-                        <i class="fas fa-list-ul"></i> Extrato
-                    </button>
-                    <button onclick="window.location.href='lancamento.html'" class="px-4 py-2 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-all flex items-center gap-2">
-                        <i class="fas fa-plus"></i> Lançamento
+                    <button onclick="confirmarSair()"
+                        class="w-10 h-10 bg-rose-50 rounded-xl flex items-center justify-center shadow-sm active:scale-95">
+                        <i class="fas fa-sign-out-alt text-rose-400"></i>
                     </button>
                 </div>
+            </div>
 
-                <div class="flex flex-col">
-                    <label class="text-[10px] font-bold text-slate-400 uppercase ml-2">Conta</label>
-                    <select id="filtroConta" onchange="atualizarDashboard()" class="bg-white/50 border border-white p-2 rounded-xl outline-none shadow-sm min-w-[150px]">
-                        <option value="TODAS">Todas as Contas</option>
-                    </select>
+            <!-- Filtros em chips scrolláveis (mobile-first) -->
+            <div class="glass-card rounded-2xl p-3 mt-3">
+                <div class="flex items-center gap-3 flex-wrap md:flex-nowrap">
+                    <div class="flex flex-col flex-1 min-w-[130px]">
+                        <label class="text-[9px] font-bold text-slate-400 uppercase mb-1 ml-1">Conta</label>
+                        <select id="filtroConta" onchange="atualizarDashboard()"
+                            class="bg-white/80 border border-slate-100 p-2 rounded-xl outline-none text-sm font-semibold text-slate-700 shadow-sm">
+                            <option value="TODAS">Todas as Contas</option>
+                        </select>
+                    </div>
+                    <div class="flex flex-col flex-1 min-w-[120px]">
+                        <label class="text-[9px] font-bold text-slate-400 uppercase mb-1 ml-1">Período</label>
+                        <select id="filtroMes" onchange="checkFiltroMes(this.value)"
+                            class="bg-white/80 border border-slate-100 p-2 rounded-xl outline-none text-sm font-semibold text-slate-700 shadow-sm">
+                            <option value="TODOS">Sempre</option>
+                            <option value="CUSTOM">Personalizado...</option>
+                        </select>
+                    </div>
+                    <div class="flex items-end gap-2">
+                        <button onclick="carregarDados()"
+                            class="w-10 h-10 bg-white/80 border border-slate-100 rounded-xl flex items-center justify-center shadow-sm active:scale-95 flex-shrink-0">
+                            <i class="fas fa-sync-alt text-indigo-500 text-sm" id="iconSync"></i>
+                        </button>
+                        <div class="updated-badge text-right hidden md:block" id="lastUpdated"></div>
+                    </div>
                 </div>
-                <div class="flex flex-col">
-                    <label class="text-[10px] font-bold text-slate-400 uppercase ml-2">Mês/Ano</label>
-                    <select id="filtroMes" onchange="checkFiltroMes(this.value)" class="bg-white/50 border border-white p-2 rounded-xl outline-none shadow-sm min-w-[120px]">
-                        <option value="TODOS">Sempre</option>
-                        <option value="CUSTOM">Pesquisar por período...</option>
-                    </select>
-                </div>
-                <button onclick="carregarDados()" class="p-3 bg-white/50 rounded-xl hover:bg-white transition-all self-end mb-0.5">
-                    <i class="fas fa-sync-alt text-indigo-600"></i>
-                </button>
+                <!-- Last updated mobile -->
+                <div class="updated-badge mt-2 md:hidden text-center" id="lastUpdatedMobile"></div>
             </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div class="glass-card p-6 rounded-[32px] border-l-8 border-indigo-500">
-                <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Saldo Consolidado</p>
-                <h2 id="totalGeral" class="text-3xl font-black">R$ 0,00</h2>
+        <!-- Cards de Saldo -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 slide-up-d1">
+            <div class="glass-card card-saldo p-5 rounded-[28px] border-l-[6px] border-indigo-500 relative overflow-hidden">
+                <div class="absolute top-0 right-0 w-24 h-24 bg-indigo-50 rounded-full -translate-y-8 translate-x-8"></div>
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 relative z-10">Saldo Consolidado</p>
+                <h2 id="totalGeral" class="text-2xl md:text-3xl font-black relative z-10">R$ 0,00</h2>
+                <div class="flex items-center gap-1 mt-2 relative z-10">
+                    <i class="fas fa-wallet text-indigo-400 text-[10px]"></i>
+                    <span class="text-[10px] text-slate-400 font-semibold" id="qtdContas">0 contas</span>
+                </div>
             </div>
-            <div class="glass-card p-6 rounded-[32px] border-l-8 border-emerald-500">
-                <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Rendimentos Totais</p>
-                <h2 id="totalRendimentos" class="text-3xl font-black text-emerald-600">R$ 0,00</h2>
+            <div class="glass-card card-saldo p-5 rounded-[28px] border-l-[6px] border-emerald-500 relative overflow-hidden">
+                <div class="absolute top-0 right-0 w-24 h-24 bg-emerald-50 rounded-full -translate-y-8 translate-x-8"></div>
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 relative z-10">Rendimentos</p>
+                <h2 id="totalRendimentos" class="text-2xl md:text-3xl font-black text-emerald-600 relative z-10">R$ 0,00</h2>
+                <div class="flex items-center gap-1 mt-2 relative z-10">
+                    <i class="fas fa-chart-line text-emerald-400 text-[10px]"></i>
+                    <span class="text-[10px] text-slate-400 font-semibold" id="pctRendimento">0% do total</span>
+                </div>
             </div>
-            <div class="glass-card p-6 rounded-[32px] border-l-8 border-rose-500">
-                <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Saídas no Período</p>
-                <h2 id="totalSaidasPeriodo" class="text-3xl font-black text-rose-600">R$ 0,00</h2>
+            <div class="glass-card card-saldo p-5 rounded-[28px] border-l-[6px] border-rose-500 relative overflow-hidden">
+                <div class="absolute top-0 right-0 w-24 h-24 bg-rose-50 rounded-full -translate-y-8 translate-x-8"></div>
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 relative z-10">Saídas no Período</p>
+                <h2 id="totalSaidasPeriodo" class="text-2xl md:text-3xl font-black text-rose-600 relative z-10">R$ 0,00</h2>
+                <div class="flex items-center gap-1 mt-2 relative z-10">
+                    <i class="fas fa-arrow-trend-up text-rose-400 text-[10px]"></i>
+                    <span class="text-[10px] text-slate-400 font-semibold" id="qtdSaidas">0 transações</span>
+                </div>
             </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div class="glass-card p-6 rounded-[32px]">
-                <h3 class="text-lg font-bold mb-4 italic">Evolução de Patrimônio</h3>
+        <!-- Gráficos -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 slide-up-d2">
+            <div class="glass-card p-5 rounded-[28px]">
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="text-sm font-bold italic text-slate-700">Evolução de Patrimônio</h3>
+                    <span class="text-[10px] text-slate-400 font-semibold" id="periodoGrafico">—</span>
+                </div>
                 <div id="containerEvo" class="chart-container">
                     <canvas id="chartEvolucao"></canvas>
                 </div>
             </div>
-            <div class="glass-card p-6 rounded-[32px]">
-                <h3 class="text-lg font-bold mb-4 italic">Alocação por Conta</h3>
+            <div class="glass-card p-5 rounded-[28px]">
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="text-sm font-bold italic text-slate-700">Alocação por Conta</h3>
+                    <span class="text-[10px] text-slate-400 font-semibold" id="qtdContasGraf">—</span>
+                </div>
                 <div id="containerDist" class="chart-container">
                     <canvas id="chartDistribuicao"></canvas>
                 </div>
             </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div class="glass-card p-6 rounded-[32px]">
-                <h3 class="text-lg font-bold mb-6">Fluxo de Caixa</h3>
-                <div class="space-y-6">
+        <!-- Fluxo de Caixa + Resumo Contas -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 slide-up-d3">
+            <div class="glass-card p-5 rounded-[28px]">
+                <h3 class="text-sm font-bold text-slate-700 mb-4">Fluxo de Caixa</h3>
+                <div class="space-y-4">
                     <div class="flex justify-between items-end">
                         <div>
-                            <p class="text-xs font-bold text-slate-400 uppercase">Entradas</p>
-                            <p id="totalEntradas" class="text-xl font-bold text-indigo-600">R$ 0,00</p>
+                            <p class="text-[10px] font-bold text-slate-400 uppercase">Entradas</p>
+                            <p id="totalEntradas" class="text-lg font-bold text-indigo-600">R$ 0,00</p>
                         </div>
                         <div class="text-right">
-                            <p class="text-xs font-bold text-slate-400 uppercase">Saídas</p>
-                            <p id="totalSaidas" class="text-xl font-bold text-rose-500">R$ 0,00</p>
+                            <p class="text-[10px] font-bold text-slate-400 uppercase">Saídas</p>
+                            <p id="totalSaidas" class="text-lg font-bold text-rose-500">R$ 0,00</p>
                         </div>
                     </div>
-                    <div class="w-full bg-slate-200 h-3 rounded-full overflow-hidden flex">
-                        <div id="barEntrada" class="bg-indigo-500 h-full transition-all duration-1000" style="width: 0%"></div>
-                        <div id="barSaida" class="bg-rose-500 h-full transition-all duration-1000" style="width: 0%"></div>
+
+                    <!-- Barra de fluxo -->
+                    <div class="w-full bg-slate-100 h-3 rounded-full overflow-hidden flex gap-0.5">
+                        <div id="barEntrada" class="bg-indigo-500 h-full transition-all duration-1000 rounded-full" style="width: 0%"></div>
+                        <div id="barSaida" class="bg-rose-500 h-full transition-all duration-1000 rounded-full" style="width: 0%"></div>
+                    </div>
+
+                    <!-- Saldo líquido -->
+                    <div class="bg-slate-50 rounded-2xl p-3 flex justify-between items-center border border-slate-100">
+                        <span class="text-[11px] font-bold text-slate-400 uppercase">Saldo Líquido</span>
+                        <span id="saldoLiquido" class="font-black text-slate-800">R$ 0,00</span>
+                    </div>
+
+                    <!-- Stats rápidas -->
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="bg-emerald-50 rounded-xl p-3 border border-emerald-100">
+                            <p class="text-[9px] font-bold text-emerald-600 uppercase mb-1">Média Entradas</p>
+                            <p id="mediaEntradas" class="text-sm font-black text-emerald-700">R$ 0,00</p>
+                        </div>
+                        <div class="bg-rose-50 rounded-xl p-3 border border-rose-100">
+                            <p class="text-[9px] font-bold text-rose-600 uppercase mb-1">Média Saídas</p>
+                            <p id="mediaSaidas" class="text-sm font-black text-rose-700">R$ 0,00</p>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <div class="glass-card p-6 rounded-[32px]">
-                <h3 class="text-lg font-bold mb-4">Resumo das Contas</h3>
-                <div id="listaContas" class="space-y-2"></div>
+            <div class="glass-card p-5 rounded-[28px]">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-sm font-bold text-slate-700">Resumo das Contas</h3>
+                    <span class="text-[10px] text-slate-400 font-semibold" id="totalContasLabel">—</span>
+                </div>
+                <div id="listaContas" class="space-y-2 max-h-64 overflow-y-auto pr-1"></div>
             </div>
         </div>
+
+        <!-- Atalhos rápidos mobile (apenas visual no desktop) -->
+        <div class="glass-card p-5 rounded-[28px] slide-up">
+            <h3 class="text-sm font-bold text-slate-700 mb-3">Atalhos Rápidos</h3>
+            <div class="grid grid-cols-3 gap-3">
+                <button onclick="window.location.href='extrato.html'"
+                    class="flex flex-col items-center gap-2 bg-indigo-50 border border-indigo-100 p-4 rounded-2xl active:scale-95 transition-all">
+                    <div class="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center">
+                        <i class="fas fa-list-ul text-white text-sm"></i>
+                    </div>
+                    <span class="text-[11px] font-bold text-indigo-700">Extrato</span>
+                </button>
+                <button onclick="window.location.href='lancamento.html'"
+                    class="flex flex-col items-center gap-2 bg-emerald-50 border border-emerald-100 p-4 rounded-2xl active:scale-95 transition-all">
+                    <div class="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center">
+                        <i class="fas fa-plus text-white text-sm"></i>
+                    </div>
+                    <span class="text-[11px] font-bold text-emerald-700">Lançamento</span>
+                </button>
+                <button onclick="carregarDados()"
+                    class="flex flex-col items-center gap-2 bg-slate-50 border border-slate-100 p-4 rounded-2xl active:scale-95 transition-all">
+                    <div class="w-10 h-10 bg-slate-700 rounded-xl flex items-center justify-center">
+                        <i class="fas fa-sync-alt text-white text-sm"></i>
+                    </div>
+                    <span class="text-[11px] font-bold text-slate-600">Atualizar</span>
+                </button>
+            </div>
+        </div>
+
     </div>
 
+    <!-- Bottom Nav (Mobile) -->
+    <nav class="bottom-nav md:hidden">
+        <div class="flex items-center justify-around px-4">
+            <button class="flex flex-col items-center gap-1 py-1 text-indigo-600">
+                <i class="fas fa-chart-pie text-lg"></i>
+                <span class="text-[9px] font-bold uppercase">Dashboard</span>
+            </button>
+            <button onclick="window.location.href='extrato.html'" class="flex flex-col items-center gap-1 py-1 text-slate-400">
+                <i class="fas fa-list-ul text-lg"></i>
+                <span class="text-[9px] font-bold uppercase">Extrato</span>
+            </button>
+            <button onclick="window.location.href='lancamento.html'"
+                class="flex flex-col items-center gap-1 py-1 -mt-6">
+                <div class="w-14 h-14 bg-indigo-600 rounded-full flex items-center justify-center shadow-lg shadow-indigo-300">
+                    <i class="fas fa-plus text-white text-xl"></i>
+                </div>
+            </button>
+            <button onclick="toggleOcultarValores()" class="flex flex-col items-center gap-1 py-1 text-slate-400">
+                <i class="fas fa-eye text-lg" id="btnOcultarNavIcon"></i>
+                <span class="text-[9px] font-bold uppercase">Ocultar</span>
+            </button>
+            <button onclick="confirmarSair()" class="flex flex-col items-center gap-1 py-1 text-rose-400">
+                <i class="fas fa-sign-out-alt text-lg"></i>
+                <span class="text-[9px] font-bold uppercase">Sair</span>
+            </button>
+        </div>
+    </nav>
+
     <script>
-        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxoapiR4Mtjic8yLSjCcZ4I1dsClIMyV6ReaPmzYmNxKa4wUpEEAKUGBnDmc_XAqxZ1Bw/exec';
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwaHIkfiTaGZLwlPf03VqXywG9FNIBV_wRC1-dN9iyzlEgv55Ja2pS4ZCRYGg2H4U2Q/exec';
+
+        // =============================================
+        // SESSÃO - 10 minutos de inatividade
+        // =============================================
+        const TIMEOUT_MS = 10 * 60 * 1000;
+        const WARNING_MS = 9 * 60 * 1000;
+        let sessionTimer, warningTimer, countdownInterval;
+        let sessionRemaining = TIMEOUT_MS;
+
+        function iniciarSessao() {
+            clearTimeout(sessionTimer);
+            clearTimeout(warningTimer);
+            clearInterval(countdownInterval);
+
+            sessionRemaining = TIMEOUT_MS;
+            atualizarTickerSessao();
+
+            countdownInterval = setInterval(() => {
+                sessionRemaining -= 1000;
+                if (sessionRemaining <= 0) {
+                    clearInterval(countdownInterval);
+                    sairSistema();
+                } else {
+                    atualizarTickerSessao();
+                }
+            }, 1000);
+
+            warningTimer = setTimeout(() => {
+                document.getElementById('modalSessao').style.display = 'flex';
+            }, WARNING_MS);
+
+            sessionTimer = setTimeout(() => {
+                sairSistema();
+            }, TIMEOUT_MS);
+        }
+
+        function atualizarTickerSessao() {
+            const mins = Math.floor(sessionRemaining / 60000);
+            const secs = Math.floor((sessionRemaining % 60000) / 1000);
+            const str = `${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}`;
+            const el = document.getElementById('sessionTime');
+            const dot = document.getElementById('sessionDot');
+            if (el) el.textContent = str;
+            if (dot) {
+                dot.className = 'session-dot';
+                if (sessionRemaining < 60000) dot.classList.add('danger');
+                else if (sessionRemaining < 180000) dot.classList.add('warning');
+            }
+        }
+
+        function renovarSessao() {
+            document.getElementById('modalSessao').style.display = 'none';
+            iniciarSessao();
+            mostrarToast('Sessão renovada ✓');
+        }
+
+        function sairSistema() {
+            sessionStorage.clear();
+            window.location.href = 'index.html';
+        }
+
+        function confirmarSair() {
+            document.getElementById('modalSair').style.display = 'flex';
+        }
+
+        function fecharModalSair() {
+            document.getElementById('modalSair').style.display = 'none';
+        }
+
+        // Eventos de interação para reiniciar sessão
+        ['touchstart', 'click', 'keydown', 'scroll'].forEach(ev => {
+            document.addEventListener(ev, iniciarSessao, { passive: true });
+        });
+
+        // =============================================
+        // PERSISTÊNCIA - Salva estado no sessionStorage
+        // =============================================
+        function salvarEstado() {
+            const estado = {
+                filtroConta: document.getElementById('filtroConta').value,
+                filtroMes: document.getElementById('filtroMes').value,
+                dataInicio: document.getElementById('dataInicio')?.value,
+                dataFim: document.getElementById('dataFim')?.value,
+                valoresOcultos: valoresOcultos
+            };
+            sessionStorage.setItem('dashEstado', JSON.stringify(estado));
+        }
+
+        function restaurarEstado() {
+            const saved = sessionStorage.getItem('dashEstado');
+            if (!saved) return;
+            const estado = JSON.parse(saved);
+            valoresOcultos = estado.valoresOcultos || false;
+            if (valoresOcultos) {
+                document.getElementById('btnOcultar').innerHTML = '<i class="fas fa-eye-slash text-slate-400"></i>';
+                const navIcon = document.getElementById('btnOcultarNavIcon');
+                if (navIcon) { navIcon.className = 'fas fa-eye-slash text-lg'; }
+            }
+            return estado;
+        }
+
+        // =============================================
+        // TOAST
+        // =============================================
+        function mostrarToast(msg) {
+            const t = document.getElementById('toastMsg');
+            t.textContent = msg;
+            t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), 2500);
+        }
+
+        // =============================================
+        // DADOS E DASHBOARD
+        // =============================================
         let dadosRaw = [];
-        let mapaNomesContas = {}; 
-        let infoContas = {}; 
+        let mapaNomesContas = {};
+        let infoContas = {};
         let chartEvolucao = null;
         let chartDistribuicao = null;
-        
         let valoresOcultos = false;
         const PALETA_CORES = ['#6366f1', '#10b981', '#f43f5e', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316'];
         let mapaCoresContas = {};
@@ -162,19 +643,18 @@
         function toggleOcultarValores() {
             valoresOcultos = !valoresOcultos;
             const btn = document.getElementById('btnOcultar');
+            const navIcon = document.getElementById('btnOcultarNavIcon');
             const cEvo = document.getElementById('containerEvo');
             const cDist = document.getElementById('containerDist');
-            
-            btn.innerHTML = valoresOcultos ? '<i class="fas fa-eye-slash text-slate-400"></i>' : '<i class="fas fa-eye text-indigo-600"></i>';
-            
-            if(valoresOcultos) {
-                cEvo.classList.add('oculto');
-                cDist.classList.add('oculto');
-            } else {
-                cEvo.classList.remove('oculto');
-                cDist.classList.remove('oculto');
-            }
+            btn.innerHTML = valoresOcultos
+                ? '<i class="fas fa-eye-slash text-slate-400"></i>'
+                : '<i class="fas fa-eye text-indigo-600"></i>';
+            if (navIcon) navIcon.className = valoresOcultos ? 'fas fa-eye-slash text-lg' : 'fas fa-eye text-lg';
+            if (valoresOcultos) { cEvo.classList.add('oculto'); cDist.classList.add('oculto'); }
+            else { cEvo.classList.remove('oculto'); cDist.classList.remove('oculto'); }
             atualizarDashboard();
+            salvarEstado();
+            mostrarToast(valoresOcultos ? 'Valores ocultados' : 'Valores visíveis');
         }
 
         function checkFiltroMes(val) {
@@ -182,6 +662,7 @@
                 document.getElementById('modalPeriodo').style.display = 'flex';
             } else {
                 atualizarDashboard();
+                salvarEstado();
             }
         }
 
@@ -191,30 +672,73 @@
         }
 
         function aplicarFiltroPersonalizado() {
-            if (!document.getElementById('dataInicio').value || !document.getElementById('dataFim').value) return alert("Selecione as datas");
+            if (!document.getElementById('dataInicio').value || !document.getElementById('dataFim').value)
+                return mostrarToast('Selecione as datas');
             document.getElementById('modalPeriodo').style.display = 'none';
             atualizarDashboard();
+            salvarEstado();
         }
 
         async function carregarDados() {
+            const icon = document.getElementById('iconSync');
+            const lb = document.getElementById('loadingBar');
+            icon.classList.add('animate-spin');
+            lb.classList.add('ativo');
+
             try {
                 const response = await fetch(`${SCRIPT_URL}?action=getDashboard&t=${Date.now()}`);
                 dadosRaw = await response.json();
+                sessionStorage.setItem('dashData', JSON.stringify(dadosRaw));
+
                 popularFiltros();
+
+                // Restaurar estado após popular filtros
+                const estado = restaurarEstado();
+                if (estado) {
+                    const selConta = document.getElementById('filtroConta');
+                    const selMes = document.getElementById('filtroMes');
+                    if ([...selConta.options].some(o => o.value === estado.filtroConta))
+                        selConta.value = estado.filtroConta;
+                    if ([...selMes.options].some(o => o.value === estado.filtroMes))
+                        selMes.value = estado.filtroMes;
+                    if (estado.dataInicio) document.getElementById('dataInicio').value = estado.dataInicio;
+                    if (estado.dataFim) document.getElementById('dataFim').value = estado.dataFim;
+                }
+
                 atualizarDashboard();
-            } catch (e) { console.error(e); }
+
+                const now = new Date().toLocaleTimeString('pt-br', { hour: '2-digit', minute: '2-digit' });
+                const badge = `<i class="fas fa-check-circle text-emerald-400 mr-1"></i>Sync ${now}`;
+                document.getElementById('lastUpdated').innerHTML = badge;
+                document.getElementById('lastUpdatedMobile').innerHTML = badge;
+                mostrarToast('Dados atualizados ✓');
+            } catch (e) {
+                mostrarToast('Erro ao carregar dados');
+                console.error(e);
+                // Tenta usar cache
+                const cached = sessionStorage.getItem('dashData');
+                if (cached) {
+                    dadosRaw = JSON.parse(cached);
+                    popularFiltros();
+                    atualizarDashboard();
+                }
+            } finally {
+                icon.classList.remove('animate-spin');
+                lb.classList.remove('ativo');
+            }
         }
 
         function popularFiltros() {
             const selectConta = document.getElementById('filtroConta');
             const selectMes = document.getElementById('filtroMes');
             mapaNomesContas = {};
-            
+            mapaCoresContas = {};
+
             dadosRaw.forEach(d => {
                 const id = String(d['ID Conta']);
                 if (!mapaNomesContas[id]) {
                     mapaNomesContas[id] = `${d['Banco']} - ${d['Descrição']}`;
-                    if(!mapaCoresContas[d['Banco']]) {
+                    if (!mapaCoresContas[d['Banco']]) {
                         mapaCoresContas[d['Banco']] = PALETA_CORES[Object.keys(mapaCoresContas).length % PALETA_CORES.length];
                     }
                 }
@@ -223,16 +747,21 @@
             const meses = [...new Set(dadosRaw.map(d => {
                 const dt = new Date(d['Data']);
                 return `${dt.getMonth() + 1}/${dt.getFullYear()}`;
-            }))];
+            }))].sort((a, b) => {
+                const [ma, ya] = a.split('/'); const [mb, yb] = b.split('/');
+                return new Date(ya, ma - 1) - new Date(yb, mb - 1);
+            });
 
             selectConta.innerHTML = '<option value="TODAS">Todas as Contas</option>';
-            Object.keys(mapaNomesContas).forEach(id => selectConta.innerHTML += `<option value="${id}">${mapaNomesContas[id]}</option>`);
-            selectMes.innerHTML = '<option value="TODOS">Sempre</option><option value="CUSTOM">Pesquisar por período...</option>';
+            Object.keys(mapaNomesContas).forEach(id =>
+                selectConta.innerHTML += `<option value="${id}">${mapaNomesContas[id]}</option>`);
+
+            selectMes.innerHTML = '<option value="TODOS">Sempre</option><option value="CUSTOM">Personalizado...</option>';
             meses.forEach(m => selectMes.innerHTML += `<option value="${m}">${m}</option>`);
         }
 
         function formatar(v) {
-            if (valoresOcultos) return 'R$ ******';
+            if (valoresOcultos) return 'R$ ••••';
             return v.toLocaleString('pt-br', { style: 'currency', currency: 'BRL' });
         }
 
@@ -244,16 +773,13 @@
                 const dt = new Date(d['Data']);
                 const mY = `${dt.getMonth() + 1}/${dt.getFullYear()}`;
                 const matchConta = (fConta === 'TODAS' || String(d['ID Conta']) === fConta);
-                
                 let matchMes = false;
                 if (fMes === 'TODOS') matchMes = true;
                 else if (fMes === 'CUSTOM') {
                     const dIni = new Date(document.getElementById('dataInicio').value + "T00:00:00");
                     const dFim = new Date(document.getElementById('dataFim').value + "T23:59:59");
                     matchMes = dt >= dIni && dt <= dFim;
-                } else {
-                    matchMes = mY === fMes;
-                }
+                } else { matchMes = mY === fMes; }
                 return matchConta && matchMes;
             });
 
@@ -265,7 +791,6 @@
                     const dFim = new Date(document.getElementById('dataFim').value + "T23:59:59");
                     matchData = dt <= dFim;
                 } else if (fMes !== 'TODOS') {
-                    // Para meses específicos, o saldo reflete o final daquele mês
                     const [m, y] = fMes.split('/');
                     const dFimMes = new Date(y, m, 0, 23, 59, 59);
                     matchData = dt <= dFimMes;
@@ -273,14 +798,15 @@
                 return matchConta && matchData;
             });
 
-            let entradas = 0, rendimentos = 0, saidas = 0;
+            let entradas = 0, rendimentos = 0, saidas = 0, qtdSaidas = 0;
             let resumoContas = {};
             let rendasContas = {};
 
             dadosFiltradosPeriodo.forEach(d => {
                 const vA = parseFloat(d['Valor Aporte']) || 0;
                 const vR = parseFloat(d['Valor Rendimento']) || 0;
-                if (d['Tipo'] === 'Entrada') entradas += vA; else saidas += vA;
+                if (d['Tipo'] === 'Entrada') entradas += vA;
+                else { saidas += vA; qtdSaidas++; }
                 rendimentos += vR;
             });
 
@@ -290,39 +816,72 @@
                 const vR = parseFloat(d['Valor Rendimento']) || 0;
                 infoContas[id] = { banco: d['Banco'], desc: d['Descrição'] };
                 resumoContas[id] = (resumoContas[id] || 0) + (d['Tipo'] === 'Entrada' ? vA : -vA) + vR;
-                
-                const dt = new Date(d['Data']);
-                if (fMes === 'CUSTOM') {
-                    const dIni = new Date(document.getElementById('dataInicio').value + "T00:00:00");
-                    const dFim = new Date(document.getElementById('dataFim').value + "T23:59:59");
-                    if(dt >= dIni && dt <= dFim) rendasContas[id] = (rendasContas[id] || 0) + vR;
-                } else {
-                    rendasContas[id] = (rendasContas[id] || 0) + vR;
-                }
+                rendasContas[id] = (rendasContas[id] || 0) + vR;
             });
 
             const saldoFinal = Object.values(resumoContas).reduce((a, b) => a + b, 0);
+            const qtdContasAtivas = Object.keys(resumoContas).length;
+            const pctRend = saldoFinal > 0 ? ((rendimentos / saldoFinal) * 100).toFixed(1) : 0;
+
+            // Médias
+            const mesesUnicos = [...new Set(dadosFiltradosPeriodo.map(d => {
+                const dt = new Date(d['Data']);
+                return `${dt.getMonth()}/${dt.getFullYear()}`;
+            }))].length || 1;
 
             document.getElementById('totalGeral').innerText = formatar(saldoFinal);
             document.getElementById('totalRendimentos').innerText = formatar(rendimentos);
             document.getElementById('totalSaidasPeriodo').innerText = formatar(saidas);
             document.getElementById('totalEntradas').innerText = formatar(entradas);
             document.getElementById('totalSaidas').innerText = formatar(saidas);
+            document.getElementById('saldoLiquido').innerText = formatar(entradas - saidas + rendimentos);
+            document.getElementById('qtdContas').innerText = `${qtdContasAtivas} conta${qtdContasAtivas !== 1 ? 's' : ''}`;
+            document.getElementById('pctRendimento').innerText = `${pctRend}% do saldo`;
+            document.getElementById('qtdSaidas').innerText = `${qtdSaidas} transação${qtdSaidas !== 1 ? 'ões' : ''}`;
+            document.getElementById('totalContasLabel').innerText = `${qtdContasAtivas} conta${qtdContasAtivas !== 1 ? 's' : ''}`;
+            document.getElementById('mediaEntradas').innerText = formatar(entradas / mesesUnicos);
+            document.getElementById('mediaSaidas').innerText = formatar(saidas / mesesUnicos);
 
             const totalF = entradas + saidas;
-            document.getElementById('barEntrada').style.width = totalF > 0 ? `${(entradas/totalF)*100}%` : '0%';
-            document.getElementById('barSaida').style.width = totalF > 0 ? `${(saidas/totalF)*100}%` : '0%';
+            document.getElementById('barEntrada').style.width = totalF > 0 ? `${(entradas / totalF) * 100}%` : '0%';
+            document.getElementById('barSaida').style.width = totalF > 0 ? `${(saidas / totalF) * 100}%` : '0%';
 
+            // Lista de contas
             const lista = document.getElementById('listaContas');
             lista.innerHTML = '';
-            Object.entries(resumoContas).sort((a,b) => b[1] - a[1]).forEach(([id, val]) => {
-                lista.innerHTML += `<div class="flex justify-between items-center p-3 bg-white/40 rounded-xl border border-white/50 mb-2">
-                    <div class="flex flex-col"><span class="text-[10px] font-black text-indigo-500 uppercase">${infoContas[id].banco}</span><span class="text-sm font-bold text-slate-700">${infoContas[id].desc}</span></div>
-                    <div class="text-right"><span class="text-sm font-black ${val >= 0 ? 'text-emerald-600' : 'text-rose-500'}">${formatar(val)}</span>
-                    <span class="text-[11px] font-bold text-emerald-500 block">(${formatar(rendasContas[id] || 0)})</span></div></div>`;
+            Object.entries(resumoContas).sort((a, b) => b[1] - a[1]).forEach(([id, val]) => {
+                const rend = rendasContas[id] || 0;
+                const cor = mapaCoresContas[infoContas[id]?.banco] || '#6366f1';
+                lista.innerHTML += `
+                <div class="conta-card">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-xl flex items-center justify-center text-white text-[10px] font-black flex-shrink-0"
+                            style="background:${cor}">
+                            ${infoContas[id]?.banco?.charAt(0) || '?'}
+                        </div>
+                        <div>
+                            <span class="text-[10px] font-black uppercase" style="color:${cor}">${infoContas[id]?.banco}</span>
+                            <p class="text-sm font-bold text-slate-700 leading-tight">${infoContas[id]?.desc}</p>
+                            <span class="text-[10px] text-emerald-500 font-bold">+${formatar(rend)}</span>
+                        </div>
+                    </div>
+                    <div class="text-right flex-shrink-0">
+                        <p class="font-black text-sm ${val >= 0 ? 'text-slate-800' : 'text-rose-500'}">${formatar(val)}</p>
+                        <span class="text-[9px] text-slate-400">${val >= 0 ? '▲' : '▼'} ${((Math.abs(val) / Math.max(Math.abs(saldoFinal), 1)) * 100).toFixed(0)}%</span>
+                    </div>
+                </div>`;
             });
 
+            // Período gráfico
+            if (fMes !== 'TODOS' && fMes !== 'CUSTOM') {
+                document.getElementById('periodoGrafico').textContent = fMes;
+            } else {
+                document.getElementById('periodoGrafico').textContent = `${dadosAteHoje.length} registros`;
+            }
+            document.getElementById('qtdContasGraf').textContent = `${qtdContasAtivas} ativos`;
+
             renderizarGraficos(dadosAteHoje, resumoContas);
+            salvarEstado();
         }
 
         function renderizarGraficos(dados, resumo) {
@@ -335,10 +894,25 @@
             chartDistribuicao = new Chart(document.getElementById('chartDistribuicao'), {
                 type: 'doughnut',
                 data: {
-                    labels: labelsDist.map(id => mapaNomesContas[id]),
-                    datasets: [{ data: Object.values(resumo), backgroundColor: coresDist, borderWidth: 0 }]
+                    labels: labelsDist.map(id => mapaNomesContas[id] || id),
+                    datasets: [{
+                        data: Object.values(resumo).map(v => Math.max(v, 0)),
+                        backgroundColor: coresDist,
+                        borderWidth: 3,
+                        borderColor: 'rgba(255,255,255,0.8)'
+                    }]
                 },
-                options: { maintainAspectRatio: false, plugins: { legend: { display: !valoresOcultos, position: 'bottom', labels: { boxWidth: 12, font: { size: 10 } } } } }
+                options: {
+                    maintainAspectRatio: false,
+                    cutout: '65%',
+                    plugins: {
+                        legend: {
+                            display: !valoresOcultos,
+                            position: 'bottom',
+                            labels: { boxWidth: 10, font: { size: 9, weight: '700' }, padding: 8 }
+                        }
+                    }
+                }
             });
 
             const datas = [...new Set(dados.map(d => d['Data'].split('T')[0]))].sort();
@@ -353,13 +927,32 @@
             chartEvolucao = new Chart(document.getElementById('chartEvolucao'), {
                 type: 'line',
                 data: {
-                    labels: datas.map(d => d.split('-').reverse().slice(0,2).join('/')),
-                    datasets: [{ label: 'Saldo R$', data: pontos, borderColor: '#6366f1', backgroundColor: 'rgba(99, 102, 241, 0.1)', fill: true, tension: 0.4 }]
+                    labels: datas.map(d => d.split('-').reverse().slice(0, 2).join('/')),
+                    datasets: [{
+                        label: 'Saldo',
+                        data: pontos,
+                        borderColor: '#6366f1',
+                        backgroundColor: 'rgba(99,102,241,0.08)',
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 3,
+                        pointBackgroundColor: '#6366f1',
+                        borderWidth: 2
+                    }]
                 },
-                options: { maintainAspectRatio: false, plugins: { legend: { display: false } } }
+                options: {
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { ticks: { font: { size: 9 }, maxTicksLimit: 6 }, grid: { display: false } },
+                        y: { ticks: { font: { size: 9 }, callback: v => 'R$' + (v / 1000).toFixed(0) + 'k' }, grid: { color: 'rgba(0,0,0,0.04)' } }
+                    }
+                }
             });
         }
 
+        // Inicializar
+        iniciarSessao();
         carregarDados();
     </script>
 </body>
