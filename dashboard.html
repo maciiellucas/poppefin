@@ -489,28 +489,29 @@
 
     <!-- Bottom Nav (Mobile) -->
     <nav class="bottom-nav md:hidden">
-        <div class="flex items-center justify-around px-4">
-            <button class="flex flex-col items-center gap-1 py-1 text-indigo-600">
+        <div class="relative flex items-center justify-around px-2 h-16">
+            <button class="flex flex-col items-center gap-1 text-indigo-600 flex-1 py-2">
                 <i class="fas fa-chart-pie text-lg"></i>
-                <span class="text-[9px] font-bold uppercase">Dashboard</span>
+                <span class="text-[9px] font-bold uppercase tracking-wide">Dashboard</span>
             </button>
-            <button onclick="window.location.href='extrato.html'" class="flex flex-col items-center gap-1 py-1 text-slate-400">
+            <button onclick="window.location.href='extrato.html'" class="flex flex-col items-center gap-1 text-slate-400 flex-1 py-2">
                 <i class="fas fa-list-ul text-lg"></i>
-                <span class="text-[9px] font-bold uppercase">Extrato</span>
+                <span class="text-[9px] font-bold uppercase tracking-wide">Extrato</span>
             </button>
-            <button onclick="window.location.href='lancamento.html'"
-                class="flex flex-col items-center gap-1 py-1 -mt-6">
-                <div class="w-14 h-14 bg-indigo-600 rounded-full flex items-center justify-center shadow-lg shadow-indigo-300">
+            <div class="flex-1 flex items-center justify-center">
+                <button onclick="window.location.href='lancamento.html'"
+                    class="absolute w-14 h-14 bg-indigo-600 rounded-full flex items-center justify-center shadow-lg shadow-indigo-300 hover:bg-indigo-700 active:scale-95 transition-all"
+                    style="bottom: 20px;">
                     <i class="fas fa-plus text-white text-xl"></i>
-                </div>
-            </button>
-            <button onclick="toggleOcultarValores()" class="flex flex-col items-center gap-1 py-1 text-slate-400">
+                </button>
+            </div>
+            <button onclick="toggleOcultarValores()" class="flex flex-col items-center gap-1 text-slate-400 flex-1 py-2">
                 <i class="fas fa-eye text-lg" id="btnOcultarNavIcon"></i>
-                <span class="text-[9px] font-bold uppercase">Ocultar</span>
+                <span class="text-[9px] font-bold uppercase tracking-wide">Ocultar</span>
             </button>
-            <button onclick="confirmarSair()" class="flex flex-col items-center gap-1 py-1 text-rose-400">
+            <button onclick="confirmarSair()" class="flex flex-col items-center gap-1 text-rose-400 flex-1 py-2">
                 <i class="fas fa-sign-out-alt text-lg"></i>
-                <span class="text-[9px] font-bold uppercase">Sair</span>
+                <span class="text-[9px] font-bold uppercase tracking-wide">Sair</span>
             </button>
         </div>
     </nav>
