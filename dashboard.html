@@ -327,10 +327,11 @@
                 <div class="flex items-center gap-3 flex-wrap md:flex-nowrap">
                     <div class="flex flex-col flex-1 min-w-[130px]">
                         <label class="text-[9px] font-bold text-slate-400 uppercase mb-1 ml-1">Conta</label>
-                        <select id="filtroConta" onchange="atualizarDashboard()"
-                            class="bg-white/80 border border-slate-100 p-2 rounded-xl outline-none text-sm font-semibold text-slate-700 shadow-sm">
-                            <option value="TODAS">Todas as Contas</option>
-                        </select>
+                        <button id="btnFiltroConta" onclick="toggleDropdownContas(event)"
+                            class="bg-white/80 border border-slate-100 p-2 rounded-xl outline-none text-sm font-semibold text-slate-700 shadow-sm text-left flex items-center justify-between gap-1 w-full">
+                            <span id="labelFiltroConta" class="truncate">Todas as Contas</span>
+                            <i class="fas fa-chevron-down text-slate-400 text-[10px] flex-shrink-0"></i>
+                        </button>
                     </div>
                     <div class="flex flex-col flex-1 min-w-[120px]">
                         <label class="text-[9px] font-bold text-slate-400 uppercase mb-1 ml-1">Período</label>
@@ -368,9 +369,14 @@
                 <div class="absolute top-0 right-0 w-24 h-24 bg-emerald-50 rounded-full -translate-y-8 translate-x-8"></div>
                 <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 relative z-10">Rendimentos</p>
                 <h2 id="totalRendimentos" class="text-2xl md:text-3xl font-black text-emerald-600 relative z-10">R$ 0,00</h2>
-                <div class="flex items-center gap-1 mt-2 relative z-10">
-                    <i class="fas fa-chart-line text-emerald-400 text-[10px]"></i>
-                    <span class="text-[10px] text-slate-400 font-semibold" id="pctRendimento">0% do total</span>
+                <div class="flex items-center justify-between mt-2 relative z-10">
+                    <div class="flex items-center gap-1">
+                        <i class="fas fa-chart-line text-emerald-400 text-[10px]"></i>
+                        <span class="text-[10px] text-slate-400 font-semibold" id="pctRendimento">0% do saldo</span>
+                    </div>
+                    <span id="pctCdiCard" class="hidden text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200">
+                        <span id="pctCdiCardText">—</span>
+                    </span>
                 </div>
             </div>
             <div class="glass-card card-saldo p-5 rounded-[28px] border-l-[6px] border-rose-500 relative overflow-hidden">
@@ -389,7 +395,12 @@
             <div class="glass-card p-5 rounded-[28px]">
                 <div class="flex items-center justify-between mb-3">
                     <h3 class="text-sm font-bold italic text-slate-700">Evolução de Patrimônio</h3>
-                    <span class="text-[10px] text-slate-400 font-semibold" id="periodoGrafico">—</span>
+                    <div class="flex items-center gap-2">
+                        <span id="cdiBadge" class="text-[10px] bg-amber-50 border border-amber-200 text-amber-700 font-bold px-2 py-0.5 rounded-full hidden">
+                            <span id="cdiBadgeText">CDI —</span>
+                        </span>
+                        <span class="text-[10px] text-slate-400 font-semibold" id="periodoGrafico">—</span>
+                    </div>
                 </div>
                 <div id="containerEvo" class="chart-container">
                     <canvas id="chartEvolucao"></canvas>
@@ -597,7 +608,7 @@
         // =============================================
         function salvarEstado() {
             const estado = {
-                filtroConta: document.getElementById('filtroConta').value,
+                filtroContas: getContasSelecionadas(),
                 filtroMes: document.getElementById('filtroMes').value,
                 dataInicio: document.getElementById('dataInicio')?.value,
                 dataFim: document.getElementById('dataFim')?.value,
@@ -696,10 +707,10 @@
                 // Restaurar estado após popular filtros
                 const estado = restaurarEstado();
                 if (estado) {
-                    const selConta = document.getElementById('filtroConta');
+                    if (estado.filtroContas) {
+                        setContasSelecionadas(estado.filtroContas);
+                    }
                     const selMes = document.getElementById('filtroMes');
-                    if ([...selConta.options].some(o => o.value === estado.filtroConta))
-                        selConta.value = estado.filtroConta;
                     if ([...selMes.options].some(o => o.value === estado.filtroMes))
                         selMes.value = estado.filtroMes;
                     if (estado.dataInicio) document.getElementById('dataInicio').value = estado.dataInicio;
@@ -730,7 +741,7 @@
         }
 
         function popularFiltros() {
-            const selectConta = document.getElementById('filtroConta');
+            const listaCheck = document.getElementById('listaCheckContas');
             const selectMes = document.getElementById('filtroMes');
             mapaNomesContas = {};
             mapaCoresContas = {};
@@ -753,12 +764,120 @@
                 return new Date(ya, ma - 1) - new Date(yb, mb - 1);
             });
 
-            selectConta.innerHTML = '<option value="TODAS">Todas as Contas</option>';
-            Object.keys(mapaNomesContas).forEach(id =>
-                selectConta.innerHTML += `<option value="${id}">${mapaNomesContas[id]}</option>`);
+            // Build checkboxes for each account
+            listaCheck.innerHTML = '';
+            Object.keys(mapaNomesContas).forEach(id => {
+                const cor = mapaCoresContas[dadosRaw.find(d => String(d['ID Conta']) === id)?.['Banco']] || '#6366f1';
+                listaCheck.innerHTML += `
+                <label class="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-slate-50 cursor-pointer">
+                    <input type="checkbox" class="check-conta w-3.5 h-3.5 accent-indigo-600 cursor-pointer" value="${id}" checked
+                        onchange="onCheckContaChange()">
+                    <span class="w-2 h-2 rounded-full flex-shrink-0" style="background:${cor}"></span>
+                    <span class="text-xs font-semibold text-slate-700 leading-tight">${mapaNomesContas[id]}</span>
+                </label>`;
+            });
 
             selectMes.innerHTML = '<option value="TODOS">Sempre</option><option value="CUSTOM">Personalizado...</option>';
             meses.forEach(m => selectMes.innerHTML += `<option value="${m}">${m}</option>`);
+
+            atualizarLabelConta();
+        }
+
+        // =============================================
+        // MULTI-SELECT CONTAS
+        // =============================================
+        function toggleDropdownContas(e) {
+            e.stopPropagation();
+            const dd = document.getElementById('dropdownContas');
+            const btn = document.getElementById('btnFiltroConta');
+            const rect = btn.getBoundingClientRect();
+            const isHidden = dd.style.display === 'none';
+
+            if (isHidden) {
+                // Posiciona abaixo do botão
+                dd.style.display = 'block';
+                dd.style.width = Math.max(rect.width, 220) + 'px';
+                dd.style.left = rect.left + 'px';
+                // Verifica se cabe abaixo, senão abre acima
+                const spaceBelow = window.innerHeight - rect.bottom;
+                const ddH = dd.offsetHeight || 220;
+                if (spaceBelow < ddH + 8 && rect.top > ddH + 8) {
+                    dd.style.top = (rect.top - ddH - 4) + 'px';
+                } else {
+                    dd.style.top = (rect.bottom + 4) + 'px';
+                }
+            } else {
+                dd.style.display = 'none';
+            }
+        }
+
+        document.addEventListener('click', (e) => {
+            const dd = document.getElementById('dropdownContas');
+            const btn = document.getElementById('btnFiltroConta');
+            if (dd && btn && !dd.contains(e.target) && !btn.contains(e.target)) {
+                dd.style.display = 'none';
+            }
+        });
+
+        document.addEventListener('scroll', () => {
+            const dd = document.getElementById('dropdownContas');
+            if (dd) dd.style.display = 'none';
+        }, true);
+
+        function toggleTodasContas(cb) {
+            const checks = document.querySelectorAll('.check-conta');
+            checks.forEach(c => c.checked = cb.checked);
+            atualizarLabelConta();
+            atualizarDashboard();
+            salvarEstado();
+        }
+
+        function onCheckContaChange() {
+            const checks = document.querySelectorAll('.check-conta');
+            const todas = [...checks].every(c => c.checked);
+            const nenhuma = [...checks].every(c => !c.checked);
+            document.getElementById('checkTodas').checked = todas;
+            // Se desmarcou tudo, marca todas novamente
+            if (nenhuma) {
+                checks.forEach(c => c.checked = true);
+                document.getElementById('checkTodas').checked = true;
+            }
+            atualizarLabelConta();
+            atualizarDashboard();
+            salvarEstado();
+        }
+
+        function atualizarLabelConta() {
+            const checks = document.querySelectorAll('.check-conta');
+            const selecionadas = [...checks].filter(c => c.checked);
+            const label = document.getElementById('labelFiltroConta');
+            if (selecionadas.length === 0 || selecionadas.length === checks.length) {
+                label.textContent = 'Todas as Contas';
+            } else if (selecionadas.length === 1) {
+                label.textContent = mapaNomesContas[selecionadas[0].value] || selecionadas[0].value;
+            } else {
+                label.textContent = `${selecionadas.length} contas selecionadas`;
+            }
+        }
+
+        function getContasSelecionadas() {
+            const checks = document.querySelectorAll('.check-conta');
+            const selecionadas = [...checks].filter(c => c.checked).map(c => c.value);
+            const todas = [...checks].map(c => c.value);
+            return selecionadas.length === todas.length ? null : selecionadas;
+        }
+
+        function setContasSelecionadas(ids) {
+            if (!ids) return; // null = todas
+            const checks = document.querySelectorAll('.check-conta');
+            checks.forEach(c => { c.checked = ids.includes(c.value); });
+            document.getElementById('checkTodas').checked = false;
+            atualizarLabelConta();
+        }
+
+        function matchConta(d, contasSelecionadas) {
+            if (!contasSelecionadas) return true; // todas
+            return contasSelecionadas.includes(String(d['ID Conta']));
         }
 
         function formatar(v) {
@@ -767,13 +886,13 @@
         }
 
         function atualizarDashboard() {
-            const fConta = document.getElementById('filtroConta').value;
+            const contasSelecionadas = getContasSelecionadas(); // null = todas
             const fMes = document.getElementById('filtroMes').value;
 
             const dadosFiltradosPeriodo = dadosRaw.filter(d => {
                 const dt = new Date(d['Data']);
                 const mY = `${dt.getMonth() + 1}/${dt.getFullYear()}`;
-                const matchConta = (fConta === 'TODAS' || String(d['ID Conta']) === fConta);
+                const mConta = matchConta(d, contasSelecionadas);
                 let matchMes = false;
                 if (fMes === 'TODOS') matchMes = true;
                 else if (fMes === 'CUSTOM') {
@@ -781,12 +900,12 @@
                     const dFim = new Date(document.getElementById('dataFim').value + "T23:59:59");
                     matchMes = dt >= dIni && dt <= dFim;
                 } else { matchMes = mY === fMes; }
-                return matchConta && matchMes;
+                return mConta && matchMes;
             });
 
             const dadosAteHoje = dadosRaw.filter(d => {
                 const dt = new Date(d['Data']);
-                const matchConta = (fConta === 'TODAS' || String(d['ID Conta']) === fConta);
+                const mConta = matchConta(d, contasSelecionadas);
                 let matchData = true;
                 if (fMes === 'CUSTOM') {
                     const dFim = new Date(document.getElementById('dataFim').value + "T23:59:59");
@@ -796,7 +915,7 @@
                     const dFimMes = new Date(y, m, 0, 23, 59, 59);
                     matchData = dt <= dFimMes;
                 }
-                return matchConta && matchData;
+                return mConta && matchData;
             });
 
             let entradas = 0, rendimentos = 0, saidas = 0, qtdSaidas = 0;
@@ -823,6 +942,21 @@
             const saldoFinal = Object.values(resumoContas).reduce((a, b) => a + b, 0);
             const qtdContasAtivas = Object.keys(resumoContas).length;
             const pctRend = saldoFinal > 0 ? ((rendimentos / saldoFinal) * 100).toFixed(1) : 0;
+
+            // CDI % para o card — reutiliza calcularCDIPeriodo com os dados do período filtrado
+            const { pctCdi: pctCdiCard } = calcularCDIPeriodo(dadosFiltradosPeriodo.length > 0 ? dadosFiltradosPeriodo : dadosAteHoje);
+            const elPctCdiCard = document.getElementById('pctCdiCard');
+            const elPctCdiCardText = document.getElementById('pctCdiCardText');
+            if (pctCdiCard !== null && taxaSelicAnual !== null) {
+                elPctCdiCard.classList.remove('hidden');
+                const cor = pctCdiCard >= 100 ? 'bg-emerald-100 text-emerald-700 border-emerald-200'
+                          : pctCdiCard >= 80  ? 'bg-amber-100 text-amber-700 border-amber-200'
+                          : 'bg-rose-100 text-rose-700 border-rose-200';
+                elPctCdiCard.className = `text-[10px] font-black px-2 py-0.5 rounded-full border ${cor}`;
+                elPctCdiCardText.textContent = `${pctCdiCard}% CDI`;
+            } else {
+                elPctCdiCard.classList.add('hidden');
+            }
 
             // Médias
             const mesesUnicos = [...new Set(dadosFiltradosPeriodo.map(d => {
@@ -881,11 +1015,93 @@
             }
             document.getElementById('qtdContasGraf').textContent = `${qtdContasAtivas} ativos`;
 
-            renderizarGraficos(dadosAteHoje, resumoContas);
+            renderizarGraficos(dadosAteHoje, dadosFiltradosPeriodo, resumoContas);
             salvarEstado();
         }
 
-        function renderizarGraficos(dados, resumo) {
+        // =============================================
+        // SELIC / CDI
+        // =============================================
+        let taxaSelicAnual = null; // ex: 10.5 (%)
+
+        async function buscarSelic() {
+            try {
+                // API pública do Banco Central — série 432 = Meta Selic (% a.a.)
+                const resp = await fetch('https://api.bcb.gov.br/dados/serie/bcdata.sgs.432/dados/ultimos/1?formato=json');
+                const json = await resp.json();
+                if (json && json[0]) {
+                    taxaSelicAnual = parseFloat(json[0].valor);
+                }
+            } catch(e) {
+                console.warn('Selic não disponível, usando fallback 10.5%');
+                taxaSelicAnual = 10.5; // fallback
+            }
+        }
+
+        // CDI ≈ Selic - 0.1 p.p. (convenção de mercado)
+        function getCdiAnual() { return taxaSelicAnual !== null ? Math.max(taxaSelicAnual - 0.1, 0) : 10.4; }
+
+        // Taxa diária equivalente (base 252 dias úteis)
+        function taxaDiariaCDI() {
+            const cdiAa = getCdiAnual() / 100;
+            return Math.pow(1 + cdiAa, 1/252) - 1;
+        }
+
+        // Conta dias úteis aproximados entre duas datas
+        function diasUteis(dataInicio, dataFim) {
+            let dias = 0;
+            const d = new Date(dataInicio);
+            while (d <= dataFim) {
+                const dow = d.getDay();
+                if (dow !== 0 && dow !== 6) dias++;
+                d.setDate(d.getDate() + 1);
+            }
+            return dias;
+        }
+
+        function calcularCDIPeriodo(dadosPeriodo) {
+            // Para cada ponto do período, simula rendimento CDI sobre o saldo acumulado
+            const datas = [...new Set(dadosPeriodo.map(d => d['Data'].split('T')[0]))].sort();
+            if (datas.length < 2) return { pontos: [], pctCdi: null };
+
+            const taxaDiaria = taxaDiariaCDI();
+            let saldoCdi = 0;
+            let saldoReal = 0;
+            let rendimentosCdiTotal = 0;
+
+            const pontosCdi = datas.map((data, i) => {
+                // Aplicar rendimento CDI do dia anterior até hoje
+                if (i > 0 && saldoCdi > 0) {
+                    const dataAnterior = new Date(datas[i-1]);
+                    const dataAtual = new Date(data);
+                    const du = diasUteis(dataAnterior, new Date(dataAtual.getTime() - 86400000));
+                    const rend = saldoCdi * (Math.pow(1 + taxaDiaria, du) - 1);
+                    saldoCdi += rend;
+                    rendimentosCdiTotal += rend;
+                }
+                // Processar aportes do dia
+                dadosPeriodo.filter(d => d['Data'].split('T')[0] === data).forEach(d => {
+                    const vA = parseFloat(d['Valor Aporte']) || 0;
+                    const vR = parseFloat(d['Valor Rendimento']) || 0;
+                    if (d['Tipo'] === 'Entrada') { saldoCdi += vA; saldoReal += vA; }
+                    else { saldoCdi -= vA; saldoReal -= vA; }
+                    saldoReal += vR;
+                });
+                return saldoCdi;
+            });
+
+            // % do CDI = rendimentos reais / rendimentos CDI simulado
+            let pctCdi = null;
+            if (rendimentosCdiTotal > 0) {
+                let rendReal = 0;
+                dadosPeriodo.forEach(d => { rendReal += parseFloat(d['Valor Rendimento']) || 0; });
+                pctCdi = ((rendReal / rendimentosCdiTotal) * 100).toFixed(0);
+            }
+
+            return { pontos: pontosCdi, pctCdi };
+        }
+
+        function renderizarGraficos(dados, dadosPeriodo, resumo) {
             if (chartEvolucao) chartEvolucao.destroy();
             if (chartDistribuicao) chartDistribuicao.destroy();
 
@@ -925,25 +1141,108 @@
                 return acumulado;
             });
 
+            // CDI line
+            const { pontos: pontosCdi, pctCdi } = calcularCDIPeriodo(dadosPeriodo.length > 0 ? dadosPeriodo : dados);
+
+            // Badge CDI
+            const badge = document.getElementById('cdiBadge');
+            const badgeText = document.getElementById('cdiBadgeText');
+            if (pctCdi !== null && taxaSelicAnual !== null) {
+                badge.classList.remove('hidden');
+                badgeText.textContent = `${pctCdi}% do CDI (Selic ${getCdiAnual().toFixed(2)}% a.a.)`;
+            } else {
+                badge.classList.add('hidden');
+            }
+
+            const datasets = [{
+                label: 'Saldo Real',
+                data: pontos,
+                borderColor: '#6366f1',
+                backgroundColor: 'rgba(99,102,241,0.08)',
+                fill: true,
+                tension: 0.4,
+                pointRadius: 3,
+                pointHoverRadius: 6,
+                pointBackgroundColor: '#6366f1',
+                borderWidth: 2,
+                order: 1
+            }];
+
+            if (pontosCdi.length === datas.length && pontosCdi.length > 0) {
+                datasets.push({
+                    label: `CDI (${getCdiAnual().toFixed(1)}% a.a.)`,
+                    data: pontosCdi,
+                    borderColor: '#f59e0b',
+                    backgroundColor: 'transparent',
+                    fill: false,
+                    tension: 0.4,
+                    pointRadius: 0,
+                    borderWidth: 1.5,
+                    borderDash: [4, 3],
+                    order: 2
+                });
+            }
+
             chartEvolucao = new Chart(document.getElementById('chartEvolucao'), {
                 type: 'line',
                 data: {
                     labels: datas.map(d => d.split('-').reverse().slice(0, 2).join('/')),
-                    datasets: [{
-                        label: 'Saldo',
-                        data: pontos,
-                        borderColor: '#6366f1',
-                        backgroundColor: 'rgba(99,102,241,0.08)',
-                        fill: true,
-                        tension: 0.4,
-                        pointRadius: 3,
-                        pointBackgroundColor: '#6366f1',
-                        borderWidth: 2
-                    }]
+                    datasets
                 },
                 options: {
                     maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: {
+                            display: datasets.length > 1,
+                            position: 'top',
+                            labels: { boxWidth: 20, font: { size: 9, weight: '700' }, padding: 8,
+                                generateLabels: chart => chart.data.datasets.map((ds, i) => ({
+                                    text: ds.label,
+                                    fillStyle: ds.borderColor,
+                                    strokeStyle: ds.borderColor,
+                                    lineWidth: 2,
+                                    hidden: false,
+                                    datasetIndex: i
+                                }))
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(15,23,42,0.92)',
+                            titleColor: '#94a3b8',
+                            bodyColor: '#f8fafc',
+                            borderColor: 'rgba(255,255,255,0.08)',
+                            borderWidth: 1,
+                            padding: 12,
+                            cornerRadius: 12,
+                            titleFont: { size: 11, weight: '600' },
+                            bodyFont: { size: 13, weight: '700' },
+                            displayColors: true,
+                            boxWidth: 8,
+                            boxHeight: 8,
+                            boxPadding: 4,
+                            callbacks: {
+                                title: ctx => `📅 ${ctx[0].label}`,
+                                label: ctx => {
+                                    const val = ctx.raw;
+                                    const fmt = val.toLocaleString('pt-br', { style: 'currency', currency: 'BRL' });
+                                    return ` ${ctx.dataset.label}: ${fmt}`;
+                                },
+                                afterBody: ctx => {
+                                    // Mostra variação do saldo real em relação ao ponto anterior
+                                    if (ctx[0] && ctx[0].datasetIndex === 0 && ctx[0].dataIndex > 0) {
+                                        const curr = ctx[0].raw;
+                                        const prev = ctx[0].dataset.data[ctx[0].dataIndex - 1];
+                                        const diff = curr - prev;
+                                        const sinal = diff >= 0 ? '▲' : '▼';
+                                        const fmt = Math.abs(diff).toLocaleString('pt-br', { style: 'currency', currency: 'BRL' });
+                                        return [``, ` ${sinal} ${fmt} no dia`];
+                                    }
+                                    return [];
+                                }
+                            }
+                        }
+                    },
                     scales: {
                         x: { ticks: { font: { size: 9 }, maxTicksLimit: 6 }, grid: { display: false } },
                         y: { ticks: { font: { size: 9 }, callback: v => 'R$' + (v / 1000).toFixed(0) + 'k' }, grid: { color: 'rgba(0,0,0,0.04)' } }
@@ -954,7 +1253,22 @@
 
         // Inicializar
         iniciarSessao();
-        carregarDados();
+        buscarSelic().then(() => carregarDados());
+        // Atualiza a Selic a cada 6 horas durante a sessão
+        setInterval(() => buscarSelic(), 6 * 60 * 60 * 1000);
     </script>
+    <!-- Dropdown Contas (flutuante no body para evitar z-index de backdrop-filter) -->
+    <div id="dropdownContas" style="display:none; position:fixed; z-index:9999; min-width:220px; max-width:300px;"
+        class="bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden">
+        <div class="p-2 border-b border-slate-100">
+            <label class="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-slate-50 cursor-pointer">
+                <input type="checkbox" id="checkTodas" checked onchange="toggleTodasContas(this)"
+                    class="w-3.5 h-3.5 accent-indigo-600 cursor-pointer">
+                <span class="text-xs font-bold text-slate-700">Todas as Contas</span>
+            </label>
+        </div>
+        <div id="listaCheckContas" class="p-2 space-y-0.5 max-h-52 overflow-y-auto"></div>
+    </div>
+
 </body>
 </html>
