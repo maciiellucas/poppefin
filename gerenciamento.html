@@ -1,0 +1,1328 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>PoppeFin | Gerenciamento</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+
+        * { -webkit-tap-highlight-color: transparent; }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            padding-bottom: 100px;
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.75);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.08);
+        }
+
+        /* Loading bar */
+        .loading-bar {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #6366f1, #8b5cf6, #6366f1);
+            background-size: 200% 100%;
+            z-index: 999;
+            transform: scaleX(0);
+            transform-origin: left;
+            transition: transform 0.3s;
+        }
+        .loading-bar.ativo { transform: scaleX(1); animation: shimmer 1.5s infinite; }
+        @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 90px;
+            left: 50%;
+            transform: translateX(-50%) translateY(20px);
+            color: white;
+            padding: 12px 22px;
+            border-radius: 50px;
+            font-size: 12px;
+            font-weight: 700;
+            white-space: nowrap;
+            opacity: 0;
+            transition: all 0.3s;
+            z-index: 300;
+            pointer-events: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+        .toast.success { background: rgba(16, 185, 129, 0.96); }
+        .toast.error   { background: rgba(244, 63, 94, 0.96); }
+        .toast.info    { background: rgba(30, 41, 59, 0.96); }
+
+        /* Modais */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.65);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+            z-index: 200;
+            align-items: flex-end;
+            justify-content: center;
+        }
+        .modal-overlay.ativo { display: flex; }
+        .modal-overlay.center { align-items: center; }
+        .modal-overlay.bottom { align-items: flex-end; }
+
+        .modal-sheet {
+            background: white;
+            border-radius: 28px 28px 0 0;
+            padding: 8px 24px 40px;
+            width: 100%;
+            max-width: 520px;
+            animation: slideUpModal 0.3s ease-out;
+        }
+        .modal-center-box {
+            background: white;
+            border-radius: 28px;
+            padding: 28px 24px;
+            width: calc(100% - 48px);
+            max-width: 400px;
+            animation: zoomIn 0.25s ease-out;
+        }
+
+        .modal-handle {
+            width: 40px;
+            height: 4px;
+            background: #e2e8f0;
+            border-radius: 4px;
+            margin: 12px auto 20px;
+        }
+
+        @keyframes slideUpModal {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes zoomIn {
+            from { opacity: 0; transform: scale(0.93); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(16px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Input style */
+        .input-edit {
+            background: #f8fafc;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 14px;
+            padding: 12px 14px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #1e293b;
+            width: 100%;
+            outline: none;
+            transition: all 0.2s;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+        .input-edit:focus {
+            border-color: #6366f1;
+            background: white;
+            box-shadow: 0 0 0 4px rgba(99,102,241,0.1);
+        }
+
+        /* Card do lançamento */
+        .lanc-card {
+            background: rgba(255,255,255,0.8);
+            border-radius: 20px;
+            border: 1px solid rgba(255,255,255,0.5);
+            padding: 14px 16px;
+            margin-bottom: 10px;
+            transition: all 0.2s;
+            animation: slideUp 0.3s ease-out both;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+        .lanc-card:active { transform: scale(0.98); }
+        .lanc-card.entrada   { border-left: 4px solid #10b981; }
+        .lanc-card.saida     { border-left: 4px solid #f43f5e; }
+        .lanc-card.rendimento { border-left: 4px solid #6366f1; background: rgba(99,102,241,0.03); }
+
+        /* Chips de filtro */
+        .filtros-scroll {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            padding-bottom: 4px;
+            scrollbar-width: none;
+        }
+        .filtros-scroll::-webkit-scrollbar { display: none; }
+
+        .chip {
+            white-space: nowrap;
+            padding: 6px 14px;
+            border-radius: 50px;
+            font-size: 11px;
+            font-weight: 700;
+            border: 1.5px solid #e2e8f0;
+            color: #64748b;
+            background: white;
+            cursor: pointer;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+        .chip.ativo { background: #1e293b; color: white; border-color: #1e293b; }
+
+        /* Bottom nav */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0; left: 0; right: 0;
+            background: rgba(255,255,255,0.92);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-top: 1px solid rgba(255,255,255,0.5);
+            box-shadow: 0 -8px 32px rgba(0,0,0,0.08);
+            z-index: 50;
+            padding: 8px 0 env(safe-area-inset-bottom);
+        }
+
+        /* Skeleton */
+        .skeleton {
+            background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+            background-size: 200% 100%;
+            animation: skeleton-wave 1.5s infinite;
+            border-radius: 16px;
+        }
+        @keyframes skeleton-wave { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+        /* Auth overlay */
+        #authOverlay {
+            position: fixed;
+            inset: 0;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-8px); }
+            75% { transform: translateX(8px); }
+        }
+
+        /* Cards de saldo com gradiente suave — igual ao dashboard */
+        .card-saldo { background: linear-gradient(135deg, rgba(255,255,255,0.9), rgba(255,255,255,0.6)); }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .slide-up      { animation: slideUp 0.5s ease-out forwards; }
+        .slide-up-d1   { animation: slideUp 0.5s ease-out 0.1s both; }
+        .slide-up-d2   { animation: slideUp 0.5s ease-out 0.2s both; }
+
+        @keyframes revealSaldos {
+            from { opacity: 0; transform: translateY(-10px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes hideSaldos {
+            from { opacity: 1; transform: translateY(0); }
+            to   { opacity: 0; transform: translateY(-8px); }
+        }
+
+        /* Danger pulse for second confirm */
+        @keyframes dangerPulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(244,63,94,0.4); }
+            50% { box-shadow: 0 0 0 8px rgba(244,63,94,0); }
+        }
+        .danger-pulse { animation: dangerPulse 1.2s infinite; }
+    </style>
+</head>
+<body class="text-slate-800">
+
+    <div id="loadingBar" class="loading-bar"></div>
+    <div id="toastMsg" class="toast info"></div>
+
+    <!-- ============================================================ -->
+    <!-- AUTH OVERLAY                                                  -->
+    <!-- ============================================================ -->
+    <div id="authOverlay">
+        <div class="w-full max-w-sm">
+            <div class="text-center mb-8">
+                <h1 class="text-4xl font-black text-slate-800 tracking-tighter">
+                    Poppe<span class="text-indigo-600">Fin</span>
+                </h1>
+                <p class="text-slate-500 text-xs font-semibold mt-1">Módulo de Gerenciamento</p>
+            </div>
+
+            <div id="authCard" class="glass-card p-8 rounded-[32px]">
+                <div class="text-center mb-6">
+                    <div class="w-14 h-14 bg-rose-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-shield-alt text-rose-500 text-xl"></i>
+                    </div>
+                    <h2 class="text-lg font-bold text-slate-800">Área Restrita</h2>
+                    <p id="authSubtitulo" class="text-slate-400 text-xs mt-1">Confirme sua senha para acessar o gerenciamento</p>
+                </div>
+
+                <div class="space-y-4">
+                    <!-- Campo de usuário — visível apenas quando vindo do index -->
+                    <div id="authUsuarioWrap">
+                        <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Usuário</label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 flex items-center pl-4 text-slate-300">
+                                <i class="fas fa-id-badge"></i>
+                            </span>
+                            <input type="text" id="authUsuario"
+                                class="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 pl-12 pr-4 text-slate-700 placeholder-slate-300 outline-none focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50 transition-all text-sm font-medium"
+                                placeholder="INFORME SEU USUÁRIO"
+                                oninput="this.value = this.value.toUpperCase()"
+                                onkeydown="if(event.key==='Enter') document.getElementById('authSenha').focus()">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Senha</label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 flex items-center pl-4 text-slate-300">
+                                <i class="fas fa-lock"></i>
+                            </span>
+                            <input type="password" id="authSenha"
+                                class="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 pl-12 pr-4 text-slate-700 placeholder-slate-300 outline-none focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50 transition-all text-sm"
+                                placeholder="••••••••"
+                                onkeydown="if(event.key==='Enter') autenticar()">
+                        </div>
+                    </div>
+
+                    <div id="authErro" class="hidden text-rose-500 text-[11px] font-bold text-center">
+                        <i class="fas fa-times-circle mr-1"></i> <span id="authErroMsg">Senha incorreta</span>
+                    </div>
+
+                    <button onclick="autenticar()"
+                        class="w-full bg-slate-800 text-white font-bold py-4 rounded-2xl shadow-lg hover:bg-slate-900 active:scale-[0.98] transition-all flex items-center justify-center gap-2">
+                        <i class="fas fa-unlock-alt text-xs opacity-70"></i> Acessar Gerenciamento
+                    </button>
+                </div>
+            </div>
+
+            <div class="mt-6 text-center">
+                <button onclick="voltarAuth()"
+                    class="text-[10px] uppercase font-black tracking-[0.15em] text-slate-400 hover:text-indigo-600 transition-all flex items-center gap-2 mx-auto">
+                    <i class="fas fa-arrow-left text-[9px]"></i> <span id="authVoltarLabel">Voltar ao Login</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- CONTEÚDO PRINCIPAL (oculto até auth)                         -->
+    <!-- ============================================================ -->
+    <div id="mainContent" style="display:none;">
+
+        <div class="max-w-6xl mx-auto p-4 md:p-8 space-y-5">
+
+            <!-- Header -->
+            <div class="slide-up">
+                <div class="flex items-center justify-between mb-1">
+                    <div>
+                        <button onclick="window.location.href='dashboard.html'"
+                            class="text-indigo-500 font-bold text-xs mb-1.5 flex items-center gap-1.5 hover:text-indigo-700 transition-colors active:scale-95">
+                            <i class="fas fa-arrow-left text-[10px]"></i> Dashboard
+                        </button>
+                        <h1 class="text-2xl md:text-3xl font-extrabold tracking-tight">Poppe<span class="text-indigo-600">Fin</span></h1>
+                        <p class="text-slate-400 text-xs font-semibold">Gerenciamento de Lançamentos</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <div class="w-10 h-10 bg-rose-50 rounded-xl flex items-center justify-center">
+                            <i class="fas fa-sliders-h text-rose-500 text-sm"></i>
+                        </div>
+                        <button onclick="carregarDados()"
+                            class="w-10 h-10 bg-white/70 border border-slate-100 rounded-xl flex items-center justify-center shadow-sm active:scale-95">
+                            <i class="fas fa-sync-alt text-indigo-500 text-sm" id="iconSync"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Cards de Saldo — mesmo padrão visual do dashboard -->
+            <div class="flex items-center justify-between mb-2 slide-up-d1">
+                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Resumo Financeiro</span>
+                <button id="btnToggleSaldos" onclick="toggleSaldos()"
+                    class="group relative flex items-center gap-2 px-4 py-2 rounded-2xl font-bold text-[11px] transition-all duration-300 active:scale-95 overflow-hidden"
+                    style="background: linear-gradient(135deg, #1e293b, #334155); color: white; box-shadow: 0 4px 14px rgba(30,41,59,0.3);">
+                    <span class="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300" style="background: linear-gradient(135deg, #334155, #475569);"></span>
+                    <span class="relative flex items-center gap-2">
+                        <i id="iconOlho" class="fas fa-eye-slash text-xs transition-transform duration-300"></i>
+                        <span id="labelOlho">Saldos ocultos</span>
+                        <span id="dotSaldo" class="w-1.5 h-1.5 rounded-full bg-rose-400 animate-pulse"></span>
+                    </span>
+                </button>
+            </div>
+            <div id="secaoSaldos" class="grid grid-cols-1 md:grid-cols-3 gap-4 slide-up-d1">
+                <div class="glass-card card-saldo p-5 rounded-[28px] border-l-[6px] border-indigo-500 relative overflow-hidden">
+                    <div class="absolute top-0 right-0 w-24 h-24 bg-indigo-50 rounded-full -translate-y-8 translate-x-8"></div>
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 relative z-10">Saldo Consolidado</p>
+                    <h2 id="statTotal" class="text-2xl md:text-3xl font-black relative z-10">R$ 0,00</h2>
+                    <div class="flex items-center gap-1 mt-2 relative z-10">
+                        <i class="fas fa-wallet text-indigo-400 text-[10px]"></i>
+                        <span class="text-[10px] text-slate-400 font-semibold" id="statQtdRegistros">0 registros</span>
+                    </div>
+                </div>
+                <div class="glass-card card-saldo p-5 rounded-[28px] border-l-[6px] border-emerald-500 relative overflow-hidden">
+                    <div class="absolute top-0 right-0 w-24 h-24 bg-emerald-50 rounded-full -translate-y-8 translate-x-8"></div>
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 relative z-10">Total Entradas</p>
+                    <h2 id="statEntradas" class="text-2xl md:text-3xl font-black text-emerald-600 relative z-10">R$ 0,00</h2>
+                    <div class="flex items-center gap-1 mt-2 relative z-10">
+                        <i class="fas fa-chart-line text-emerald-400 text-[10px]"></i>
+                        <span class="text-[10px] text-slate-400 font-semibold" id="statQtdEntradas">0 entradas</span>
+                    </div>
+                </div>
+                <div class="glass-card card-saldo p-5 rounded-[28px] border-l-[6px] border-rose-500 relative overflow-hidden">
+                    <div class="absolute top-0 right-0 w-24 h-24 bg-rose-50 rounded-full -translate-y-8 translate-x-8"></div>
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 relative z-10">Total Saídas</p>
+                    <h2 id="statSaidas" class="text-2xl md:text-3xl font-black text-rose-600 relative z-10">R$ 0,00</h2>
+                    <div class="flex items-center gap-1 mt-2 relative z-10">
+                        <i class="fas fa-arrow-trend-up text-rose-400 text-[10px]"></i>
+                        <span class="text-[10px] text-slate-400 font-semibold" id="statQtdSaidas">0 saídas</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filtros + Busca + Lista -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-5 slide-up-d2">
+
+                <!-- Coluna de filtros (desktop: lateral) -->
+                <div class="md:col-span-1">
+                    <div class="glass-card p-4 rounded-[24px] space-y-3 md:sticky md:top-4">
+                        <!-- Busca -->
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 flex items-center pl-4 text-slate-300">
+                                <i class="fas fa-search text-sm"></i>
+                            </span>
+                            <input type="text" id="campoBusca" placeholder="Buscar..."
+                                oninput="renderizarLista()"
+                                class="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 pl-11 pr-4 text-slate-700 placeholder-slate-300 outline-none focus:bg-white focus:border-indigo-400 focus:ring-4 focus:ring-indigo-50 transition-all text-sm font-medium">
+                        </div>
+
+                        <!-- Chips de tipo -->
+                        <div>
+                            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Tipo</p>
+                            <div class="filtros-scroll md:flex-col md:gap-2">
+                                <button class="chip ativo" data-filtro="TODOS" onclick="setFiltro(this)">Todos</button>
+                                <button class="chip" data-filtro="Entrada" onclick="setFiltro(this)">🟢 Entradas</button>
+                                <button class="chip" data-filtro="Saída" onclick="setFiltro(this)">🔴 Saídas</button>
+                            </div>
+                        </div>
+
+                        <!-- Ordenação -->
+                        <div>
+                            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Ordenar</p>
+                            <select id="selectOrdem" onchange="renderizarLista()"
+                                class="w-full bg-slate-50 border border-slate-100 rounded-xl py-2.5 px-3 outline-none text-xs font-semibold text-slate-700">
+                                <option value="recente">Mais recente</option>
+                                <option value="antigo">Mais antigo</option>
+                                <option value="maior">Maior valor</option>
+                                <option value="menor">Menor valor</option>
+                            </select>
+                        </div>
+
+                        <div class="flex items-center justify-between pt-1">
+                            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Resultados</span>
+                            <span id="contadorResultados" class="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-full"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Coluna de lista (desktop: 2/3 da tela) -->
+                <div class="md:col-span-2">
+                    <div id="listaLancamentos"></div>
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- Bottom nav -->
+        <nav class="bottom-nav">
+            <div class="flex items-center justify-around px-2 h-16">
+                <button onclick="window.location.href='dashboard.html'" class="flex flex-col items-center gap-1 text-slate-400 flex-1 py-2">
+                    <i class="fas fa-chart-pie text-lg"></i>
+                    <span class="text-[9px] font-bold uppercase tracking-wide">Dashboard</span>
+                </button>
+                <button onclick="window.location.href='extrato.html'" class="flex flex-col items-center gap-1 text-slate-400 flex-1 py-2">
+                    <i class="fas fa-list-ul text-lg"></i>
+                    <span class="text-[9px] font-bold uppercase tracking-wide">Extrato</span>
+                </button>
+                <button onclick="window.location.href='lancamento.html'" class="flex flex-col items-center gap-1 text-slate-400 flex-1 py-2">
+                    <i class="fas fa-plus text-lg"></i>
+                    <span class="text-[9px] font-bold uppercase tracking-wide">Novo</span>
+                </button>
+                <button class="flex flex-col items-center gap-1 text-rose-500 flex-1 py-2">
+                    <i class="fas fa-sliders-h text-lg"></i>
+                    <span class="text-[9px] font-bold uppercase tracking-wide">Gerenciar</span>
+                </button>
+            </div>
+        </nav>
+
+    </div><!-- /mainContent -->
+
+
+    <!-- ============================================================ -->
+    <!-- MODAL EDIÇÃO                                                  -->
+    <!-- ============================================================ -->
+    <div id="modalEdicao" class="modal-overlay bottom">
+        <div class="modal-sheet">
+            <div class="modal-handle"></div>
+            <div class="flex items-center justify-between mb-5">
+                <div>
+                    <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                        <i class="fas fa-edit text-indigo-500"></i> Editar Lançamento
+                    </h3>
+                    <p id="editSubtitle" class="text-[10px] text-slate-400 font-semibold mt-0.5"></p>
+                </div>
+                <button onclick="fecharModalEdicao()" class="w-8 h-8 flex items-center justify-center rounded-xl bg-slate-100 text-slate-400 active:scale-95">
+                    <i class="fas fa-times text-xs"></i>
+                </button>
+            </div>
+
+            <div class="space-y-4">
+                <input type="hidden" id="editRowIndex">
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Valor Principal</label>
+                        <input type="text" id="editValorAporte" class="input-edit text-emerald-600 font-black"
+                            oninput="mascaraMoeda(this)" placeholder="R$ 0,00">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Rendimento</label>
+                        <input type="text" id="editValorRendimento" class="input-edit text-indigo-600 font-black"
+                            oninput="mascaraMoeda(this)" placeholder="R$ 0,00">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Banco</label>
+                    <input type="text" id="editBanco" class="input-edit" placeholder="Nome do banco">
+                </div>
+
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Tipo</label>
+                    <select id="editTipo" class="input-edit cursor-pointer appearance-none">
+                        <option value="Entrada">🟢 Entrada</option>
+                        <option value="Saída">🔴 Saída</option>
+                    </select>
+                </div>
+
+                <!-- inputs ocultos para manter compatibilidade com salvarEdicao() -->
+                <input type="hidden" id="editManterData" value="true">
+                <input type="hidden" id="editData">
+                <input type="hidden" id="editHora">
+
+                <div class="flex gap-3 pt-2">
+                    <button onclick="fecharModalEdicao()"
+                        class="flex-1 py-3.5 font-bold text-slate-500 bg-slate-100 rounded-xl active:scale-95 transition-all">
+                        Cancelar
+                    </button>
+                    <button onclick="abrirConfirmacaoEdicao()"
+                        class="flex-1 py-3.5 font-bold bg-indigo-600 text-white rounded-xl shadow-lg shadow-indigo-200 active:scale-95 transition-all flex items-center justify-center gap-2">
+                        <i class="fas fa-save text-xs opacity-70"></i> Salvar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- MODAL CONFIRMAÇÃO EDIÇÃO                                      -->
+    <!-- ============================================================ -->
+    <div id="modalConfirmEdicao" class="modal-overlay center">
+        <div class="modal-center-box">
+            <div class="text-center">
+                <div class="w-14 h-14 bg-indigo-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-edit text-indigo-500 text-xl"></i>
+                </div>
+                <h3 class="text-lg font-bold text-slate-800 mb-2">Confirmar Alteração</h3>
+                <p class="text-slate-500 text-sm mb-6">Deseja realmente alterar este lançamento? Os dados anteriores serão substituídos.</p>
+                <div class="flex gap-3">
+                    <button onclick="fecharConfirmEdicao()"
+                        class="flex-1 py-3.5 font-bold text-slate-500 bg-slate-100 rounded-xl active:scale-95">Cancelar</button>
+                    <button onclick="salvarEdicao()"
+                        class="flex-1 py-3.5 font-bold bg-indigo-600 text-white rounded-xl shadow-lg active:scale-95">
+                        <i class="fas fa-check mr-1"></i> Confirmar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- MODAL EXCLUSÃO — 1ª CONFIRMAÇÃO                              -->
+    <!-- ============================================================ -->
+    <div id="modalExclusao1" class="modal-overlay center">
+        <div class="modal-center-box">
+            <div class="text-center">
+                <div class="w-14 h-14 bg-rose-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-trash text-rose-400 text-xl"></i>
+                </div>
+                <h3 class="text-lg font-bold text-slate-800 mb-2">Excluir Lançamento?</h3>
+                <p class="text-slate-500 text-sm mb-1">Tem certeza que deseja excluir este lançamento?</p>
+                <p id="excluir1Info" class="text-xs font-bold text-slate-400 mb-6"></p>
+                <div class="flex gap-3">
+                    <button onclick="fecharExclusao1()"
+                        class="flex-1 py-3.5 font-bold text-slate-500 bg-slate-100 rounded-xl active:scale-95">Cancelar</button>
+                    <button onclick="abrirExclusao2()"
+                        class="flex-1 py-3.5 font-bold bg-rose-500 text-white rounded-xl active:scale-95">
+                        Continuar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- MODAL EXCLUSÃO — 2ª CONFIRMAÇÃO (irreversível)               -->
+    <!-- ============================================================ -->
+    <div id="modalExclusao2" class="modal-overlay center">
+        <div class="modal-center-box">
+            <div class="text-center">
+                <div class="w-16 h-16 bg-rose-600 rounded-full flex items-center justify-center mx-auto mb-4 danger-pulse">
+                    <i class="fas fa-exclamation-triangle text-white text-xl"></i>
+                </div>
+                <h3 class="text-xl font-black text-rose-600 mb-2">Ação Irreversível</h3>
+                <p class="text-slate-600 text-sm font-semibold mb-1">Esta ação <strong>não pode ser desfeita.</strong></p>
+                <p class="text-slate-400 text-xs mb-6">O lançamento será permanentemente removido do sistema.</p>
+                <div class="flex gap-3">
+                    <button onclick="fecharExclusao2()"
+                        class="flex-1 py-3.5 font-bold text-slate-500 bg-slate-100 rounded-xl active:scale-95">Cancelar</button>
+                    <button onclick="confirmarExclusao()" id="btnConfirmarExclusao"
+                        class="flex-1 py-3.5 font-black bg-rose-600 text-white rounded-xl shadow-lg shadow-rose-200 active:scale-95 flex items-center justify-center gap-2">
+                        <i class="fas fa-trash text-sm"></i> Excluir
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================================
+        // CONFIGURAÇÃO
+        // ============================================================
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzGY_Ve4qndTXhGKFwb7SLTimVD-0jL2tuUgVFFI8ykxK8vqj98G32SrmZCWy_5OCgPVA/exec';
+
+        const USUARIOS = {
+            "MACIEL": "37541680",
+            "DEBORA": "barbara123"
+        };
+
+        // ============================================================
+        // SESSÃO — compartilhada com o dashboard (10 min inatividade)
+        // ============================================================
+        const TIMEOUT_MS = 10 * 60 * 1000;
+        let sessionTimer, countdownInterval;
+        let sessionRemaining = TIMEOUT_MS;
+
+        function iniciarSessao() {
+            clearTimeout(sessionTimer);
+            clearInterval(countdownInterval);
+            sessionRemaining = TIMEOUT_MS;
+            sessionStorage.setItem('gerencSession', Date.now().toString());
+
+            countdownInterval = setInterval(() => {
+                sessionRemaining -= 1000;
+                if (sessionRemaining <= 0) {
+                    clearInterval(countdownInterval);
+                    encerrarSessao();
+                }
+            }, 1000);
+
+            sessionTimer = setTimeout(encerrarSessao, TIMEOUT_MS);
+        }
+
+        function encerrarSessao() {
+            sessionStorage.removeItem('gerencSession');
+            sessionStorage.removeItem('gerencAuth');
+            window.location.href = 'dashboard.html';
+        }
+
+        // Renovar sessão a cada interação
+        ['touchstart', 'click', 'keydown', 'scroll'].forEach(ev => {
+            document.addEventListener(ev, () => {
+                if (sessionStorage.getItem('gerencAuth') === '1') iniciarSessao();
+            }, { passive: true });
+        });
+
+        // ============================================================
+        // AUTENTICAÇÃO — contexto-aware (index vs dashboard)
+        // ============================================================
+        let authViaDashboard = false;
+
+        function setupAuth() {
+            const dashUser = sessionStorage.getItem('dashUser') || '';
+            authViaDashboard = !!dashUser;
+
+            if (authViaDashboard) {
+                // Veio do dashboard: oculta campo de usuário, só pede senha
+                document.getElementById('authUsuarioWrap').style.display = 'none';
+                document.getElementById('authSubtitulo').textContent = 'Confirme sua senha para continuar';
+                document.getElementById('authVoltarLabel').textContent = 'Voltar ao Dashboard';
+            } else {
+                // Veio do index: exibe campo de usuário e senha
+                document.getElementById('authUsuarioWrap').style.display = 'block';
+                document.getElementById('authSubtitulo').textContent = 'Informe usuário e senha para acessar';
+                document.getElementById('authVoltarLabel').textContent = 'Voltar ao Login';
+            }
+        }
+
+        function voltarAuth() {
+            const dashUser = sessionStorage.getItem('dashUser') || '';
+            window.location.href = dashUser ? 'dashboard.html' : 'index.html';
+        }
+
+        function autenticar() {
+            const pass = document.getElementById('authSenha').value;
+            const erro = document.getElementById('authErro');
+            const erroMsg = document.getElementById('authErroMsg');
+            const card = document.getElementById('authCard');
+
+            const dashUser = sessionStorage.getItem('dashUser') || '';
+            let senhaOk = false;
+            let usuarioFinal = dashUser;
+
+            if (dashUser) {
+                // Veio do dashboard: valida apenas a senha do usuário logado
+                if (USUARIOS[dashUser]) {
+                    senhaOk = USUARIOS[dashUser] === pass;
+                    erroMsg.textContent = 'Senha incorreta';
+                }
+            } else {
+                // Veio do index: valida usuário + senha
+                const inputUser = document.getElementById('authUsuario').value.trim().toUpperCase();
+                if (!inputUser) {
+                    erroMsg.textContent = 'Informe o usuário';
+                    erro.classList.remove('hidden');
+                    return;
+                }
+                if (!USUARIOS[inputUser]) {
+                    erroMsg.textContent = 'Usuário não encontrado';
+                    erro.classList.remove('hidden');
+                    card.style.animation = 'shake 0.4s ease-in-out';
+                    setTimeout(() => card.style.animation = '', 400);
+                    return;
+                }
+                senhaOk = USUARIOS[inputUser] === pass;
+                usuarioFinal = inputUser;
+                erroMsg.textContent = 'Usuário ou senha incorretos';
+            }
+
+            if (senhaOk) {
+                erro.classList.add('hidden');
+                sessionStorage.setItem('gerencAuth', '1');
+                // Se entrou via index, registra o usuário na sessão
+                if (!dashUser && usuarioFinal) {
+                    sessionStorage.setItem('dashUser', usuarioFinal);
+                }
+                document.getElementById('authOverlay').style.opacity = '0';
+                document.getElementById('authOverlay').style.transition = 'opacity 0.4s';
+                setTimeout(() => {
+                    document.getElementById('authOverlay').style.display = 'none';
+                    document.getElementById('mainContent').style.display = 'block';
+                }, 400);
+                iniciarSessao();
+                carregarDados();
+            } else {
+                erro.classList.remove('hidden');
+                card.style.animation = 'shake 0.4s ease-in-out';
+                setTimeout(() => card.style.animation = '', 400);
+            }
+        }
+
+        // Verifica sessão ao carregar — se já autenticado nos últimos 10 min, entra direto
+        window.addEventListener('DOMContentLoaded', () => {
+            setupAuth();
+            aplicarVisibilidadeSaldos(); // saldos ocultos por padrão
+            const gerencAuth = sessionStorage.getItem('gerencAuth');
+            const gerencTs   = parseInt(sessionStorage.getItem('gerencSession') || '0');
+            const elapsed    = Date.now() - gerencTs;
+
+            if (gerencAuth === '1' && elapsed < TIMEOUT_MS) {
+                sessionRemaining = TIMEOUT_MS - elapsed;
+                document.getElementById('authOverlay').style.display = 'none';
+                document.getElementById('mainContent').style.display = 'block';
+                iniciarSessao();
+                carregarDados();
+            }
+        });
+
+        // ============================================================
+        // TOGGLE SALDOS (oculto por padrão)
+        // ============================================================
+        let saldosVisiveis = false; // começa oculto
+
+        function toggleSaldos() {
+            saldosVisiveis = !saldosVisiveis;
+            aplicarVisibilidadeSaldos();
+        }
+
+        function aplicarVisibilidadeSaldos() {
+            const icon  = document.getElementById('iconOlho');
+            const label = document.getElementById('labelOlho');
+            const dot   = document.getElementById('dotSaldo');
+            const secao = document.getElementById('secaoSaldos');
+            if (!secao) return;
+
+            if (saldosVisiveis) {
+                // Revelar com animação
+                secao.style.overflow = 'hidden';
+                secao.style.display = 'grid';
+                secao.style.animation = 'revealSaldos 0.35s ease-out forwards';
+                icon.className  = 'fas fa-eye text-xs transition-transform duration-300';
+                label.textContent = 'Ocultar saldos';
+                if (dot) { dot.style.background = '#34d399'; dot.classList.add('animate-pulse'); }
+            } else {
+                // Ocultar com animação
+                secao.style.animation = 'hideSaldos 0.25s ease-in forwards';
+                setTimeout(() => { secao.style.display = 'none'; }, 240);
+                icon.className  = 'fas fa-eye-slash text-xs transition-transform duration-300';
+                label.textContent = 'Saldos ocultos';
+                if (dot) { dot.style.background = '#f87171'; }
+            }
+        }
+        function mostrarToast(msg, tipo = 'info', icone = 'fa-info-circle') {
+            const t = document.getElementById('toastMsg');
+            t.className = `toast ${tipo}`;
+            t.innerHTML = `<i class="fas ${icone}"></i> ${msg}`;
+            t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), 3000);
+        }
+
+        // ============================================================
+        // LOADING BAR
+        // ============================================================
+        function setLoading(on) {
+            const lb = document.getElementById('loadingBar');
+            const ic = document.getElementById('iconSync');
+            lb.classList.toggle('ativo', on);
+            if (ic) ic.classList.toggle('animate-spin', on);
+        }
+
+        // ============================================================
+        // DADOS
+        // ============================================================
+        let dadosRaw = [];
+        let filtroAtivo = 'TODOS';
+        let indexParaExcluir = null;
+        let indexParaEditar = null;
+        let _dataRawOriginal = ''; // armazena a string crua de data do registro em edição
+
+        async function carregarDados() {
+            setLoading(true);
+            try {
+                const res = await fetch(`${SCRIPT_URL}?action=getDashboard&t=${Date.now()}`);
+                dadosRaw = await res.json();
+                renderizarLista();
+                atualizarStats();
+                mostrarToast('Dados carregados', 'success', 'fa-check-circle');
+            } catch(e) {
+                mostrarToast('Erro ao carregar dados', 'error', 'fa-times-circle');
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        // ============================================================
+        // FILTRO E ORDENAÇÃO
+        // ============================================================
+        function setFiltro(el) {
+            document.querySelectorAll('.chip[data-filtro]').forEach(c => c.classList.remove('ativo'));
+            el.classList.add('ativo');
+            filtroAtivo = el.getAttribute('data-filtro');
+            renderizarLista();
+        }
+
+        // Converte qualquer formato de data para número (timestamp) para comparação precisa
+        // Suporta: "dd/mm/yyyy hh:mm:ss", número serial do Sheets, ISO
+        function dataParaTimestamp(d) {
+            if (d === null || d === undefined || d === '') return 0;
+
+            // Serial numérico do Sheets — fração decimal = hora
+            if (typeof d === 'number') {
+                return (d - 25569) * 86400000; // converte para ms desde epoch Unix
+            }
+
+            const s = String(d).trim();
+
+            // "dd/mm/yyyy hh:mm:ss" ou "dd/mm/yyyy"
+            const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+            if (m) {
+                const [, dd, mm, yyyy, hh = '0', mi = '0', ss = '0'] = m;
+                // Montar timestamp sem fuso (local)
+                return new Date(+yyyy, +mm - 1, +dd, +hh, +mi, +ss, 0).getTime();
+            }
+
+            // ISO "yyyy-mm-ddThh:mm:ss"
+            const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2}))?)?/);
+            if (iso) {
+                const [, yyyy, mm, dd, hh = '0', mi = '0', ss = '0'] = iso;
+                return new Date(+yyyy, +mm - 1, +dd, +hh, +mi, +ss, 0).getTime();
+            }
+
+            const dt = new Date(s);
+            return isNaN(dt.getTime()) ? 0 : dt.getTime();
+        }
+
+        function dadosFiltrados() {
+            const busca = document.getElementById('campoBusca').value.toLowerCase();
+            const ordem = document.getElementById('selectOrdem').value;
+
+            let lista = dadosRaw.filter(d => {
+                const matchTipo = filtroAtivo === 'TODOS' || d['Tipo'] === filtroAtivo;
+                const matchBusca = !busca ||
+                    (d['Banco'] || '').toLowerCase().includes(busca) ||
+                    (d['Descrição'] || '').toLowerCase().includes(busca) ||
+                    String(d['Valor Aporte'] || '').includes(busca) ||
+                    (d['Titular'] || '').toLowerCase().includes(busca);
+                return matchTipo && matchBusca;
+            });
+
+            lista.sort((a, b) => {
+                if (ordem === 'recente' || ordem === 'antigo') {
+                    const ta = dataParaTimestamp(a['Data']);
+                    const tb = dataParaTimestamp(b['Data']);
+                    const diff = ordem === 'recente' ? tb - ta : ta - tb;
+                    // desempate pelo ID (maior ID = mais recente)
+                    if (diff !== 0) return diff;
+                    return ordem === 'recente'
+                        ? (parseInt(b['ID']) || 0) - (parseInt(a['ID']) || 0)
+                        : (parseInt(a['ID']) || 0) - (parseInt(b['ID']) || 0);
+                }
+                if (ordem === 'maior') return (parseFloat(b['Valor Aporte']) || 0) - (parseFloat(a['Valor Aporte']) || 0);
+                if (ordem === 'menor') return (parseFloat(a['Valor Aporte']) || 0) - (parseFloat(b['Valor Aporte']) || 0);
+                return 0;
+            });
+
+            return lista;
+        }
+
+        // ============================================================
+        // RENDERIZAÇÃO
+        // ============================================================
+        function fmt(v) {
+            return (parseFloat(v) || 0).toLocaleString('pt-br', { style: 'currency', currency: 'BRL' });
+        }
+
+        // ─────────────────────────────────────────────────────────────
+        // parseData — suporta TODOS os formatos que o Google Sheets pode enviar:
+        //   "dd/mm/yyyy hh:mm:ss"  (mais comum no PT-BR)
+        //   "dd/mm/yyyy"
+        //   número serial do Sheets (dias desde 30/12/1899)
+        //   string ISO  "yyyy-mm-ddThh:mm:ss.000Z"
+        //   string ISO curta "yyyy-mm-dd"
+        // Sempre retorna um Date LOCAL (sem conversão de fuso), ou null se inválido.
+        // ─────────────────────────────────────────────────────────────
+        function parseData(d) {
+            if (d === null || d === undefined || d === '') return null;
+
+            // 1. Número serial do Google Sheets / Excel (inclui fração de dia = hora)
+            if (typeof d === 'number') {
+                // NÃO usar Math.round — a fração decimal É a hora (0.5 = 12:00, 0.75 = 18:00)
+                const msPerDay = 86400000;
+                const epoch = new Date(1899, 11, 30).getTime(); // 30/12/1899 local
+                return new Date(epoch + d * msPerDay);
+            }
+
+            const s = String(d).trim();
+
+            // 2. Formato dd/mm/yyyy [hh:mm:ss] — padrão PT-BR do Sheets
+            const rePTBR = /^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/;
+            const mPTBR = s.match(rePTBR);
+            if (mPTBR) {
+                const [, dd, mm, yyyy, hh = '0', mi = '0', ss = '0'] = mPTBR;
+                return new Date(+yyyy, +mm - 1, +dd, +hh, +mi, +ss, 0);
+            }
+
+            // 3. Formato ISO yyyy-mm-ddThh:mm:ss[.sss][Z] — tratar como LOCAL
+            //    (remove o Z para evitar conversão UTC→local indesejada)
+            const reISO = /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2}))?)?/;
+            const mISO = s.match(reISO);
+            if (mISO) {
+                const [, yyyy, mm, dd, hh = '0', mi = '0', ss = '0'] = mISO;
+                return new Date(+yyyy, +mm - 1, +dd, +hh, +mi, +ss, 0);
+            }
+
+            // 4. Fallback genérico
+            const dt = new Date(s);
+            return isNaN(dt.getTime()) ? null : dt;
+        }
+
+        // Formata só a parte da data (dd/mm/yyyy) para exibição
+        function fmtData(d) {
+            if (!d) return '—';
+            const dt = parseData(d);
+            if (!dt) return '—';
+            return dt.toLocaleDateString('pt-br', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        }
+
+        // Converte para valor de <input type="date"> (yyyy-mm-dd)
+        function dataParaISO(d) {
+            if (!d) return '';
+            const dt = parseData(d);
+            if (!dt) return '';
+            const y  = dt.getFullYear();
+            const m  = String(dt.getMonth() + 1).padStart(2, '0');
+            const day = String(dt.getDate()).padStart(2, '0');
+            return `${y}-${m}-${day}`;
+        }
+
+        // Converte para valor de <input type="time" step="1"> (hh:mm:ss)
+        function dataParaHora(d) {
+            if (!d) return '';
+            const dt = parseData(d);
+            if (!dt) return '';
+            const h   = String(dt.getHours()).padStart(2, '0');
+            const min = String(dt.getMinutes()).padStart(2, '0');
+            const sec = String(dt.getSeconds()).padStart(2, '0');
+            return `${h}:${min}:${sec}`;
+        }
+
+        // Reconstrói "dd/mm/yyyy hh:mm:ss" a partir do valor original sem alteração
+        function dataOriginalFormatada(d) {
+            if (!d) return '';
+            const dt = parseData(d);
+            if (!dt) return String(d); // devolve como estava se não conseguiu parsear
+            const dd  = String(dt.getDate()).padStart(2, '0');
+            const mm  = String(dt.getMonth() + 1).padStart(2, '0');
+            const yyyy = dt.getFullYear();
+            const hh  = String(dt.getHours()).padStart(2, '0');
+            const mi  = String(dt.getMinutes()).padStart(2, '0');
+            const ss  = String(dt.getSeconds()).padStart(2, '0');
+            return `${dd}/${mm}/${yyyy} ${hh}:${mi}:${ss}`;
+        }
+
+        function toggleEditDataHora(manter) {
+            document.getElementById('editData').disabled = manter;
+            document.getElementById('editHora').disabled = manter;
+        }
+
+        function toggleCard(card) {
+            const acoes = card.querySelector('.card-acoes');
+            const chevron = card.querySelector('.card-chevron');
+            const isOpen = acoes.style.display !== 'none';
+            acoes.style.display = isOpen ? 'none' : 'block';
+            if (chevron) chevron.style.transform = isOpen ? '' : 'rotate(180deg)';
+        }
+
+        function renderizarLista() {
+            const lista = dadosFiltrados();
+            const container = document.getElementById('listaLancamentos');
+            const contador = document.getElementById('contadorResultados');
+            contador.textContent = `${lista.length} registro${lista.length !== 1 ? 's' : ''}`;
+
+            if (lista.length === 0) {
+                container.innerHTML = `
+                <div class="text-center py-16 text-slate-400">
+                    <i class="fas fa-inbox text-4xl mb-4 opacity-40"></i>
+                    <p class="font-bold">Nenhum lançamento encontrado</p>
+                </div>`;
+                return;
+            }
+
+            container.innerHTML = lista.map((d, i) => {
+                const isEntrada = d['Tipo'] === 'Entrada';
+                const isSaida   = d['Tipo'] === 'Saída';
+                const aporte = parseFloat(d['Valor Aporte']) || 0;
+                const rend = parseFloat(d['Valor Rendimento']) || 0;
+                // Rendimento puro: sem valor de aporte (ou zero), mas com rendimento
+                const isRendimento = rend > 0 && aporte === 0;
+                const realIndex = dadosRaw.indexOf(d);
+                const dtFmt = fmtData(d['Data']);
+
+                // Definições visuais por tipo
+                let cardClass, iconClass, iconBg, valorClass, sinal, valorExibido, chipHtml;
+                if (isRendimento) {
+                    cardClass  = 'rendimento';
+                    iconClass  = 'fa-chart-line text-indigo-500';
+                    iconBg     = 'bg-indigo-50';
+                    valorClass = 'text-indigo-600';
+                    sinal      = '+';
+                    valorExibido = fmt(rend);
+                    chipHtml   = `<span class="text-[9px] bg-indigo-100 text-indigo-700 font-black px-1.5 py-0.5 rounded-full uppercase tracking-wide">Rendimento</span>`;
+                } else if (isEntrada) {
+                    cardClass  = 'entrada';
+                    iconClass  = 'fa-arrow-down text-emerald-500';
+                    iconBg     = 'bg-emerald-50';
+                    valorClass = 'text-emerald-600';
+                    sinal      = '+';
+                    valorExibido = fmt(aporte);
+                    chipHtml   = '';
+                } else {
+                    cardClass  = 'saida';
+                    iconClass  = 'fa-arrow-up text-rose-500';
+                    iconBg     = 'bg-rose-50';
+                    valorClass = 'text-rose-600';
+                    sinal      = '−';
+                    valorExibido = fmt(aporte);
+                    chipHtml   = '';
+                }
+
+                return `
+                <div class="lanc-card ${cardClass}" style="animation-delay:${Math.min(i * 0.04, 0.4)}s" onclick="toggleCard(this)">
+                    <div class="flex items-start justify-between gap-3">
+                        <div class="flex items-center gap-3 min-w-0">
+                            <div class="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${iconBg}">
+                                <i class="fas ${iconClass} text-sm"></i>
+                            </div>
+                            <div class="min-w-0">
+                                <div class="flex items-center gap-1.5 flex-wrap">
+                                    <p class="font-bold text-slate-800 text-sm truncate">${d['Banco'] || '—'}</p>
+                                    ${chipHtml}
+                                </div>
+                                <p class="text-[10px] text-slate-400 font-semibold truncate">${d['Descrição'] || ''} ${d['Titular'] ? '· ' + d['Titular'] : ''}</p>
+                                <div class="flex items-center gap-2 mt-0.5 flex-wrap">
+                                    <p class="text-[10px] text-slate-300 font-medium">${dtFmt}</p>
+                                    ${d['ID'] ? `<span class="text-[9px] bg-slate-100 text-slate-400 font-bold px-1.5 py-0.5 rounded-md">#${d['ID']}</span>` : ''}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2 flex-shrink-0">
+                            <div class="text-right">
+                                <p class="font-black text-sm ${valorClass}">${sinal} ${valorExibido}</p>
+                                ${!isRendimento && rend > 0 ? `<p class="text-[10px] text-indigo-500 font-bold">+rend ${fmt(rend)}</p>` : ''}
+                            </div>
+                            <i class="fas fa-chevron-down text-slate-300 text-[10px] card-chevron transition-transform duration-200"></i>
+                        </div>
+                    </div>
+
+                    <!-- Ações (ocultas por padrão) -->
+                    <div class="card-acoes" style="display:none;">
+                        <div class="flex gap-2 mt-3 pt-3 border-t border-slate-100">
+                            <button onclick="event.stopPropagation(); abrirEdicao(${realIndex})"
+                                class="flex-1 py-2 rounded-xl bg-indigo-50 border border-indigo-100 text-indigo-600 text-xs font-bold flex items-center justify-center gap-1.5 active:scale-95 transition-all">
+                                <i class="fas fa-edit text-[10px]"></i> Editar
+                            </button>
+                            <button onclick="event.stopPropagation(); abrirExclusao1(${realIndex})"
+                                class="flex-1 py-2 rounded-xl bg-rose-50 border border-rose-100 text-rose-500 text-xs font-bold flex items-center justify-center gap-1.5 active:scale-95 transition-all">
+                                <i class="fas fa-trash text-[10px]"></i> Excluir
+                            </button>
+                        </div>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        function atualizarStats() {
+            let total = 0, entradas = 0, saidas = 0;
+            let qtdEntradas = 0, qtdSaidas = 0;
+            dadosRaw.forEach(d => {
+                const v = parseFloat(d['Valor Aporte']) || 0;
+                if (d['Tipo'] === 'Entrada') { entradas += v; total += v; qtdEntradas++; }
+                else { saidas += v; total -= v; qtdSaidas++; }
+                total += parseFloat(d['Valor Rendimento']) || 0;
+            });
+            document.getElementById('statTotal').textContent = fmt(total);
+            document.getElementById('statEntradas').textContent = fmt(entradas);
+            document.getElementById('statSaidas').textContent = fmt(saidas);
+            document.getElementById('statQtdRegistros').textContent = `${dadosRaw.length} registro${dadosRaw.length !== 1 ? 's' : ''}`;
+            document.getElementById('statQtdEntradas').textContent = `${qtdEntradas} entrada${qtdEntradas !== 1 ? 's' : ''}`;
+            document.getElementById('statQtdSaidas').textContent = `${qtdSaidas} saída${qtdSaidas !== 1 ? 's' : ''}`;
+            // visibilidade mantida automaticamente
+        }
+
+        // ============================================================
+        // MÁSCARA DE MOEDA
+        // ============================================================
+        function mascaraMoeda(el) {
+            let v = el.value.replace(/\D/g, '');
+            if (!v) { el.value = ''; return; }
+            v = (parseInt(v) / 100).toFixed(2);
+            el.value = parseFloat(v).toLocaleString('pt-br', { style: 'currency', currency: 'BRL' });
+        }
+
+        function descascarMoeda(str) {
+            return parseFloat(str.replace(/[R$\s.]/g, '').replace(',', '.')) || 0;
+        }
+
+        // ============================================================
+        // EDIÇÃO
+        // ============================================================
+        function abrirModal(id) { document.getElementById(id).classList.add('ativo'); }
+        function fecharModal(id) { document.getElementById(id).classList.remove('ativo'); }
+
+        function abrirEdicao(idx) {
+            indexParaEditar = idx;
+            const d = dadosRaw[idx];
+            _dataRawOriginal = d['Data'] ?? ''; // guarda string crua — nunca reprocessada
+            document.getElementById('editRowIndex').value = idx;
+            document.getElementById('editSubtitle').textContent = `ID: ${d['ID'] || '—'} · ${d['Banco'] || ''} · ${fmtData(d['Data'])}`;
+            document.getElementById('editValorAporte').value = fmt(d['Valor Aporte']);
+            document.getElementById('editValorRendimento').value = fmt(d['Valor Rendimento'] || 0);
+            document.getElementById('editBanco').value = d['Banco'] || '';
+            document.getElementById('editTipo').value = d['Tipo'] || 'Entrada';
+            document.getElementById('editData').value = dataParaISO(d['Data']);
+            document.getElementById('editHora').value = dataParaHora(d['Data']);
+            document.getElementById('editManterData').checked = true;
+            document.getElementById('editData').disabled = true;
+            document.getElementById('editHora').disabled = true;
+            abrirModal('modalEdicao');
+        }
+
+        function fecharModalEdicao() { fecharModal('modalEdicao'); }
+
+        function abrirConfirmacaoEdicao() {
+            fecharModal('modalEdicao');
+            abrirModal('modalConfirmEdicao');
+        }
+
+        function fecharConfirmEdicao() {
+            fecharModal('modalConfirmEdicao');
+            abrirModal('modalEdicao');
+        }
+
+        async function salvarEdicao() {
+            fecharModal('modalConfirmEdicao');
+            setLoading(true);
+
+            const idx = indexParaEditar;
+            const d = dadosRaw[idx];
+
+            if (idx === null || idx === undefined || !d) {
+                mostrarToast('Erro: registro não encontrado', 'error', 'fa-times-circle');
+                setLoading(false);
+                return;
+            }
+
+            const novaData = _dataRawOriginal;
+
+            const payload = {
+                action: 'editRegistro',
+                index: idx,
+                banco: document.getElementById('editBanco').value.trim(),
+                tipo: document.getElementById('editTipo').value,
+                valorAporte: descascarMoeda(document.getElementById('editValorAporte').value),
+                valorRendimento: descascarMoeda(document.getElementById('editValorRendimento').value),
+                // campo 'data' intencionalmente omitido — data nunca deve ser alterada
+                idConta: d['ID Conta'] || '',
+                descricao: d['Descrição'] || '',
+                titular: d['Titular'] || '',
+            };
+
+            try {
+                await fetch(SCRIPT_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'text/plain' },
+                    body: JSON.stringify(payload)
+                });
+
+                dadosRaw[idx]['Banco'] = payload.banco;
+                dadosRaw[idx]['Tipo'] = payload.tipo;
+                dadosRaw[idx]['Valor Aporte'] = payload.valorAporte;
+                dadosRaw[idx]['Valor Rendimento'] = payload.valorRendimento;
+                // Data preservada intencionalmente — não atualizar
+
+                renderizarLista();
+                atualizarStats();
+                mostrarToast('✅ Lançamento atualizado com sucesso!', 'success', 'fa-check-circle');
+            } catch(e) {
+                mostrarToast('Erro ao salvar alterações', 'error', 'fa-times-circle');
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        // ============================================================
+        // EXCLUSÃO
+        // ============================================================
+        function abrirExclusao1(idx) {
+            indexParaExcluir = idx;
+            const d = dadosRaw[idx];
+            document.getElementById('excluir1Info').textContent =
+                `${d['Banco'] || ''} · ${fmt(d['Valor Aporte'])} · ${fmtData(d['Data'])}`;
+            abrirModal('modalExclusao1');
+        }
+
+        function fecharExclusao1() {
+            fecharModal('modalExclusao1');
+            indexParaExcluir = null;
+        }
+
+        function abrirExclusao2() {
+            fecharModal('modalExclusao1');
+            abrirModal('modalExclusao2');
+        }
+
+        function fecharExclusao2() {
+            fecharModal('modalExclusao2');
+            indexParaExcluir = null;
+        }
+
+        async function confirmarExclusao() {
+            const btn = document.getElementById('btnConfirmarExclusao');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            fecharModal('modalExclusao2');
+            setLoading(true);
+
+            const idx = indexParaExcluir;
+            const d = dadosRaw[idx];
+
+            if (idx === null || idx === undefined || !d) {
+                mostrarToast('Erro: registro não encontrado', 'error', 'fa-times-circle');
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-trash text-sm"></i> Excluir';
+                setLoading(false);
+                return;
+            }
+
+            const payload = {
+                action: 'deleteRegistro',
+                index: idx,
+                id: d['ID'] || '',
+            };
+
+            try {
+                await fetch(SCRIPT_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'text/plain' },
+                    body: JSON.stringify(payload)
+                });
+
+                dadosRaw.splice(idx, 1);
+                renderizarLista();
+                atualizarStats();
+                mostrarToast('🗑️ Lançamento excluído com sucesso!', 'success', 'fa-check-circle');
+            } catch(e) {
+                mostrarToast('Erro ao excluir lançamento', 'error', 'fa-times-circle');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-trash text-sm"></i> Excluir';
+                setLoading(false);
+                indexParaExcluir = null;
+            }
+        }
+
+        // Fechar modais ao clicar no fundo
+        ['modalEdicao','modalConfirmEdicao','modalExclusao1','modalExclusao2'].forEach(id => {
+            document.getElementById(id).addEventListener('click', function(e) {
+                if (e.target === this) {
+                    fecharModal(id);
+                    indexParaExcluir = null;
+                }
+            });
+        });
+    </script>
+</body>
+</html>
