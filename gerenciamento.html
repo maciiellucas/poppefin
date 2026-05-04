@@ -182,6 +182,32 @@
             flex-shrink: 0;
         }
         .chip.ativo { background: #1e293b; color: white; border-color: #1e293b; }
+        .chip.entrada-ativo { background: #10b981; color: white; border-color: #10b981; }
+        .chip.saida-ativo { background: #f43f5e; color: white; border-color: #f43f5e; }
+
+        /* Filtros colapsáveis mobile */
+        .filtros-body {
+            overflow: hidden;
+            transition: max-height 0.3s ease-out, opacity 0.3s ease-out;
+            max-height: 0;
+            opacity: 0;
+        }
+        .filtros-body.expandido {
+            max-height: 500px;
+            opacity: 1;
+        }
+        @media (min-width: 768px) {
+            .filtros-body { max-height: none !important; opacity: 1 !important; }
+        }
+
+        /* Search highlight */
+        mark.busca-highlight {
+            background: rgba(99,102,241,0.15);
+            color: #4f46e5;
+            border-radius: 3px;
+            padding: 0 2px;
+            font-weight: 700;
+        }
 
         /* Bottom nav */
         .bottom-nav {
@@ -405,42 +431,92 @@
 
                 <!-- Coluna de filtros (desktop: lateral) -->
                 <div class="md:col-span-1">
-                    <div class="glass-card p-4 rounded-[24px] space-y-3 md:sticky md:top-4">
-                        <!-- Busca -->
-                        <div class="relative">
-                            <span class="absolute inset-y-0 left-0 flex items-center pl-4 text-slate-300">
-                                <i class="fas fa-search text-sm"></i>
-                            </span>
-                            <input type="text" id="campoBusca" placeholder="Buscar..."
-                                oninput="renderizarLista()"
-                                class="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 pl-11 pr-4 text-slate-700 placeholder-slate-300 outline-none focus:bg-white focus:border-indigo-400 focus:ring-4 focus:ring-indigo-50 transition-all text-sm font-medium">
-                        </div>
+                    <div class="glass-card p-4 rounded-[24px] md:sticky md:top-4">
 
-                        <!-- Chips de tipo -->
-                        <div>
-                            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Tipo</p>
-                            <div class="filtros-scroll md:flex-col md:gap-2">
-                                <button class="chip ativo" data-filtro="TODOS" onclick="setFiltro(this)">Todos</button>
-                                <button class="chip" data-filtro="Entrada" onclick="setFiltro(this)">🟢 Entradas</button>
-                                <button class="chip" data-filtro="Saída" onclick="setFiltro(this)">🔴 Saídas</button>
+                        <!-- Header do painel de filtros com botão expand-all (mobile) -->
+                        <div class="flex items-center justify-between mb-3 md:mb-0">
+                            <div class="flex items-center gap-2">
+                                <div class="w-6 h-6 bg-indigo-100 rounded-lg flex items-center justify-center">
+                                    <i class="fas fa-filter text-indigo-600 text-[9px]"></i>
+                                </div>
+                                <span class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Filtros</span>
+                                <span id="badgeFiltrosAtivos" class="hidden text-[9px] font-black bg-indigo-600 text-white px-1.5 py-0.5 rounded-full">1</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <button onclick="limparFiltros()"
+                                    class="text-[10px] font-bold text-slate-400 hover:text-rose-500 transition-colors md:hidden hidden" id="btnLimpar">
+                                    Limpar
+                                </button>
+                                <button onclick="toggleFiltros()" id="btnToggleFiltros"
+                                    class="md:hidden w-8 h-8 flex items-center justify-center bg-slate-100 rounded-xl text-slate-500 active:scale-95 transition-all">
+                                    <i class="fas fa-sliders-h text-xs"></i>
+                                </button>
                             </div>
                         </div>
 
-                        <!-- Ordenação -->
-                        <div>
-                            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Ordenar</p>
-                            <select id="selectOrdem" onchange="renderizarLista()"
-                                class="w-full bg-slate-50 border border-slate-100 rounded-xl py-2.5 px-3 outline-none text-xs font-semibold text-slate-700">
-                                <option value="recente">Mais recente</option>
-                                <option value="antigo">Mais antigo</option>
-                                <option value="maior">Maior valor</option>
-                                <option value="menor">Menor valor</option>
-                            </select>
-                        </div>
+                        <!-- Corpo dos filtros (expansível no mobile) -->
+                        <div class="filtros-body md:!max-h-none md:!opacity-100" id="filtrosBody">
+                            <div class="space-y-3 pt-3 md:pt-0">
+                                <!-- Busca -->
+                                <div>
+                                    <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1.5">Buscar</label>
+                                    <div class="relative">
+                                        <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-300">
+                                            <i class="fas fa-search text-xs"></i>
+                                        </span>
+                                        <input type="text" id="campoBusca" placeholder="Banco, descrição..."
+                                            oninput="renderizarLista(); atualizarBadgeFiltros()"
+                                            class="w-full bg-slate-50 border border-slate-100 rounded-2xl py-2.5 pl-9 pr-8 text-slate-700 placeholder-slate-300 outline-none focus:bg-white focus:border-indigo-400 focus:ring-4 focus:ring-indigo-50 transition-all text-sm font-medium">
+                                        <button id="btnLimparBusca" onclick="limparBusca()"
+                                            class="hidden absolute inset-y-0 right-0 flex items-center pr-3 text-slate-300 hover:text-slate-500">
+                                            <i class="fas fa-times text-xs"></i>
+                                        </button>
+                                    </div>
+                                </div>
 
-                        <div class="flex items-center justify-between pt-1">
-                            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Resultados</span>
-                            <span id="contadorResultados" class="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-full"></span>
+                                <!-- Chips de tipo — com cores semânticas -->
+                                <div>
+                                    <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1.5">Tipo</label>
+                                    <div class="grid grid-cols-3 gap-1.5">
+                                        <button class="chip ativo text-center" data-filtro="TODOS" onclick="setFiltro(this)">Todos</button>
+                                        <button class="chip text-center" data-filtro="Entrada" onclick="setFiltro(this)">
+                                            <span class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 mr-1 align-middle"></span>Entradas
+                                        </button>
+                                        <button class="chip text-center" data-filtro="Saída" onclick="setFiltro(this)">
+                                            <span class="inline-block w-1.5 h-1.5 rounded-full bg-rose-400 mr-1 align-middle"></span>Saídas
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Ordenação melhorada -->
+                                <div>
+                                    <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1.5">Ordenar</label>
+                                    <div class="grid grid-cols-2 gap-1.5">
+                                        <button class="chip ativo text-center text-[10px]" data-ordem="recente" onclick="setOrdem(this)">
+                                            <i class="fas fa-sort-amount-down text-[9px] mr-0.5"></i> Mais Recente
+                                        </button>
+                                        <button class="chip text-center text-[10px]" data-ordem="antigo" onclick="setOrdem(this)">
+                                            <i class="fas fa-sort-amount-up text-[9px] mr-0.5"></i> Mais Antigo
+                                        </button>
+                                        <button class="chip text-center text-[10px]" data-ordem="maior" onclick="setOrdem(this)">
+                                            <i class="fas fa-arrow-up text-[9px] mr-0.5"></i> Maior Valor
+                                        </button>
+                                        <button class="chip text-center text-[10px]" data-ordem="menor" onclick="setOrdem(this)">
+                                            <i class="fas fa-arrow-down text-[9px] mr-0.5"></i> Menor Valor
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div class="flex items-center justify-between pt-1 border-t border-slate-100">
+                                    <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Resultados</span>
+                                    <span id="contadorResultados" class="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-full"></span>
+                                </div>
+
+                                <button onclick="limparFiltros()"
+                                    class="w-full py-2 text-[11px] font-bold text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all border border-slate-100 hidden md:block" id="btnLimparDesktop">
+                                    <i class="fas fa-times mr-1 text-[9px]"></i> Limpar Filtros
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -845,11 +921,80 @@
         // ============================================================
         // FILTRO E ORDENAÇÃO
         // ============================================================
+        let ordemAtiva = 'recente';
+        let filtrosFiltrosExpandido = false;
+
+        function toggleFiltros() {
+            filtrosFiltrosExpandido = !filtrosFiltrosExpandido;
+            const body = document.getElementById('filtrosBody');
+            const btn = document.getElementById('btnToggleFiltros');
+            if (filtrosFiltrosExpandido) {
+                body.classList.add('expandido');
+                btn.innerHTML = '<i class="fas fa-times text-xs"></i>';
+                btn.classList.add('bg-indigo-100', 'text-indigo-600');
+                btn.classList.remove('bg-slate-100', 'text-slate-500');
+            } else {
+                body.classList.remove('expandido');
+                btn.innerHTML = '<i class="fas fa-sliders-h text-xs"></i>';
+                btn.classList.remove('bg-indigo-100', 'text-indigo-600');
+                btn.classList.add('bg-slate-100', 'text-slate-500');
+            }
+        }
+
         function setFiltro(el) {
             document.querySelectorAll('.chip[data-filtro]').forEach(c => c.classList.remove('ativo'));
             el.classList.add('ativo');
             filtroAtivo = el.getAttribute('data-filtro');
             renderizarLista();
+            atualizarBadgeFiltros();
+        }
+
+        function setOrdem(el) {
+            document.querySelectorAll('.chip[data-ordem]').forEach(c => c.classList.remove('ativo'));
+            el.classList.add('ativo');
+            ordemAtiva = el.getAttribute('data-ordem');
+            renderizarLista();
+        }
+
+        function limparBusca() {
+            const campo = document.getElementById('campoBusca');
+            campo.value = '';
+            document.getElementById('btnLimparBusca').classList.add('hidden');
+            renderizarLista();
+            atualizarBadgeFiltros();
+        }
+
+        function limparFiltros() {
+            document.getElementById('campoBusca').value = '';
+            document.getElementById('btnLimparBusca').classList.add('hidden');
+            filtroAtivo = 'TODOS';
+            ordemAtiva = 'recente';
+            document.querySelectorAll('.chip[data-filtro]').forEach(c => {
+                c.classList.toggle('ativo', c.getAttribute('data-filtro') === 'TODOS');
+            });
+            document.querySelectorAll('.chip[data-ordem]').forEach(c => {
+                c.classList.toggle('ativo', c.getAttribute('data-ordem') === 'recente');
+            });
+            renderizarLista();
+            atualizarBadgeFiltros();
+        }
+
+        function atualizarBadgeFiltros() {
+            const busca = (document.getElementById('campoBusca')?.value || '').trim();
+            const btnLimpar = document.getElementById('btnLimparBusca');
+            if (btnLimpar) btnLimpar.classList.toggle('hidden', !busca);
+
+            let ativos = 0;
+            if (filtroAtivo !== 'TODOS') ativos++;
+            if (busca) ativos++;
+            if (ordemAtiva !== 'recente') ativos++;
+            const badge = document.getElementById('badgeFiltrosAtivos');
+            const btnLimparDesktop = document.getElementById('btnLimparDesktop');
+            if (badge) {
+                badge.textContent = ativos;
+                badge.classList.toggle('hidden', ativos === 0);
+            }
+            if (btnLimparDesktop) btnLimparDesktop.classList.toggle('hidden', ativos === 0);
         }
 
         // Converte qualquer formato de data para número (timestamp) para comparação precisa
@@ -885,7 +1030,7 @@
 
         function dadosFiltrados() {
             const busca = document.getElementById('campoBusca').value.toLowerCase();
-            const ordem = document.getElementById('selectOrdem').value;
+            const ordem = ordemAtiva;
 
             let lista = dadosRaw.filter(d => {
                 const matchTipo = filtroAtivo === 'TODOS' || d['Tipo'] === filtroAtivo;
