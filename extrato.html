@@ -361,19 +361,21 @@
         // nenhum dispositivo novo precisa colar a URL manualmente. Se um dia você
         // reimplantar o Apps Script e a URL mudar, use o botão de configuração
         // (ícone da tomada) para trocar; a nova URL fica salva só naquele navegador.
+        // Fonte única da URL: este valor abaixo é usado em TODOS os dispositivos e
+        // navegadores, sempre — não depende de nada salvo no navegador. Se um dia
+        // você reimplantar o Apps Script e a URL mudar, troque APENAS aqui (e
+        // repita a troca nos outros 4 arquivos .html do sistema); assim que você
+        // atualizar o arquivo publicado, todo mundo passa a usar a URL nova
+        // automaticamente, sem precisar fazer nada em cada aparelho.
         const DEFAULT_API_URL = 'https://script.google.com/macros/s/AKfycbwaIsf1cABPNnlYHZRwzf2oAItMbyKk33Uz_JPj9fysQHVF9dBaCRqnJvCsjOA8_crG_g/exec';
         function getApiUrl() {
-            let u = localStorage.getItem('poppefinApiUrl');
-            if (!u) {
-                u = DEFAULT_API_URL;
-                localStorage.setItem('poppefinApiUrl', u);
-            }
-            return u || '';
+            // Permite um teste pontual, só nesta aba (não fica salvo, não afeta
+            // outros dispositivos) — feche a aba e volta a usar a URL padrão acima.
+            return sessionStorage.getItem('poppefinApiUrlTeste') || DEFAULT_API_URL;
         }
         function trocarApiUrl() {
-            const atual = localStorage.getItem('poppefinApiUrl') || '';
-            const nova = prompt('URL do Apps Script:', atual);
-            if (nova && nova.trim()) { localStorage.setItem('poppefinApiUrl', nova.trim()); location.reload(); }
+            const nova = prompt('Testar outra URL do Apps Script apenas nesta aba (não afeta outros dispositivos):', getApiUrl());
+            if (nova && nova.trim()) { sessionStorage.setItem('poppefinApiUrlTeste', nova.trim()); location.reload(); }
         }
         const SCRIPT_URL = getApiUrl();
         console.log('[PoppeFin] SCRIPT_URL em uso:', SCRIPT_URL);
