@@ -782,10 +782,16 @@ function createTransaction(data) {
 
     /*
      * Data
+     * (a data vem só com dia/mês/ano do formulário; aplicamos o
+     * horário exato do momento do lançamento para manter a ordem
+     * cronológica correta entre movimentações do mesmo dia)
      */
 
     const dataMovimentacao =
-      parseDate(data.data);
+      montarDataComHora(
+        parseDate(data.data),
+        null
+      );
 
 
     /*
@@ -1037,8 +1043,21 @@ function updateTransaction(data) {
   }
 
 
+  /*
+   * Data
+   * Se o dia continua o mesmo, preserva o horário original do
+   * lançamento (evita "pular" para o topo do extrato só por ter
+   * sido editado). Se o dia mudou, aplica o horário atual.
+   */
+
+  const dataAntiga =
+    sheet.getRange(row, 1).getValue();
+
   const dataMovimentacao =
-    parseDate(data.data);
+    montarDataComHora(
+      parseDate(data.data),
+      dataAntiga
+    );
 
 
   let bancoDestino = "";
@@ -1766,12 +1785,53 @@ function formatDateForApi(date) {
   const timezone =
     Session.getScriptTimeZone();
 
+  /*
+   * Inclui horas, minutos e segundos (formato ISO) para que o
+   * front-end consiga ordenar corretamente as movimentações do
+   * mesmo dia e exibir o horário exato de cada lançamento.
+   */
 
   return Utilities.formatDate(
     date,
     timezone,
-    "yyyy-MM-dd"
+    "yyyy-MM-dd'T'HH:mm:ss"
   );
+}
+
+
+/* ==========================================================
+   MONTAR DATA COM HORÁRIO
+   ==========================================================
+   Recebe a data "pura" (só dia/mês/ano, vinda do formulário) e
+   devolve um objeto Date com um horário definido:
+   - se dataAntiga for informada e cair no MESMO dia, reaproveita
+     o horário já gravado (preserva a ordem original ao editar);
+   - caso contrário, usa o horário atual (momento do lançamento).
+   ========================================================== */
+
+function montarDataComHora(dataNova, dataAntiga) {
+
+  const resultado =
+    new Date(dataNova);
+
+  const mesmoDia =
+    Object.prototype.toString.call(dataAntiga) === "[object Date]" &&
+    !isNaN(dataAntiga.getTime()) &&
+    dataAntiga.getFullYear() === resultado.getFullYear() &&
+    dataAntiga.getMonth() === resultado.getMonth() &&
+    dataAntiga.getDate() === resultado.getDate();
+
+  const referencia =
+    mesmoDia ? dataAntiga : new Date();
+
+  resultado.setHours(
+    referencia.getHours(),
+    referencia.getMinutes(),
+    referencia.getSeconds(),
+    0
+  );
+
+  return resultado;
 }
 
 

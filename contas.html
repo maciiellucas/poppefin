@@ -345,11 +345,16 @@
         // ============================================================
         // CONEXÃO COM A API (Google Apps Script)
         // ============================================================
+        // URL padrão do Web App do Apps Script — já embutida no código, então
+        // nenhum dispositivo novo precisa colar a URL manualmente. Se um dia você
+        // reimplantar o Apps Script e a URL mudar, use o botão de configuração
+        // (ícone da tomada) para trocar; a nova URL fica salva só naquele navegador.
+        const DEFAULT_API_URL = 'https://script.google.com/macros/s/AKfycbwaIsf1cABPNnlYHZRwzf2oAItMbyKk33Uz_JPj9fysQHVF9dBaCRqnJvCsjOA8_crG_g/exec';
         function getApiUrl() {
             let u = localStorage.getItem('poppefinApiUrl');
             if (!u) {
-                u = prompt('Cole aqui a URL do seu Web App do Apps Script:', 'https://script.google.com/macros/s/SEU_ID_AQUI/exec');
-                if (u) { u = u.trim(); localStorage.setItem('poppefinApiUrl', u); }
+                u = DEFAULT_API_URL;
+                localStorage.setItem('poppefinApiUrl', u);
             }
             return u || '';
         }
