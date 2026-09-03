@@ -119,7 +119,10 @@
         .tipo-chip.ativo-todos    { background: #1e293b; color: white; border-color: #1e293b; }
         .tipo-chip.ativo-entrada  { background: #10b981; color: white; border-color: #10b981; }
         .tipo-chip.ativo-saida    { background: #f43f5e; color: white; border-color: #f43f5e; }
+        .tipo-chip.ativo-transf   { background: #8b5cf6; color: white; border-color: #8b5cf6; }
         .tipo-chip.ativo-rend     { background: #6366f1; color: white; border-color: #6366f1; }
+
+        .card-transferencia { border-left: 4px solid #8b5cf6; background: rgba(139, 92, 246, 0.04); }
 
         .filtros-scroll {
             display: flex;
@@ -218,9 +221,17 @@
                         <div class="session-dot" id="sessionDot"></div>
                         <span id="sessionTime" class="text-[11px] font-bold text-slate-400">10:00</span>
                     </div>
+                    <button onclick="trocarApiUrl()" title="Configurar conexão"
+                        class="w-10 h-10 bg-white/60 rounded-xl flex items-center justify-center shadow-sm active:scale-95">
+                        <i class="fas fa-plug text-slate-400 text-sm"></i>
+                    </button>
                     <button onclick="carregarDados()"
                         class="w-10 h-10 bg-white/60 rounded-xl flex items-center justify-center shadow-sm active:scale-95">
                         <i class="fas fa-sync-alt text-indigo-500 text-sm" id="iconSync"></i>
+                    </button>
+                    <button onclick="exportarCSV()" title="Exportar CSV"
+                        class="h-10 px-3 bg-white/60 text-slate-600 rounded-xl font-bold text-sm flex items-center gap-2 shadow-sm active:scale-95">
+                        <i class="fas fa-file-csv"></i>
                     </button>
                     <button id="btnExport" onclick="exportarPDF()"
                         class="h-10 px-4 bg-indigo-600 text-white rounded-xl font-bold text-sm flex items-center gap-2 shadow-lg shadow-indigo-200 active:scale-95">
@@ -233,6 +244,16 @@
 
         <!-- Filtros -->
         <div class="glass-card p-4 rounded-[24px] space-y-3">
+            <!-- Busca -->
+            <div class="relative">
+                <i class="fas fa-search absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-300 text-xs"></i>
+                <input type="text" id="campoBusca" oninput="filtrarExtrato()" placeholder="Pesquisar por descrição, banco, titular ou detalhamento..."
+                    class="w-full bg-white border-none pl-9 pr-8 py-2.5 rounded-xl outline-none shadow-sm text-sm font-medium text-slate-700">
+                <button onclick="document.getElementById('campoBusca').value='';filtrarExtrato()" id="btnLimparBusca"
+                    class="hidden absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500 text-xs">
+                    <i class="fas fa-times-circle"></i>
+                </button>
+            </div>
             <!-- Linha 1: Conta + Período -->
             <div class="grid grid-cols-2 gap-3">
                 <div class="flex flex-col">
@@ -251,7 +272,20 @@
                     </select>
                 </div>
             </div>
-            <!-- Linha 2: Chips de tipo (scroll horizontal) -->
+            <!-- Linha 2: Banco + Titular -->
+            <div class="grid grid-cols-2 gap-3">
+                <div class="flex flex-col">
+                    <label class="text-[9px] font-bold text-slate-400 uppercase mb-1 ml-1">Banco</label>
+                    <select id="filtroBanco" onchange="filtrarExtrato()"
+                        class="bg-white border-none p-2.5 rounded-xl outline-none shadow-sm text-sm font-semibold text-slate-700 cursor-pointer"></select>
+                </div>
+                <div class="flex flex-col">
+                    <label class="text-[9px] font-bold text-slate-400 uppercase mb-1 ml-1">Titular</label>
+                    <select id="filtroTitular" onchange="filtrarExtrato()"
+                        class="bg-white border-none p-2.5 rounded-xl outline-none shadow-sm text-sm font-semibold text-slate-700 cursor-pointer"></select>
+                </div>
+            </div>
+            <!-- Linha 3: Chips de tipo (scroll horizontal) -->
             <div class="filtros-scroll">
                 <button class="tipo-chip ativo-todos" onclick="setTipo('TODOS', this)">
                     <i class="fas fa-th-list mr-1"></i> Todos
@@ -262,8 +296,16 @@
                 <button class="tipo-chip" onclick="setTipo('Saída', this)">
                     <i class="fas fa-arrow-up mr-1"></i> Saídas
                 </button>
+                <button class="tipo-chip" onclick="setTipo('Transferência', this)">
+                    <i class="fas fa-exchange-alt mr-1"></i> Transferências
+                </button>
                 <button class="tipo-chip" onclick="setTipo('Rendimento', this)">
                     <i class="fas fa-chart-line mr-1"></i> Rendimentos
+                </button>
+            </div>
+            <div class="flex justify-end">
+                <button onclick="limparFiltrosExtrato()" class="text-[10px] font-bold text-slate-400 hover:text-indigo-600 uppercase tracking-wide">
+                    <i class="fas fa-eraser mr-1"></i> Limpar filtros
                 </button>
             </div>
         </div>
@@ -304,15 +346,87 @@
                 <i class="fas fa-file-pdf text-lg"></i>
                 <span class="text-[9px] font-bold uppercase tracking-wide">PDF</span>
             </button>
-            <button onclick="carregarDados()" class="flex flex-col items-center gap-1 text-slate-400 flex-1 py-2">
-                <i class="fas fa-sync-alt text-lg"></i>
-                <span class="text-[9px] font-bold uppercase tracking-wide">Sync</span>
+            <button onclick="window.location.href='contas.html'" class="flex flex-col items-center gap-1 text-slate-400 flex-1 py-2">
+                <i class="fas fa-university text-lg"></i>
+                <span class="text-[9px] font-bold uppercase tracking-wide">Contas</span>
             </button>
         </div>
     </nav>
 
     <script>
-        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxoapiR4Mtjic8yLSjCcZ4I1dsClIMyV6ReaPmzYmNxKa4wUpEEAKUGBnDmc_XAqxZ1Bw/exec';
+        // ============================================================
+        // CONEXÃO COM A API (Google Apps Script)
+        // ============================================================
+        function getApiUrl() {
+            let u = localStorage.getItem('poppefinApiUrl');
+            if (!u) {
+                u = prompt('Cole aqui a URL do seu Web App do Apps Script:', 'https://script.google.com/macros/s/SEU_ID_AQUI/exec');
+                if (u) { u = u.trim(); localStorage.setItem('poppefinApiUrl', u); }
+            }
+            return u || '';
+        }
+        function trocarApiUrl() {
+            const atual = localStorage.getItem('poppefinApiUrl') || '';
+            const nova = prompt('URL do Apps Script:', atual);
+            if (nova && nova.trim()) { localStorage.setItem('poppefinApiUrl', nova.trim()); location.reload(); }
+        }
+        const SCRIPT_URL = getApiUrl();
+        console.log('[PoppeFin] SCRIPT_URL em uso:', SCRIPT_URL);
+
+        async function apiGet(action) {
+            let res;
+            try {
+                res = await fetch(`${SCRIPT_URL}?action=${action}&t=${Date.now()}`);
+            } catch (err) {
+                throw new Error('Falha de rede/CORS ao contatar a API. Confira a URL configurada (ícone da tomada).');
+            }
+            const text = await res.text();
+            let json;
+            try {
+                json = JSON.parse(text);
+            } catch (err) {
+                console.error('[PoppeFin] Resposta não-JSON recebida:', text.slice(0, 500));
+                if (/accounts\.google\.com|ServiceLogin|Sign in/i.test(text)) {
+                    throw new Error('O Apps Script pediu login do Google. Reimplante com acesso "Qualquer pessoa" (não "Qualquer pessoa com Google").');
+                }
+                throw new Error('A API não retornou JSON válido. Confira se a URL termina em /exec e se foi implantada como App da Web.');
+            }
+            if (!json.success) throw new Error(json.message || 'Erro ao buscar dados');
+            return json;
+        }
+
+        // Converte as movimentações da API para o formato usado pela tela,
+        // preservando TRANSFERÊNCIA como um único registro (com conta/banco/titular
+        // de origem e destino) em vez de dividi-la — aqui o usuário precisa ver
+        // (e mais tarde editar/excluir) o lançamento real, não uma versão sintética.
+        function adaptarParaExtrato(movimentacoes) {
+            return (movimentacoes || []).map(m => ({
+                'ID': m.id,
+                'Data': m.data || '',
+                'ID Conta': m.idConta,
+                'ID Conta Destino': m.idContaDestino,
+                'Banco': m.banco,
+                'Banco Destino': m.bancoDestino,
+                'Descrição': m.descricao,
+                'Tipo': normalizarTipoApi(m.tipo) === 'ENTRADA' ? 'Entrada' : normalizarTipoApi(m.tipo) === 'SAÍDA' ? 'Saída' : 'Transferência',
+                'Valor Aporte': parseFloat(m.valor) || 0,
+                'Valor Rendimento': parseFloat(m.valorRendimento) || 0,
+                'Detalhamento': m.detalhamento || '',
+                'Titular Conta': m.titularConta,
+                'Titular Destino': m.titularDestino
+            }));
+        }
+
+                // Normaliza o campo "tipo" vindo da planilha — lida com dados antigos
+        // gravados como "Entrada"/"Saída" (só a 1ª maiúscula) em vez do formato
+        // ENTRADA/SAÍDA/TRANSFERÊNCIA que o backend novo grava.
+        function normalizarTipoApi(raw) {
+            const t = (raw || '').toString().trim().toUpperCase();
+            if (t === 'ENTRADA') return 'ENTRADA';
+            if (t === 'SAÍDA' || t === 'SAIDA') return 'SAÍDA';
+            if (t.indexOf('TRANSFER') === 0) return 'TRANSFERÊNCIA';
+            return 'SAÍDA';
+        }
         let dadosRaw = [];
         let filtroTipoAtivo = 'TODOS';
 
@@ -379,7 +493,10 @@
             sessionStorage.setItem('extratoEstado', JSON.stringify({
                 filtroConta: document.getElementById('filtroConta').value,
                 filtroPeriodo: document.getElementById('filtroPeriodo').value,
-                filtroTipo: filtroTipoAtivo
+                filtroTipo: filtroTipoAtivo,
+                filtroBanco: document.getElementById('filtroBanco')?.value || 'TODOS',
+                filtroTitular: document.getElementById('filtroTitular')?.value || 'TODOS',
+                busca: document.getElementById('campoBusca')?.value || ''
             }));
         }
 
@@ -393,7 +510,7 @@
                 document.querySelectorAll('.tipo-chip').forEach(chip => {
                     chip.className = 'tipo-chip';
                     if (chip.getAttribute('data-tipo') === e.filtroTipo) {
-                        const cls = { 'Entrada': 'ativo-entrada', 'Saída': 'ativo-saida', 'Rendimento': 'ativo-rend' };
+                        const cls = { 'Entrada': 'ativo-entrada', 'Saída': 'ativo-saida', 'Transferência': 'ativo-transf', 'Rendimento': 'ativo-rend' };
                         chip.classList.add(cls[e.filtroTipo] || 'ativo-todos');
                     }
                 });
@@ -429,10 +546,11 @@
             `;
 
             try {
-                const response = await fetch(`${SCRIPT_URL}?action=getDashboard&t=${Date.now()}`);
-                dadosRaw = await response.json();
+                const resultado = await apiGet('getAll');
+                dadosRaw = adaptarParaExtrato(resultado.movimentacoes);
                 sessionStorage.setItem('extratoData', JSON.stringify(dadosRaw));
                 popularFiltroContas();
+                popularFiltroBancoTitular();
 
                 const estado = restaurarEstado();
                 if (estado) {
@@ -440,6 +558,11 @@
                     if ([...sel.options].some(o => o.value === estado.filtroConta)) sel.value = estado.filtroConta;
                     const selP = document.getElementById('filtroPeriodo');
                     if ([...selP.options].some(o => o.value === estado.filtroPeriodo)) selP.value = estado.filtroPeriodo;
+                    const selB = document.getElementById('filtroBanco');
+                    if (selB && estado.filtroBanco && [...selB.options].some(o => o.value === estado.filtroBanco)) selB.value = estado.filtroBanco;
+                    const selT = document.getElementById('filtroTitular');
+                    if (selT && estado.filtroTitular && [...selT.options].some(o => o.value === estado.filtroTitular)) selT.value = estado.filtroTitular;
+                    if (estado.busca) document.getElementById('campoBusca').value = estado.busca;
                 }
 
                 filtrarExtrato();
@@ -473,12 +596,35 @@
             });
         }
 
+        function popularFiltroBancoTitular() {
+            const selB = document.getElementById('filtroBanco');
+            const selT = document.getElementById('filtroTitular');
+            const bancos = [...new Set(dadosRaw.map(d => d['Banco']).filter(Boolean))].sort();
+            const titulares = [...new Set(dadosRaw.map(d => d['Titular Conta']).filter(Boolean))].sort();
+            selB.innerHTML = '<option value="TODOS">Todos os Bancos</option>' +
+                bancos.map(b => `<option value="${b}">${b}</option>`).join('');
+            selT.innerHTML = '<option value="TODOS">Todos os Titulares</option>' +
+                titulares.map(t => `<option value="${t}">${t}</option>`).join('');
+        }
+
+        function limparFiltrosExtrato() {
+            document.getElementById('campoBusca').value = '';
+            document.getElementById('filtroConta').value = 'TODAS';
+            document.getElementById('filtroPeriodo').value = '0';
+            document.getElementById('filtroBanco').value = 'TODOS';
+            document.getElementById('filtroTitular').value = 'TODOS';
+            filtroTipoAtivo = 'TODOS';
+            document.querySelectorAll('.tipo-chip').forEach(c => c.className = 'tipo-chip');
+            document.querySelector('.tipo-chip[data-tipo="TODOS"]').classList.add('ativo-todos');
+            filtrarExtrato();
+        }
+
         function formatarMoeda(v) { return v.toLocaleString('pt-br', { style: 'currency', currency: 'BRL' }); }
 
         function setTipo(tipo, btn) {
             filtroTipoAtivo = tipo;
             document.querySelectorAll('.tipo-chip').forEach(c => c.className = 'tipo-chip');
-            const cls = { 'TODOS': 'ativo-todos', 'Entrada': 'ativo-entrada', 'Saída': 'ativo-saida', 'Rendimento': 'ativo-rend' };
+            const cls = { 'TODOS': 'ativo-todos', 'Entrada': 'ativo-entrada', 'Saída': 'ativo-saida', 'Transferência': 'ativo-transf', 'Rendimento': 'ativo-rend' };
             btn.classList.add(cls[tipo]);
             filtrarExtrato();
             salvarEstado();
@@ -487,25 +633,39 @@
         function filtrarExtrato() {
             const fConta = document.getElementById('filtroConta').value;
             const fPeriodo = parseInt(document.getElementById('filtroPeriodo').value);
+            const fBanco = document.getElementById('filtroBanco')?.value || 'TODOS';
+            const fTitular = document.getElementById('filtroTitular')?.value || 'TODOS';
+            const busca = (document.getElementById('campoBusca')?.value || '').trim().toLowerCase();
+            document.getElementById('btnLimparBusca')?.classList.toggle('hidden', !busca);
             const container = document.getElementById('containerExtrato');
             const agora = new Date();
 
             container.innerHTML = '';
-            let sEntrada = 0, sSaida = 0, sRend = 0;
+            let sEntrada = 0, sSaida = 0, sRend = 0, sTransf = 0;
 
             let filtrados = dadosRaw.filter(d => {
                 const dataMov = new Date(d['Data']);
-                const matchConta = fConta === 'TODAS' || String(d['ID Conta']) === fConta;
+                const matchConta = fConta === 'TODAS' || String(d['ID Conta']) === fConta || String(d['ID Conta Destino']) === fConta;
+                const matchBanco = fBanco === 'TODOS' || d['Banco'] === fBanco || d['Banco Destino'] === fBanco;
+                const matchTitular = fTitular === 'TODOS' || d['Titular Conta'] === fTitular || d['Titular Destino'] === fTitular;
+                const matchBusca = !busca ||
+                    (d['Descrição'] || '').toLowerCase().includes(busca) ||
+                    (d['Banco'] || '').toLowerCase().includes(busca) ||
+                    (d['Banco Destino'] || '').toLowerCase().includes(busca) ||
+                    (d['Titular Conta'] || '').toLowerCase().includes(busca) ||
+                    (d['Titular Destino'] || '').toLowerCase().includes(busca) ||
+                    (d['Detalhamento'] || '').toLowerCase().includes(busca) ||
+                    String(d['Valor Aporte'] || '').includes(busca);
                 let matchPeriodo = true;
                 if (fPeriodo > 0) {
                     const limite = new Date();
                     limite.setMonth(agora.getMonth() - fPeriodo);
                     matchPeriodo = dataMov >= limite;
                 }
-                return matchConta && matchPeriodo;
+                return matchConta && matchBanco && matchTitular && matchBusca && matchPeriodo;
             });
 
-            filtrados.sort((a, b) => new Date(b['Data']) - new Date(a['Data']));
+            filtrados.sort((a, b) => (new Date(b['Data']) - new Date(a['Data'])) || (Number(b['ID']) - Number(a['ID'])));
 
             // Agrupar por data
             const grupos = {};
@@ -517,15 +677,23 @@
                 const dataChave = new Date(mov['Data']).toLocaleDateString('pt-br');
                 if (!grupos[dataChave]) grupos[dataChave] = [];
 
-                if (vA > 0 && (filtroTipoAtivo === 'TODOS' || filtroTipoAtivo === mov['Tipo'])) {
-                    if (mov['Tipo'] === 'Entrada') sEntrada += vA; else sSaida += vA;
-                    grupos[dataChave].push({ dataF: dataChave, ...mov, valorExibido: vA, tipoExibido: mov['Tipo'] });
-                    totalCards++;
-                }
-                if (vR > 0 && (filtroTipoAtivo === 'TODOS' || filtroTipoAtivo === 'Rendimento')) {
-                    sRend += vR;
-                    grupos[dataChave].push({ dataF: dataChave, ...mov, valorExibido: vR, tipoExibido: 'Rendimento' });
-                    totalCards++;
+                if (mov['Tipo'] === 'Transferência') {
+                    if (vA > 0 && (filtroTipoAtivo === 'TODOS' || filtroTipoAtivo === 'Transferência')) {
+                        sTransf += vA;
+                        grupos[dataChave].push({ dataF: dataChave, ...mov, valorExibido: vA, tipoExibido: 'Transferência' });
+                        totalCards++;
+                    }
+                } else {
+                    if (vA > 0 && (filtroTipoAtivo === 'TODOS' || filtroTipoAtivo === mov['Tipo'])) {
+                        if (mov['Tipo'] === 'Entrada') sEntrada += vA; else sSaida += vA;
+                        grupos[dataChave].push({ dataF: dataChave, ...mov, valorExibido: vA, tipoExibido: mov['Tipo'] });
+                        totalCards++;
+                    }
+                    if (vR > 0 && (filtroTipoAtivo === 'TODOS' || filtroTipoAtivo === 'Rendimento')) {
+                        sRend += vR;
+                        grupos[dataChave].push({ dataF: dataChave, ...mov, valorExibido: vR, tipoExibido: 'Rendimento' });
+                        totalCards++;
+                    }
                 }
             });
 
@@ -538,7 +706,7 @@
                         <p class="text-slate-400 font-semibold text-sm">Nenhuma movimentação encontrada</p>
                         <p class="text-slate-300 text-xs mt-1">Tente ajustar os filtros</p>
                     </div>`;
-                atualizarSomas(0, 0, 0);
+                atualizarSomas(0, 0, 0, 0);
                 return;
             }
 
@@ -564,11 +732,13 @@
                 });
             });
 
-            atualizarSomas(sEntrada, sSaida, sRend);
+            atualizarSomas(sEntrada, sSaida, sRend, sTransf);
             salvarEstado();
         }
 
-        function atualizarSomas(e, s, r) {
+        function atualizarSomas(e, s, r, t) {
+            t = t || 0;
+            document.getElementById('painelSomas').className = 'grid grid-cols-2 md:grid-cols-5 gap-3';
             document.getElementById('painelSomas').innerHTML = `
                 <div class="glass-card p-4 rounded-2xl border-b-4 border-emerald-500">
                     <div class="flex items-center gap-2 mb-1">
@@ -587,6 +757,15 @@
                         <p class="text-[9px] font-bold text-slate-400 uppercase">Saídas</p>
                     </div>
                     <p class="text-base font-bold text-rose-600">${formatarMoeda(s)}</p>
+                </div>
+                <div class="glass-card p-4 rounded-2xl border-b-4 border-violet-500">
+                    <div class="flex items-center gap-2 mb-1">
+                        <div class="w-6 h-6 bg-violet-100 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-exchange-alt text-violet-500 text-[10px]"></i>
+                        </div>
+                        <p class="text-[9px] font-bold text-slate-400 uppercase">Transferido</p>
+                    </div>
+                    <p class="text-base font-bold text-violet-600">${formatarMoeda(t)}</p>
                 </div>
                 <div class="glass-card p-4 rounded-2xl border-b-4 border-indigo-500">
                     <div class="flex items-center gap-2 mb-1">
@@ -611,15 +790,30 @@
         function criarCardHTML(m, delay) {
             const tipo = m.tipoExibido;
             const valor = m.valorExibido;
-            const titular = m['Titular Conta'] || m['Titular'] || '—';
+            const titular = m['Titular Conta'] || '—';
+            const isTransf = tipo === 'Transferência';
+            const horaF = m['Data'] ? new Date(m['Data']).toLocaleTimeString('pt-br', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '';
+
             const icon = tipo === 'Entrada' ? 'fa-arrow-down text-emerald-500' :
-                         tipo === 'Saída'   ? 'fa-arrow-up text-rose-500'     : 'fa-chart-line text-indigo-500';
+                         tipo === 'Saída'   ? 'fa-arrow-up text-rose-500'     :
+                         isTransf           ? 'fa-exchange-alt text-violet-500' : 'fa-chart-line text-indigo-500';
             const classe = tipo === 'Entrada' ? 'card-entrada' :
-                           tipo === 'Saída'   ? 'card-saida'   : 'card-rendimento';
-            const valClass = tipo === 'Saída' ? 'text-rose-600' : tipo === 'Rendimento' ? 'text-indigo-600' : 'text-emerald-600';
-            const sinal = tipo === 'Saída' ? '−' : '+';
+                           tipo === 'Saída'   ? 'card-saida'   :
+                           isTransf           ? 'card-transferencia' : 'card-rendimento';
+            const valClass = tipo === 'Saída' ? 'text-rose-600' : isTransf ? 'text-violet-600' : tipo === 'Rendimento' ? 'text-indigo-600' : 'text-emerald-600';
+            const sinal = tipo === 'Saída' ? '−' : isTransf ? '⇄' : '+';
             const chipColor = tipo === 'Entrada' ? 'bg-emerald-100 text-emerald-700' :
-                              tipo === 'Saída'   ? 'bg-rose-100 text-rose-700'       : 'bg-indigo-100 text-indigo-700';
+                              tipo === 'Saída'   ? 'bg-rose-100 text-rose-700'       :
+                              isTransf           ? 'bg-violet-100 text-violet-700'   : 'bg-indigo-100 text-indigo-700';
+
+            const linha2 = isTransf
+                ? `<h4 class="font-bold text-slate-700 text-sm truncate">${m['Banco']} <span class="font-normal text-slate-400"><i class="fas fa-long-arrow-alt-right text-[9px] mx-1"></i>${m['Banco Destino'] || ''} · ${m['Descrição'] || ''}</span></h4>`
+                : `<h4 class="font-bold text-slate-700 text-sm truncate">${m['Banco']} <span class="font-normal text-slate-400">| ${m['Descrição']}</span></h4>`;
+            const linhaTitular = isTransf
+                ? `<p class="text-[10px] text-slate-400 italic truncate"><i class="fas fa-user text-[9px] mr-1"></i>${titular} → ${m['Titular Destino'] || '—'}</p>`
+                : `<p class="text-[10px] text-slate-400 italic truncate"><i class="fas fa-user text-[9px] mr-1"></i>${titular}</p>`;
+            const linhaDetalhe = m['Detalhamento']
+                ? `<p class="text-[10px] text-slate-400 truncate mt-0.5"><i class="fas fa-sticky-note text-[9px] mr-1"></i>${m['Detalhamento']}</p>` : '';
 
             return `
             <div class="glass-card p-4 rounded-2xl ${classe} mov-card active:scale-[0.99] transition-all"
@@ -632,12 +826,11 @@
                         <div class="min-w-0">
                             <div class="flex items-center gap-2 flex-wrap mb-0.5">
                                 <span class="text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${chipColor}">${tipo}</span>
-                                <span class="text-[10px] font-bold text-slate-400">${m.dataF}</span>
+                                <span class="text-[10px] font-bold text-slate-400">${m.dataF}${horaF ? ' · ' + horaF : ''}</span>
                             </div>
-                            <h4 class="font-bold text-slate-700 text-sm truncate">${m['Banco']} <span class="font-normal text-slate-400">| ${m['Descrição']}</span></h4>
-                            <p class="text-[10px] text-slate-400 italic truncate">
-                                <i class="fas fa-user text-[9px] mr-1"></i>${titular}
-                            </p>
+                            ${linha2}
+                            ${linhaTitular}
+                            ${linhaDetalhe}
                         </div>
                     </div>
                     <div class="shrink-0 text-right">
@@ -650,6 +843,84 @@
         // =============================================
         // EXPORTAR PDF — layout limpo, legível no celular
         // =============================================
+        // Reaplica os mesmos filtros da tela para montar os dados de um relatório
+        // (usado tanto pelo PDF quanto pelo CSV), incluindo transferências.
+        function coletarLinhasRelatorio() {
+            const fConta   = document.getElementById('filtroConta').value;
+            const fPer     = parseInt(document.getElementById('filtroPeriodo').value);
+            const fBanco   = document.getElementById('filtroBanco')?.value || 'TODOS';
+            const fTitular = document.getElementById('filtroTitular')?.value || 'TODOS';
+            const busca    = (document.getElementById('campoBusca')?.value || '').trim().toLowerCase();
+            const agora    = new Date();
+
+            let filtrados = dadosRaw.filter(d => {
+                const dt = new Date(d['Data']);
+                const matchConta = fConta === 'TODAS' || String(d['ID Conta']) === fConta || String(d['ID Conta Destino']) === fConta;
+                const matchBanco = fBanco === 'TODOS' || d['Banco'] === fBanco || d['Banco Destino'] === fBanco;
+                const matchTitular = fTitular === 'TODOS' || d['Titular Conta'] === fTitular || d['Titular Destino'] === fTitular;
+                const matchBusca = !busca ||
+                    (d['Descrição'] || '').toLowerCase().includes(busca) ||
+                    (d['Banco'] || '').toLowerCase().includes(busca) ||
+                    (d['Titular Conta'] || '').toLowerCase().includes(busca) ||
+                    (d['Detalhamento'] || '').toLowerCase().includes(busca);
+                let matchPer = true;
+                if (fPer > 0) { const lim = new Date(); lim.setMonth(agora.getMonth() - fPer); matchPer = dt >= lim; }
+                return matchConta && matchBanco && matchTitular && matchBusca && matchPer;
+            });
+            filtrados.sort((a, b) => (new Date(b['Data']) - new Date(a['Data'])) || (Number(b['ID']) - Number(a['ID'])));
+
+            let sE = 0, sS = 0, sR = 0, sT = 0;
+            const linhas = [];
+            filtrados.forEach(mov => {
+                const vA = parseFloat(mov['Valor Aporte']) || 0;
+                const vR = parseFloat(mov['Valor Rendimento']) || 0;
+                const titular = mov['Titular Conta'] || '—';
+                const dataF = new Date(mov['Data']).toLocaleDateString('pt-br');
+                if (mov['Tipo'] === 'Transferência') {
+                    if (vA > 0 && (filtroTipoAtivo === 'TODOS' || filtroTipoAtivo === 'Transferência')) {
+                        sT += vA;
+                        linhas.push({ data: dataF, banco: `${mov['Banco']} → ${mov['Banco Destino'] || ''}`, desc: mov['Descrição'], titular: `${titular} → ${mov['Titular Destino'] || ''}`, detalhe: mov['Detalhamento'] || '', valor: vA, tipo: 'Transferência' });
+                    }
+                } else {
+                    if (vA > 0 && (filtroTipoAtivo === 'TODOS' || filtroTipoAtivo === mov['Tipo'])) {
+                        if (mov['Tipo'] === 'Entrada') sE += vA; else sS += vA;
+                        linhas.push({ data: dataF, banco: mov['Banco'], desc: mov['Descrição'], titular, detalhe: mov['Detalhamento'] || '', valor: vA, tipo: mov['Tipo'] });
+                    }
+                    if (vR > 0 && (filtroTipoAtivo === 'TODOS' || filtroTipoAtivo === 'Rendimento')) {
+                        sR += vR;
+                        linhas.push({ data: dataF, banco: mov['Banco'], desc: mov['Descrição'], titular, detalhe: mov['Detalhamento'] || '', valor: vR, tipo: 'Rendimento' });
+                    }
+                }
+            });
+
+            const nomeConta = fConta === 'TODAS' ? 'Todas as Contas' :
+                (document.getElementById('filtroConta').options[document.getElementById('filtroConta').selectedIndex]?.text || fConta);
+            const nomePer = fPer === 0 ? 'Todo o histórico' : fPer === 1 ? 'Último mês' : fPer === 3 ? 'Últimos 3 meses' : 'Último ano';
+            const nomeTipo = { 'TODOS': 'Todos os tipos', 'Entrada': 'Entradas', 'Saída': 'Saídas', 'Transferência': 'Transferências', 'Rendimento': 'Rendimentos' }[filtroTipoAtivo];
+
+            return { linhas, sE, sS, sR, sT, nomeConta, nomePer, nomeTipo, fBanco, fTitular };
+        }
+
+        function exportarCSV() {
+            const { linhas } = coletarLinhasRelatorio();
+            if (linhas.length === 0) { mostrarToast('Nenhum registro para exportar'); return; }
+            const cabecalho = ['Data', 'Tipo', 'Banco', 'Descrição', 'Titular', 'Detalhamento', 'Valor'];
+            const escapar = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+            const linhasCSV = linhas.map(l => [l.data, l.tipo, l.banco, l.desc, l.titular, l.detalhe, l.valor.toFixed(2).replace('.', ',')].map(escapar).join(';'));
+            const csv = '\uFEFF' + [cabecalho.map(escapar).join(';'), ...linhasCSV].join('\r\n');
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            const data = new Date().toLocaleDateString('pt-br').replace(/\//g, '-');
+            a.href = url;
+            a.download = `PoppeFin_Extrato_${data}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            mostrarToast('CSV exportado ✓');
+        }
+
         async function exportarPDF() {
             const { jsPDF } = window.jspdf;
             const area = document.getElementById('export-area-tecnica');
@@ -657,50 +928,13 @@
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
             mostrarToast('Gerando PDF...');
 
-            // Coletar dados filtrados atuais direto das variáveis em memória
-            const fConta  = document.getElementById('filtroConta').value;
-            const fPer    = parseInt(document.getElementById('filtroPeriodo').value);
-            const agora   = new Date();
-
-            let filtrados = dadosRaw.filter(d => {
-                const dt = new Date(d['Data']);
-                const matchConta = fConta === 'TODAS' || String(d['ID Conta']) === fConta;
-                let matchPer = true;
-                if (fPer > 0) {
-                    const lim = new Date(); lim.setMonth(agora.getMonth() - fPer);
-                    matchPer = dt >= lim;
-                }
-                return matchConta && matchPer;
-            });
-            filtrados.sort((a, b) => new Date(b['Data']) - new Date(a['Data']));
-
-            let sE = 0, sS = 0, sR = 0;
-            const linhas = [];
-            filtrados.forEach(mov => {
-                const vA = parseFloat(mov['Valor Aporte']) || 0;
-                const vR = parseFloat(mov['Valor Rendimento']) || 0;
-                const titular = mov['Titular Conta'] || mov['Titular'] || '—';
-                const dataF   = new Date(mov['Data']).toLocaleDateString('pt-br');
-                if (vA > 0 && (filtroTipoAtivo === 'TODOS' || filtroTipoAtivo === mov['Tipo'])) {
-                    if (mov['Tipo'] === 'Entrada') sE += vA; else sS += vA;
-                    linhas.push({ data: dataF, banco: mov['Banco'], desc: mov['Descrição'], titular, valor: vA, tipo: mov['Tipo'] });
-                }
-                if (vR > 0 && (filtroTipoAtivo === 'TODOS' || filtroTipoAtivo === 'Rendimento')) {
-                    sR += vR;
-                    linhas.push({ data: dataF, banco: mov['Banco'], desc: mov['Descrição'], titular, valor: vR, tipo: 'Rendimento' });
-                }
-            });
-
-            // Filtro legível
-            const nomeConta  = fConta === 'TODAS' ? 'Todas as Contas' :
-                               (document.getElementById('filtroConta').options[document.getElementById('filtroConta').selectedIndex]?.text || fConta);
-            const nomePer    = fPer === 0 ? 'Todo o histórico' : fPer === 1 ? 'Último mês' : fPer === 3 ? 'Últimos 3 meses' : 'Último ano';
-            const nomeTipo   = { 'TODOS': 'Todos os tipos', 'Entrada': 'Entradas', 'Saída': 'Saídas', 'Rendimento': 'Rendimentos' }[filtroTipoAtivo];
+            const { linhas, sE, sS, sR, sT, nomeConta, nomePer, nomeTipo } = coletarLinhasRelatorio();
 
             // Cor por tipo
             function corTipo(t) {
                 return t === 'Entrada' ? { bg:'#f0fdf4', border:'#10b981', txt:'#065f46', badge:'#10b981', badgeTxt:'#fff' }
                      : t === 'Saída'   ? { bg:'#fff1f2', border:'#f43f5e', txt:'#9f1239', badge:'#f43f5e', badgeTxt:'#fff' }
+                     : t === 'Transferência' ? { bg:'#f5f3ff', border:'#8b5cf6', txt:'#5b21b6', badge:'#8b5cf6', badgeTxt:'#fff' }
                      :                  { bg:'#eef2ff', border:'#6366f1', txt:'#3730a3', badge:'#6366f1', badgeTxt:'#fff' };
             }
 
@@ -718,7 +952,7 @@
                         <div style="font-size:11px;color:#94a3b8;font-style:italic">${l.titular}</div>
                     </td>
                     <td style="padding:14px 16px;text-align:right;font-weight:800;font-size:14px;color:${c.txt};white-space:nowrap;border-bottom:1px solid #f1f5f9">
-                        ${l.tipo === 'Saída' ? '−' : '+'} ${formatarMoeda(l.valor)}
+                        ${l.tipo === 'Saída' ? '−' : l.tipo === 'Transferência' ? '⇄' : '+'} ${formatarMoeda(l.valor)}
                     </td>
                 </tr>`;
             }).join('');
@@ -761,22 +995,26 @@
                 </div>
 
                 <!-- Cards de resumo -->
-                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:32px">
-                    <div style="background:#f0fdf4;border-radius:16px;padding:18px 16px;border-top:4px solid #10b981">
+                <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:32px">
+                    <div style="background:#f0fdf4;border-radius:16px;padding:18px 14px;border-top:4px solid #10b981">
                         <div style="font-size:10px;font-weight:800;color:#10b981;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px">Entradas</div>
-                        <div style="font-size:18px;font-weight:900;color:#065f46">${formatarMoeda(sE)}</div>
+                        <div style="font-size:16px;font-weight:900;color:#065f46">${formatarMoeda(sE)}</div>
                     </div>
-                    <div style="background:#fff1f2;border-radius:16px;padding:18px 16px;border-top:4px solid #f43f5e">
+                    <div style="background:#fff1f2;border-radius:16px;padding:18px 14px;border-top:4px solid #f43f5e">
                         <div style="font-size:10px;font-weight:800;color:#f43f5e;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px">Saídas</div>
-                        <div style="font-size:18px;font-weight:900;color:#9f1239">${formatarMoeda(sS)}</div>
+                        <div style="font-size:16px;font-weight:900;color:#9f1239">${formatarMoeda(sS)}</div>
                     </div>
-                    <div style="background:#eef2ff;border-radius:16px;padding:18px 16px;border-top:4px solid #6366f1">
+                    <div style="background:#f5f3ff;border-radius:16px;padding:18px 14px;border-top:4px solid #8b5cf6">
+                        <div style="font-size:10px;font-weight:800;color:#8b5cf6;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px">Transferido</div>
+                        <div style="font-size:16px;font-weight:900;color:#5b21b6">${formatarMoeda(sT)}</div>
+                    </div>
+                    <div style="background:#eef2ff;border-radius:16px;padding:18px 14px;border-top:4px solid #6366f1">
                         <div style="font-size:10px;font-weight:800;color:#6366f1;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px">Rendimento</div>
-                        <div style="font-size:18px;font-weight:900;color:#3730a3">${formatarMoeda(sR)}</div>
+                        <div style="font-size:16px;font-weight:900;color:#3730a3">${formatarMoeda(sR)}</div>
                     </div>
-                    <div style="background:${saldo >= 0 ? '#f0fdf4' : '#fff1f2'};border-radius:16px;padding:18px 16px;border-top:4px solid ${saldo >= 0 ? '#1e293b' : '#f43f5e'}">
+                    <div style="background:${saldo >= 0 ? '#f0fdf4' : '#fff1f2'};border-radius:16px;padding:18px 14px;border-top:4px solid ${saldo >= 0 ? '#1e293b' : '#f43f5e'}">
                         <div style="font-size:10px;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px">Saldo Líquido</div>
-                        <div style="font-size:18px;font-weight:900;color:${saldo >= 0 ? '#1e293b' : '#9f1239'}">${formatarMoeda(saldo)}</div>
+                        <div style="font-size:16px;font-weight:900;color:${saldo >= 0 ? '#1e293b' : '#9f1239'}">${formatarMoeda(saldo)}</div>
                     </div>
                 </div>
 
@@ -831,7 +1069,7 @@
 
         // Atributo data-tipo nos chips
         document.querySelectorAll('.tipo-chip').forEach((chip, i) => {
-            const tipos = ['TODOS', 'Entrada', 'Saída', 'Rendimento'];
+            const tipos = ['TODOS', 'Entrada', 'Saída', 'Transferência', 'Rendimento'];
             chip.setAttribute('data-tipo', tipos[i]);
         });
 

@@ -413,6 +413,10 @@
                         class="w-10 h-10 bg-white/60 rounded-xl flex items-center justify-center shadow-sm active:scale-95">
                         <i class="fas fa-eye text-indigo-600"></i>
                     </button>
+                    <button onclick="trocarApiUrl()" title="Configurar conexão"
+                        class="w-10 h-10 bg-white/60 rounded-xl flex items-center justify-center shadow-sm active:scale-95">
+                        <i class="fas fa-plug text-slate-400"></i>
+                    </button>
                     <button onclick="confirmarSair()"
                         class="w-10 h-10 bg-rose-50 rounded-xl flex items-center justify-center shadow-sm active:scale-95">
                         <i class="fas fa-sign-out-alt text-rose-400"></i>
@@ -636,7 +640,7 @@
         <!-- Atalhos rápidos mobile (apenas visual no desktop) -->
         <div class="glass-card p-5 rounded-[28px] slide-up">
             <h3 class="text-sm font-bold text-slate-700 mb-3">Atalhos Rápidos</h3>
-            <div class="grid grid-cols-3 gap-3">
+            <div class="grid grid-cols-4 gap-3">
                 <button onclick="window.location.href='extrato.html'"
                     class="flex flex-col items-center gap-2 bg-indigo-50 border border-indigo-100 p-4 rounded-2xl active:scale-95 transition-all">
                     <div class="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center">
@@ -650,6 +654,13 @@
                         <i class="fas fa-plus text-white text-sm"></i>
                     </div>
                     <span class="text-[11px] font-bold text-emerald-700">Lançamento</span>
+                </button>
+                <button onclick="window.location.href='contas.html'"
+                    class="flex flex-col items-center gap-2 bg-amber-50 border border-amber-100 p-4 rounded-2xl active:scale-95 transition-all">
+                    <div class="w-10 h-10 bg-amber-500 rounded-xl flex items-center justify-center">
+                        <i class="fas fa-university text-white text-sm"></i>
+                    </div>
+                    <span class="text-[11px] font-bold text-amber-700">Contas</span>
                 </button>
                 <button onclick="carregarDados()"
                     class="flex flex-col items-center gap-2 bg-slate-50 border border-slate-100 p-4 rounded-2xl active:scale-95 transition-all">
@@ -1183,7 +1194,101 @@
     </nav>
 
     <script>
-        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwaHIkfiTaGZLwlPf03VqXywG9FNIBV_wRC1-dN9iyzlEgv55Ja2pS4ZCRYGg2H4U2Q/exec';
+        // ============================================================
+        // CONEXÃO COM A API (Google Apps Script)
+        // Configurada uma única vez — fica salva no navegador (localStorage)
+        // e vale para todas as páginas do PoppeFin.
+        // ============================================================
+        function getApiUrl() {
+            let u = localStorage.getItem('poppefinApiUrl');
+            if (!u) {
+                u = prompt('Cole aqui a URL do seu Web App do Apps Script:', 'https://script.google.com/macros/s/SEU_ID_AQUI/exec');
+                if (u) { u = u.trim(); localStorage.setItem('poppefinApiUrl', u); }
+            }
+            return u || '';
+        }
+        function trocarApiUrl() {
+            const atual = localStorage.getItem('poppefinApiUrl') || '';
+            const nova = prompt('URL do Apps Script:', atual);
+            if (nova && nova.trim()) { localStorage.setItem('poppefinApiUrl', nova.trim()); location.reload(); }
+        }
+        const SCRIPT_URL = getApiUrl();
+        console.log('[PoppeFin] SCRIPT_URL em uso:', SCRIPT_URL);
+
+        async function apiGet(action) {
+            let res;
+            try {
+                res = await fetch(`${SCRIPT_URL}?action=${action}&t=${Date.now()}`);
+            } catch (err) {
+                throw new Error('Falha de rede/CORS ao contatar a API. Confira a URL configurada (ícone da tomada).');
+            }
+            const text = await res.text();
+            let json;
+            try {
+                json = JSON.parse(text);
+            } catch (err) {
+                console.error('[PoppeFin] Resposta não-JSON recebida:', text.slice(0, 500));
+                if (/accounts\.google\.com|ServiceLogin|Sign in/i.test(text)) {
+                    throw new Error('O Apps Script pediu login do Google. Reimplante com acesso "Qualquer pessoa" (não "Qualquer pessoa com Google").');
+                }
+                throw new Error('A API não retornou JSON válido. Confira se a URL termina em /exec e se foi implantada como App da Web.');
+            }
+            if (!json.success) throw new Error(json.message || 'Erro ao buscar dados');
+            return json;
+        }
+        async function apiPost(action, data) {
+            let res;
+            try {
+                res = await fetch(SCRIPT_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify({ action, data })
+                });
+            } catch (err) {
+                throw new Error('Falha de rede/CORS ao contatar a API. Confira a URL configurada (ícone da tomada).');
+            }
+            const text = await res.text();
+            let json;
+            try {
+                json = JSON.parse(text);
+            } catch (err) {
+                console.error('[PoppeFin] Resposta não-JSON recebida:', text.slice(0, 500));
+                if (/accounts\.google\.com|ServiceLogin|Sign in/i.test(text)) {
+                    throw new Error('O Apps Script pediu login do Google. Reimplante com acesso "Qualquer pessoa" (não "Qualquer pessoa com Google").');
+                }
+                throw new Error('A API não retornou JSON válido ao salvar. Confira a implantação do Apps Script.');
+            }
+            if (!json.success) throw new Error(json.message || 'Erro ao salvar dados');
+            return json;
+        }
+        function contasParaMapa(contas) {
+            const mapa = {};
+            (contas || []).forEach(c => mapa[String(c.id)] = c);
+            return mapa;
+        }
+        // Converte as movimentações da API (modelo CONTAS + MOVIMENTAÇÕES) para o
+        // formato plano que o dashboard já sabe renderizar. TRANSFERÊNCIA vira dois
+        // lançamentos sintéticos (Saída na origem / Entrada no destino) para que o
+        // saldo de cada conta e o patrimônio total continuem corretos.
+        function adaptarParaDashboard(movimentacoes, contasMap) {
+            const out = [];
+            (movimentacoes || []).forEach(m => {
+                const dataISO = m.data || '';
+                if (normalizarTipoApi(m.tipo) === 'TRANSFERÊNCIA') {
+                    const destino = contasMap[String(m.idContaDestino)] || {};
+                    // isTransferencia = true marca os dois lançamentos sintéticos para que
+                    // eles continuem entrando no saldo por conta (correto: sai de uma,
+                    // entra em outra, saldo total não muda), mas NÃO sejam contados de novo
+                    // nos totais de "Entradas"/"Saídas" do período — senão uma simples troca
+                    // de conta é somada como se fosse dinheiro novo entrando e saindo.
+                    out.push({ 'Data': dataISO, 'ID Conta': m.idConta, 'Banco': m.banco, 'Descrição': m.descricao, 'Tipo': 'Saída', 'Valor Aporte': m.valor, 'Valor Rendimento': 0, isTransferencia: true });
+                    out.push({ 'Data': dataISO, 'ID Conta': m.idContaDestino, 'Banco': m.bancoDestino, 'Descrição': destino.descricao || m.descricao, 'Tipo': 'Entrada', 'Valor Aporte': m.valor, 'Valor Rendimento': 0, isTransferencia: true });
+                } else {
+                    out.push({ 'Data': dataISO, 'ID Conta': m.idConta, 'Banco': m.banco, 'Descrição': m.descricao, 'Tipo': normalizarTipoApi(m.tipo) === 'ENTRADA' ? 'Entrada' : 'Saída', 'Valor Aporte': m.valor, 'Valor Rendimento': m.valorRendimento, isTransferencia: false });
+                }
+            });
+            return out;
+        }
 
         // =============================================
         // SESSÃO - 10 minutos de inatividade
@@ -1353,6 +1458,16 @@
         // =============================================
         // DADOS E DASHBOARD
         // =============================================
+                // Normaliza o campo "tipo" vindo da planilha — lida com dados antigos
+        // gravados como "Entrada"/"Saída" (só a 1ª maiúscula) em vez do formato
+        // ENTRADA/SAÍDA/TRANSFERÊNCIA que o backend novo grava.
+        function normalizarTipoApi(raw) {
+            const t = (raw || '').toString().trim().toUpperCase();
+            if (t === 'ENTRADA') return 'ENTRADA';
+            if (t === 'SAÍDA' || t === 'SAIDA') return 'SAÍDA';
+            if (t.indexOf('TRANSFER') === 0) return 'TRANSFERÊNCIA';
+            return 'SAÍDA';
+        }
         let dadosRaw = [];
         let mapaNomesContas = {};
         let infoContas = {};
@@ -1557,8 +1672,9 @@
             lb.classList.add('ativo');
 
             try {
-                const response = await fetch(`${SCRIPT_URL}?action=getDashboard&t=${Date.now()}`);
-                dadosRaw = await response.json();
+                const resultado = await apiGet('getAll');
+                const contasMap = contasParaMapa(resultado.contas);
+                dadosRaw = adaptarParaDashboard(resultado.movimentacoes, contasMap);
                 sessionStorage.setItem('dashData', JSON.stringify(dadosRaw));
 
                 popularFiltros();
@@ -1584,8 +1700,8 @@
                 document.getElementById('lastUpdatedMobile').innerHTML = badge;
                 mostrarToast('Dados atualizados ✓');
             } catch (e) {
-                mostrarToast('Erro ao carregar dados');
-                console.error(e);
+                console.error('[PoppeFin] Falha ao carregar dados:', e);
+                mostrarToast('Erro: ' + (e.message || 'falha ao carregar dados') + ' (veja o console)');
                 // Tenta usar cache
                 const cached = sessionStorage.getItem('dashData');
                 if (cached) {
@@ -1791,8 +1907,12 @@
             dadosFiltradosPeriodo.forEach(d => {
                 const vA = parseFloat(d['Valor Aporte']) || 0;
                 const vR = parseFloat(d['Valor Rendimento']) || 0;
-                if (d['Tipo'] === 'Entrada') entradas += vA;
-                else { saidas += vA; qtdSaidas++; }
+                // Transferências entre contas próprias não são "Entradas"/"Saídas" reais
+                // (não é dinheiro novo nem gasto, só mudou de conta) — não entram nesses totais.
+                if (!d.isTransferencia) {
+                    if (d['Tipo'] === 'Entrada') entradas += vA;
+                    else { saidas += vA; qtdSaidas++; }
+                }
                 rendimentos += vR;
             });
 
@@ -1936,15 +2056,11 @@
 
             const ultimaData = new Date(Math.max(...datas));
             const agora = new Date();
-            const horaFormatada = ultimaData.toLocaleTimeString('pt-br', { hour: '2-digit', minute: '2-digit' });
             const dataFormatada = ultimaData.toLocaleDateString('pt-br', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
             const hoje = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate());
             const diaUltimo = new Date(ultimaData.getFullYear(), ultimaData.getMonth(), ultimaData.getDate());
             const diffDiasCalendario = Math.round((hoje - diaUltimo) / 86400000);
-            const diffMs = agora - ultimaData;
-            const diffMinutos = Math.floor(diffMs / 60000);
-            const diffHoras = Math.floor(diffMs / 3600000);
 
             const iconEl = document.getElementById('statusIcon');
             const iconWrap = document.getElementById('statusIconWrap');
@@ -1953,16 +2069,19 @@
             const badgeEl = document.getElementById('statusBadgeInner');
             if (!iconEl || !textoEl) return;
 
+            // Observação: a planilha guarda apenas a DATA da movimentação (sem
+            // horário), então aqui só comparamos dias — nunca mostramos uma hora
+            // fictícia.
             if (diffDiasCalendario === 0) {
-                textoEl.textContent = `Atualizado hoje às ${horaFormatada}`;
-                subEl.textContent = diffMinutos < 60 ? `Há ${diffMinutos} minuto${diffMinutos !== 1 ? 's' : ''}` : `Há ${diffHoras} hora${diffHoras !== 1 ? 's' : ''}`;
+                textoEl.textContent = 'Atualizado hoje';
+                subEl.textContent = `Último lançamento em ${dataFormatada}`;
                 iconEl.className = 'fas fa-check-circle text-emerald-500 text-lg';
                 iconWrap.className = 'w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 bg-emerald-50';
                 badgeEl.className = 'text-[10px] font-black px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700';
                 badgeEl.textContent = 'Em dia';
             } else if (diffDiasCalendario === 1) {
-                textoEl.textContent = `Atualizado ontem às ${horaFormatada}`;
-                subEl.textContent = `${dataFormatada} · Há 1 dia`;
+                textoEl.textContent = 'Atualizado ontem';
+                subEl.textContent = `Último lançamento em ${dataFormatada}`;
                 iconEl.className = 'fas fa-clock text-amber-500 text-lg';
                 iconWrap.className = 'w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 bg-amber-50';
                 badgeEl.className = 'text-[10px] font-black px-2.5 py-1 rounded-full bg-amber-100 text-amber-700';

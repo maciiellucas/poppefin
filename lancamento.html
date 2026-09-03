@@ -8,8 +8,8 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
-        
-        body { 
+
+        body {
             font-family: 'Plus Jakarta Sans', sans-serif;
             background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
             min-height: 100vh;
@@ -71,11 +71,35 @@
             z-index: 100;
             animation: slideIn 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
+        .error-toast {
+            display: none;
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: linear-gradient(135deg, #f43f5e, #e11d48);
+            color: white;
+            padding: 14px 22px;
+            border-radius: 18px;
+            box-shadow: 0 10px 30px rgba(244, 63, 94, 0.35);
+            z-index: 100;
+            animation: slideIn 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+            max-width: 320px;
+        }
 
         @keyframes slideIn {
             from { transform: translateX(120%); opacity: 0; }
             to { transform: translateX(0); opacity: 1; }
         }
+
+        /* Seletor de tipo */
+        .tipo-btn {
+            border: 1.5px solid #e2e8f0;
+            background: rgba(255,255,255,0.6);
+            transition: all 0.2s;
+        }
+        .tipo-btn.ativo-entrada { background: #10b981; border-color: #10b981; color: white; }
+        .tipo-btn.ativo-saida   { background: #f43f5e; border-color: #f43f5e; color: white; }
+        .tipo-btn.ativo-transf  { background: #6366f1; border-color: #6366f1; color: white; }
 
         /* Bottom Nav */
         .bottom-nav {
@@ -97,7 +121,11 @@
 
     <div id="successToast" class="success-toast items-center gap-3">
         <i class="fas fa-check-circle text-xl"></i>
-        <span class="font-bold">Lançamento registrado com sucesso!</span>
+        <span class="font-bold" id="successToastMsg">Lançamento registrado com sucesso!</span>
+    </div>
+    <div id="errorToast" class="error-toast items-center gap-3">
+        <i class="fas fa-exclamation-circle text-xl"></i>
+        <span class="font-bold" id="errorToastMsg">Erro ao registrar lançamento.</span>
     </div>
 
     <div class="max-w-xl w-full glass-card rounded-[32px] overflow-hidden">
@@ -121,37 +149,68 @@
                 </div>
             </div>
 
+            <!-- Aviso: nenhuma conta cadastrada -->
+            <div id="avisoSemContas" class="hidden mb-6 p-5 rounded-2xl bg-amber-50 border border-amber-200 text-center">
+                <i class="fas fa-university text-amber-500 text-2xl mb-2"></i>
+                <p class="text-sm font-bold text-amber-700">Você ainda não tem contas cadastradas</p>
+                <p class="text-xs text-amber-600 mt-1 mb-3">Cadastre pelo menos uma conta antes de lançar movimentações.</p>
+                <button onclick="window.location.href='contas.html'" class="bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs px-4 py-2.5 rounded-xl">
+                    <i class="fas fa-plus mr-1"></i> Cadastrar Conta
+                </button>
+            </div>
+
             <form id="financeForm" class="space-y-5">
-                <div class="grid grid-cols-2 gap-4">
-                    <div class="space-y-1.5">
-                        <label class="section-label">ID Conta</label>
-                        <input type="text" id="idConta" placeholder="Ex: 1" required list="contasData" 
-                            class="input-style w-full rounded-2xl p-4 outline-none text-slate-700 font-bold">
-                        <datalist id="contasData"></datalist>
-                    </div>
-                    <div class="space-y-1.5">
-                        <label class="section-label">Fluxo</label>
-                        <select id="tipo" class="input-style w-full rounded-2xl p-4 outline-none text-slate-700 font-bold cursor-pointer appearance-none">
-                            <option value="Entrada">🟢 Entrada</option>
-                            <option value="Saída">🔴 Saída</option>
-                        </select>
+                <!-- Tipo de movimentação -->
+                <div class="space-y-1.5">
+                    <label class="section-label">Tipo de Movimentação</label>
+                    <div class="grid grid-cols-3 gap-2">
+                        <button type="button" data-tipo="ENTRADA" onclick="setTipo('ENTRADA')" class="tipo-btn rounded-2xl py-3 text-xs font-bold flex flex-col items-center gap-1">
+                            <i class="fas fa-arrow-down"></i> Entrada
+                        </button>
+                        <button type="button" data-tipo="SAÍDA" onclick="setTipo('SAÍDA')" class="tipo-btn rounded-2xl py-3 text-xs font-bold flex flex-col items-center gap-1">
+                            <i class="fas fa-arrow-up"></i> Saída
+                        </button>
+                        <button type="button" data-tipo="TRANSFERÊNCIA" onclick="setTipo('TRANSFERÊNCIA')" class="tipo-btn rounded-2xl py-3 text-xs font-bold flex flex-col items-center gap-1">
+                            <i class="fas fa-exchange-alt"></i> Transferência
+                        </button>
                     </div>
                 </div>
 
                 <div class="grid grid-cols-2 gap-4">
                     <div class="space-y-1.5">
-                        <label class="section-label">Valor Principal</label>
+                        <label class="section-label" id="labelConta">Conta</label>
+                        <input type="text" id="idConta" placeholder="Digite o banco ou ID" required list="contasData" autocomplete="off"
+                            class="input-style w-full rounded-2xl p-4 outline-none text-slate-700 font-bold">
+                        <datalist id="contasData"></datalist>
+                    </div>
+                    <div class="space-y-1.5">
+                        <label class="section-label">Data</label>
+                        <input type="date" id="dataMov" required
+                            class="input-style w-full rounded-2xl p-4 outline-none text-slate-700 font-bold">
+                    </div>
+                </div>
+
+                <!-- Conta destino (só aparece em Transferência) -->
+                <div class="space-y-1.5 hidden" id="wrapContaDestino">
+                    <label class="section-label"><i class="fas fa-long-arrow-alt-right mr-1"></i> Conta Destino</label>
+                    <input type="text" id="idContaDestino" placeholder="Digite o banco ou ID" list="contasData" autocomplete="off"
+                        class="input-style w-full rounded-2xl p-4 outline-none text-slate-700 font-bold">
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="space-y-1.5">
+                        <label class="section-label" id="labelValor">Valor</label>
                         <input type="text" id="valorAporteDisplay" placeholder="R$ 0,00"
                             class="input-style w-full rounded-2xl p-4 outline-none text-emerald-600 font-black">
                     </div>
-                    <div class="space-y-1.5">
+                    <div class="space-y-1.5" id="wrapRendimento">
                         <label class="section-label">Rendimento</label>
                         <input type="text" id="valorRendimentoDisplay" placeholder="R$ 0,00"
                             class="input-style w-full rounded-2xl p-4 outline-none text-indigo-600 font-black">
                     </div>
                 </div>
 
-                <div class="read-only-panel p-5 space-y-3 border border-dashed border-indigo-200/60">
+                <div class="read-only-panel p-5 space-y-3 border border-dashed border-indigo-200/60" id="painelCalculadora">
                     <p class="text-[10px] font-bold text-indigo-500 uppercase tracking-widest"><i class="fas fa-calculator mr-1.5"></i> Calc. Automática de Rendimento</p>
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
                         <div>
@@ -170,6 +229,12 @@
                     </div>
                 </div>
 
+                <div class="space-y-1.5">
+                    <label class="section-label">Detalhamento (opcional)</label>
+                    <input type="text" id="detalhamento" placeholder="Ex: Salário, aluguel, compra no mercado..."
+                        class="input-style w-full rounded-2xl p-4 outline-none text-slate-700 font-medium text-sm">
+                </div>
+
                 <div class="read-only-panel p-5 space-y-4 border border-slate-100/80">
                     <div class="grid grid-cols-3 gap-2">
                         <div class="col-span-1">
@@ -184,6 +249,10 @@
                     <div class="pt-3 border-t border-slate-200">
                         <p class="text-[10px] font-bold text-slate-400 uppercase">Titular da Conta</p>
                         <input type="text" id="titular" readonly class="bg-transparent w-full text-slate-500 text-sm italic outline-none">
+                    </div>
+                    <div class="pt-3 border-t border-slate-200 hidden" id="painelDestinoInfo">
+                        <p class="text-[10px] font-bold text-indigo-400 uppercase"><i class="fas fa-long-arrow-alt-right mr-1"></i> Conta Destino</p>
+                        <p id="destinoResumo" class="text-sm text-slate-600 font-semibold mt-1">—</p>
                     </div>
                 </div>
 
@@ -212,21 +281,92 @@
                     <i class="fas fa-plus text-white text-xl"></i>
                 </button>
             </div>
-            <button class="flex flex-col items-center gap-1 text-slate-300 flex-1 py-2 opacity-40 cursor-default">
-                <i class="fas fa-file-pdf text-lg"></i>
-                <span class="text-[9px] font-bold uppercase tracking-wide">PDF</span>
+            <button onclick="window.location.href='contas.html'" class="flex flex-col items-center gap-1 text-slate-400 flex-1 py-2">
+                <i class="fas fa-university text-lg"></i>
+                <span class="text-[9px] font-bold uppercase tracking-wide">Contas</span>
             </button>
-            <button class="flex flex-col items-center gap-1 text-slate-300 flex-1 py-2 opacity-40 cursor-default">
-                <i class="fas fa-sync-alt text-lg"></i>
-                <span class="text-[9px] font-bold uppercase tracking-wide">Sync</span>
+            <button onclick="window.location.href='gerenciamento.html'" class="flex flex-col items-center gap-1 text-slate-400 flex-1 py-2">
+                <i class="fas fa-sliders-h text-lg"></i>
+                <span class="text-[9px] font-bold uppercase tracking-wide">Gerenciar</span>
             </button>
         </div>
     </nav>
 
     <script>
-        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxoapiR4Mtjic8yLSjCcZ4I1dsClIMyV6ReaPmzYmNxKa4wUpEEAKUGBnDmc_XAqxZ1Bw/exec';
+        // ============================================================
+        // CONEXÃO COM A API (Google Apps Script)
+        // ============================================================
+        function getApiUrl() {
+            let u = localStorage.getItem('poppefinApiUrl');
+            if (!u) {
+                u = prompt('Cole aqui a URL do seu Web App do Apps Script:', 'https://script.google.com/macros/s/SEU_ID_AQUI/exec');
+                if (u) { u = u.trim(); localStorage.setItem('poppefinApiUrl', u); }
+            }
+            return u || '';
+        }
+        const SCRIPT_URL = getApiUrl();
+        console.log('[PoppeFin] SCRIPT_URL em uso:', SCRIPT_URL);
+
+        async function apiGet(action) {
+            let res;
+            try {
+                res = await fetch(`${SCRIPT_URL}?action=${action}&t=${Date.now()}`);
+            } catch (err) {
+                throw new Error('Falha de rede/CORS ao contatar a API. Confira a URL configurada (ícone da tomada).');
+            }
+            const text = await res.text();
+            let json;
+            try {
+                json = JSON.parse(text);
+            } catch (err) {
+                console.error('[PoppeFin] Resposta não-JSON recebida:', text.slice(0, 500));
+                if (/accounts\.google\.com|ServiceLogin|Sign in/i.test(text)) {
+                    throw new Error('O Apps Script pediu login do Google. Reimplante com acesso "Qualquer pessoa" (não "Qualquer pessoa com Google").');
+                }
+                throw new Error('A API não retornou JSON válido. Confira se a URL termina em /exec e se foi implantada como App da Web.');
+            }
+            if (!json.success) throw new Error(json.message || 'Erro ao buscar dados');
+            return json;
+        }
+        async function apiPost(action, data) {
+            let res;
+            try {
+                res = await fetch(SCRIPT_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify({ action, data })
+                });
+            } catch (err) {
+                throw new Error('Falha de rede/CORS ao contatar a API. Confira a URL configurada (ícone da tomada).');
+            }
+            const text = await res.text();
+            let json;
+            try {
+                json = JSON.parse(text);
+            } catch (err) {
+                console.error('[PoppeFin] Resposta não-JSON recebida:', text.slice(0, 500));
+                if (/accounts\.google\.com|ServiceLogin|Sign in/i.test(text)) {
+                    throw new Error('O Apps Script pediu login do Google. Reimplante com acesso "Qualquer pessoa" (não "Qualquer pessoa com Google").');
+                }
+                throw new Error('A API não retornou JSON válido ao salvar. Confira a implantação do Apps Script.');
+            }
+            if (!json.success) throw new Error(json.message || 'Erro ao salvar dados');
+            return json;
+        }
+
+                // Normaliza o campo "tipo" vindo da planilha — lida com dados antigos
+        // gravados como "Entrada"/"Saída" (só a 1ª maiúscula) em vez do formato
+        // ENTRADA/SAÍDA/TRANSFERÊNCIA que o backend novo grava.
+        function normalizarTipoApi(raw) {
+            const t = (raw || '').toString().trim().toUpperCase();
+            if (t === 'ENTRADA') return 'ENTRADA';
+            if (t === 'SAÍDA' || t === 'SAIDA') return 'SAÍDA';
+            if (t.indexOf('TRANSFER') === 0) return 'TRANSFERÊNCIA';
+            return 'SAÍDA';
+        }
         let baseContas = [];
-        let transacoesSistema = []; // Armazena dados do dashboard para o cálculo de saldo
+        let movimentacoesSistema = [];
+        let tipoAtivo = 'ENTRADA';
 
         function formatarMoeda(valor) {
             valor = valor.replace(/\D/g, "");
@@ -239,43 +379,73 @@
 
         function descascarMoeda(valorStr) {
             if (!valorStr || valorStr === "R$ 0,00") return 0;
-            return parseFloat(valorStr.replace("R$ ", "").replace(/\./g, "").replace(",", "."));
+            return parseFloat(valorStr.replace("R$ ", "").replace(/\./g, "").replace(",", ".")) || 0;
         }
+
+        function hojeISO() {
+            const d = new Date();
+            const tz = d.getTimezoneOffset() * 60000;
+            return new Date(d - tz).toISOString().split('T')[0];
+        }
+        document.getElementById('dataMov').value = hojeISO();
+
+        // ============================================================
+        // SELEÇÃO DE TIPO
+        // ============================================================
+        function setTipo(tipo) {
+            tipoAtivo = tipo;
+            document.querySelectorAll('.tipo-btn').forEach(b => {
+                b.classList.remove('ativo-entrada', 'ativo-saida', 'ativo-transf');
+            });
+            const btn = document.querySelector(`.tipo-btn[data-tipo="${tipo}"]`);
+            const cls = { 'ENTRADA': 'ativo-entrada', 'SAÍDA': 'ativo-saida', 'TRANSFERÊNCIA': 'ativo-transf' };
+            btn.classList.add(cls[tipo]);
+
+            const isTransf = tipo === 'TRANSFERÊNCIA';
+            document.getElementById('wrapContaDestino').classList.toggle('hidden', !isTransf);
+            document.getElementById('idContaDestino').required = isTransf;
+            document.getElementById('wrapRendimento').classList.toggle('hidden', isTransf);
+            document.getElementById('painelCalculadora').classList.toggle('hidden', isTransf);
+            document.getElementById('painelDestinoInfo').classList.toggle('hidden', !isTransf);
+            document.getElementById('labelConta').textContent = isTransf ? 'Conta Origem' : 'Conta';
+            document.getElementById('labelValor').textContent = isTransf ? 'Valor Transferido' : 'Valor Principal';
+
+            if (!isTransf) {
+                document.getElementById('idContaDestino').value = '';
+                atualizarInfoDestino();
+            }
+        }
+        setTipo('ENTRADA');
 
         function gerenciarBloqueio() {
             const principal = document.getElementById('valorAporteDisplay');
             const rendimento = document.getElementById('valorRendimentoDisplay');
             const valorReal = document.getElementById('valorRealDisplay');
             const btnCalcular = document.getElementById('btnCalcularRend');
+            if (tipoAtivo === 'TRANSFERÊNCIA') return;
 
             if (descascarMoeda(principal.value) > 0) {
-                // Bloqueia o campo de Rendimento e a Calculadora
                 rendimento.disabled = true;
                 rendimento.classList.add('disabled-input');
                 rendimento.value = "R$ 0,00";
-                
                 valorReal.disabled = true;
                 valorReal.classList.add('disabled-input');
                 valorReal.value = "R$ 0,00";
                 btnCalcular.disabled = true;
                 btnCalcular.classList.add('disabled-input');
             } else if (descascarMoeda(rendimento.value) > 0) {
-                // Bloqueia o Aporte Principal, mas mantém a Calculadora livre caso queira refazer a conta
                 principal.disabled = true;
                 principal.classList.add('disabled-input');
                 principal.value = "R$ 0,00";
-
                 valorReal.disabled = false;
                 valorReal.classList.remove('disabled-input');
                 btnCalcular.disabled = false;
                 btnCalcular.classList.remove('disabled-input');
             } else {
-                // Tudo liberado
                 principal.disabled = false;
                 rendimento.disabled = false;
                 principal.classList.remove('disabled-input');
                 rendimento.classList.remove('disabled-input');
-                
                 valorReal.disabled = false;
                 valorReal.classList.remove('disabled-input');
                 btnCalcular.disabled = false;
@@ -286,172 +456,195 @@
         [document.getElementById('valorAporteDisplay'), document.getElementById('valorRendimentoDisplay'), document.getElementById('valorRealDisplay')].forEach(input => {
             input.addEventListener('input', (e) => {
                 e.target.value = formatarMoeda(e.target.value);
-                if(e.target.id !== 'valorRealDisplay') gerenciarBloqueio();
+                if (e.target.id !== 'valorRealDisplay') gerenciarBloqueio();
             });
         });
 
-        // Carrega Contas
-        async function loadContas() {
+        // ============================================================
+        // CARREGAR CONTAS + MOVIMENTAÇÕES
+        // ============================================================
+        async function carregarBase() {
             const status = document.getElementById('statusIndicator');
             try {
-                const response = await fetch(`${SCRIPT_URL}?action=getContas&t=${Date.now()}`);
-                const data = await response.json();
-                baseContas = data;
-                
+                const resultado = await apiGet('getAll');
+                baseContas = resultado.contas || [];
+                movimentacoesSistema = resultado.movimentacoes || [];
+
                 const datalist = document.getElementById('contasData');
                 datalist.innerHTML = '';
                 baseContas.forEach(c => {
-                    let opt = document.createElement('option');
-                    opt.value = c.ID;
-                    const bancoInfo = c.BANCO || "";
-                    const descInfo = c.DESCRIÇÃO || "";
-                    const titularInfo = c['TITULAR CONTA'] || c['TITULAR'] || "";
-                    opt.textContent = `${bancoInfo} | ${descInfo} | ${titularInfo}`;
+                    const opt = document.createElement('option');
+                    opt.value = c.id;
+                    opt.textContent = `${c.banco || ''} | ${c.descricao || ''} | ${c.titular || ''}`;
                     datalist.appendChild(opt);
                 });
-                
-                // Só muda pra conectado se carregar os dois (contas e transações)
-                if(transacoesSistema.length > 0) {
-                    status.innerHTML = '<span class="h-2 w-2 rounded-full bg-emerald-400"></span><span class="text-[10px] font-bold text-emerald-600 uppercase tracking-widest">Conectado</span>';
-                }
+
+                document.getElementById('avisoSemContas').classList.toggle('hidden', baseContas.length > 0);
+                document.getElementById('financeForm').classList.toggle('hidden', baseContas.length === 0);
+
+                status.innerHTML = '<span class="h-2 w-2 rounded-full bg-emerald-400"></span><span class="text-[10px] font-bold text-emerald-600 uppercase tracking-widest">Conectado</span>';
             } catch (e) {
                 status.innerHTML = '<span class="h-2 w-2 rounded-full bg-red-400"></span><span class="text-[10px] font-bold text-red-600 uppercase tracking-widest">Erro</span>';
+                mostrarErro(e.message || 'Não foi possível conectar à planilha.');
             }
         }
 
-        // Carrega Transações (Para montar o "Saldo Sistema")
-        async function loadTransacoesSistema() {
-            const status = document.getElementById('statusIndicator');
-            try {
-                const response = await fetch(`${SCRIPT_URL}?action=getDashboard&t=${Date.now()}`);
-                transacoesSistema = await response.json();
-                
-                if(baseContas.length > 0) {
-                    status.innerHTML = '<span class="h-2 w-2 rounded-full bg-emerald-400"></span><span class="text-[10px] font-bold text-emerald-600 uppercase tracking-widest">Conectado</span>';
+        function saldoDaConta(idBuscado) {
+            let saldo = 0;
+            movimentacoesSistema.forEach(m => {
+                const valor = parseFloat(m.valor) || 0;
+                const rend = parseFloat(m.valorRendimento) || 0;
+                if (String(m.idConta) === idBuscado) {
+                    if (normalizarTipoApi(m.tipo) === 'ENTRADA') saldo += valor;
+                    else saldo -= valor; // SAÍDA ou origem de TRANSFERÊNCIA
+                    saldo += rend;
                 }
-            } catch (e) {
-                console.error("Erro ao puxar transações pro Saldo", e);
-            }
+                if (normalizarTipoApi(m.tipo) === 'TRANSFERÊNCIA' && String(m.idContaDestino) === idBuscado) {
+                    saldo += valor;
+                }
+            });
+            return saldo;
+        }
+
+        function buscarConta(id) {
+            return baseContas.find(c => String(c.id).trim() === String(id).trim());
         }
 
         document.getElementById('idConta').addEventListener('input', (e) => {
             const idBuscado = e.target.value.trim();
-            const conta = baseContas.find(c => String(c.ID).trim() === idBuscado);
-            
+            const conta = buscarConta(idBuscado);
+
             if (conta) {
-                document.getElementById('banco').value = conta.BANCO || "";
-                document.getElementById('descricao').value = conta.DESCRIÇÃO || "";
-                document.getElementById('titular').value = conta['TITULAR CONTA'] || conta['TITULAR'] || "";
+                document.getElementById('banco').value = conta.banco || "";
+                document.getElementById('descricao').value = conta.descricao || "";
+                document.getElementById('titular').value = conta.titular || "";
                 document.getElementById('descricao').style.color = "#4f46e5";
 
-                // Calcula e preenche o Saldo do Sistema dinamicamente
-                let saldoAtual = 0;
-                transacoesSistema.forEach(d => {
-                    if (String(d['ID Conta']).trim() === idBuscado) {
-                        const vAporte = parseFloat(d['Valor Aporte']) || 0;
-                        const vRend = parseFloat(d['Valor Rendimento']) || 0;
-                        if (d['Tipo'] === 'Entrada') saldoAtual += vAporte;
-                        else if (d['Tipo'] === 'Saída') saldoAtual -= vAporte;
-                        saldoAtual += vRend;
-                    }
-                });
-
+                const saldoAtual = saldoDaConta(idBuscado);
                 document.getElementById('saldoSistema').value = saldoAtual.toLocaleString('pt-br', { style: 'currency', currency: 'BRL' });
                 document.getElementById('saldoSistema').dataset.valorBruto = saldoAtual;
-
             } else {
                 ['banco', 'descricao', 'titular', 'saldoSistema'].forEach(id => {
                     document.getElementById(id).value = '';
-                    if(id === 'descricao') document.getElementById(id).style.color = "";
-                    if(id === 'saldoSistema') document.getElementById(id).dataset.valorBruto = "0";
+                    if (id === 'descricao') document.getElementById(id).style.color = "";
+                    if (id === 'saldoSistema') document.getElementById(id).dataset.valorBruto = "0";
                 });
             }
         });
 
-        // Ação do Botão Calcular Rendimento Automático
+        function atualizarInfoDestino() {
+            const idDestino = document.getElementById('idContaDestino').value.trim();
+            const conta = buscarConta(idDestino);
+            const resumo = document.getElementById('destinoResumo');
+            resumo.textContent = conta ? `${conta.banco} · ${conta.descricao} · ${conta.titular}` : '—';
+        }
+        document.getElementById('idContaDestino').addEventListener('input', atualizarInfoDestino);
+
+        // Calculadora automática de rendimento
         document.getElementById('btnCalcularRend').addEventListener('click', () => {
             const saldoSistemaBruto = document.getElementById('saldoSistema').dataset.valorBruto;
             const valorReal = descascarMoeda(document.getElementById('valorRealDisplay').value);
-            
+
             if (!document.getElementById('idConta').value) {
-                alert("Preencha um ID de Conta primeiro!");
+                mostrarErro("Preencha a conta primeiro!");
+                return;
+            }
+            if (valorReal <= 0) {
+                mostrarErro("Preencha o Valor Real na conta!");
                 return;
             }
 
-            if (valorReal <= 0) {
-                alert("Preencha o Valor Real na conta!");
-                return;
-            }
-            
             const saldoSist = parseFloat(saldoSistemaBruto) || 0;
             const rendimentoCalc = valorReal - saldoSist;
-            
+
             if (rendimentoCalc > 0) {
-                // Transforma o float calcado em formato para a nossa função de moeda processar (ex: 100.50 -> "10050")
-                const valorFormatado = Math.round(rendimentoCalc * 100).toString(); 
+                const valorFormatado = Math.round(rendimentoCalc * 100).toString();
                 document.getElementById('valorRendimentoDisplay').value = formatarMoeda(valorFormatado);
-                
-                // Força a validação de bloqueio
                 gerenciarBloqueio();
             } else {
-                alert("O valor real informado é menor ou igual ao saldo que já existe no sistema.");
+                mostrarErro("O valor real informado é menor ou igual ao saldo que já existe no sistema.");
             }
         });
 
+        // ============================================================
+        // TOASTS
+        // ============================================================
+        function mostrarSucesso(msg) {
+            const toast = document.getElementById('successToast');
+            document.getElementById('successToastMsg').textContent = msg;
+            toast.style.display = 'flex';
+            setTimeout(() => toast.style.display = 'none', 3000);
+        }
+        function mostrarErro(msg) {
+            const toast = document.getElementById('errorToast');
+            document.getElementById('errorToastMsg').textContent = msg;
+            toast.style.display = 'flex';
+            setTimeout(() => toast.style.display = 'none', 4000);
+        }
+
+        // ============================================================
+        // SUBMIT
+        // ============================================================
         document.getElementById('financeForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const btn = document.getElementById('btnSubmit');
-            if (!document.getElementById('banco').value) { alert("ID Inválido!"); return; }
+
+            const idConta = document.getElementById('idConta').value.trim();
+            const idContaDestino = document.getElementById('idContaDestino').value.trim();
+
+            if (!buscarConta(idConta)) { mostrarErro("Conta de origem não encontrada."); return; }
+            if (tipoAtivo === 'TRANSFERÊNCIA') {
+                if (!idContaDestino) { mostrarErro("Informe a conta destino."); return; }
+                if (!buscarConta(idContaDestino)) { mostrarErro("Conta destino não encontrada."); return; }
+                if (idConta === idContaDestino) { mostrarErro("A conta de origem e destino não podem ser iguais."); return; }
+            }
+
+            const valor = descascarMoeda(document.getElementById('valorAporteDisplay').value);
+            const valorRendimento = tipoAtivo === 'TRANSFERÊNCIA' ? 0 : descascarMoeda(document.getElementById('valorRendimentoDisplay').value);
+
+            if (valor <= 0 && valorRendimento <= 0) { mostrarErro("Informe um valor ou rendimento maior que zero."); return; }
 
             btn.disabled = true;
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Gravando...';
 
             const payload = {
-                idConta: document.getElementById('idConta').value,
-                tipo: document.getElementById('tipo').value,
-                valorAporte: descascarMoeda(document.getElementById('valorAporteDisplay').value),
-                valorRendimento: descascarMoeda(document.getElementById('valorRendimentoDisplay').value),
-                descricao: document.getElementById('descricao').value,
-                banco: document.getElementById('banco').value,
-                titular: document.getElementById('titular').value
+                data: document.getElementById('dataMov').value,
+                idConta: idConta,
+                idContaDestino: tipoAtivo === 'TRANSFERÊNCIA' ? idContaDestino : '',
+                tipo: tipoAtivo,
+                valor: valor,
+                valorRendimento: valorRendimento,
+                detalhamento: document.getElementById('detalhamento').value.trim()
             };
 
             try {
-                await fetch(SCRIPT_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) });
-                
-                const toast = document.getElementById('successToast');
-                toast.style.display = 'flex';
-                setTimeout(() => toast.style.display = 'none', 3000);
+                await apiPost('createTransaction', payload);
+                mostrarSucesso('Lançamento registrado com sucesso!');
 
                 e.target.reset();
+                document.getElementById('dataMov').value = hojeISO();
                 ['banco', 'descricao', 'titular', 'saldoSistema', 'valorRealDisplay'].forEach(id => {
                     document.getElementById(id).value = '';
-                    if(id === 'descricao') document.getElementById(id).style.color = "";
-                    if(id === 'saldoSistema') document.getElementById(id).dataset.valorBruto = "0";
+                    if (id === 'descricao') document.getElementById(id).style.color = "";
+                    if (id === 'saldoSistema') document.getElementById(id).dataset.valorBruto = "0";
                 });
-                
-                // Reseta estados visuais
-                document.getElementById('valorAporteDisplay').disabled = false;
-                document.getElementById('valorRendimentoDisplay').disabled = false;
-                document.getElementById('valorRealDisplay').disabled = false;
-                document.getElementById('btnCalcularRend').disabled = false;
-                
-                document.getElementById('valorAporteDisplay').classList.remove('disabled-input');
-                document.getElementById('valorRendimentoDisplay').classList.remove('disabled-input');
-                document.getElementById('valorRealDisplay').classList.remove('disabled-input');
-                document.getElementById('btnCalcularRend').classList.remove('disabled-input');
+                setTipo('ENTRADA');
 
+                ['valorAporteDisplay', 'valorRendimentoDisplay', 'valorRealDisplay', 'btnCalcularRend'].forEach(id => {
+                    document.getElementById(id).disabled = false;
+                    document.getElementById(id).classList.remove('disabled-input');
+                });
+
+                carregarBase();
             } catch (err) {
-                alert('Erro ao salvar.');
+                mostrarErro(err.message || 'Erro ao salvar.');
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = '<span>Confirmar Lançamento</span><i class="fas fa-arrow-right text-sm opacity-50"></i>';
             }
         });
 
-        // Inicializa as chamadas em paralelo
-        loadContas();
-        loadTransacoesSistema();
+        carregarBase();
     </script>
 </body>
 </html>

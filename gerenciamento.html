@@ -157,6 +157,7 @@
         .lanc-card.entrada   { border-left: 4px solid #10b981; }
         .lanc-card.saida     { border-left: 4px solid #f43f5e; }
         .lanc-card.rendimento { border-left: 4px solid #6366f1; background: rgba(99,102,241,0.03); }
+        .lanc-card.transferencia { border-left: 4px solid #8b5cf6; background: rgba(139,92,246,0.03); }
 
         /* Chips de filtro */
         .filtros-scroll {
@@ -477,7 +478,7 @@
                                 <!-- Chips de tipo — com cores semânticas -->
                                 <div>
                                     <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1.5">Tipo</label>
-                                    <div class="grid grid-cols-3 gap-1.5">
+                                    <div class="grid grid-cols-2 gap-1.5">
                                         <button class="chip ativo text-center" data-filtro="TODOS" onclick="setFiltro(this)">Todos</button>
                                         <button class="chip text-center" data-filtro="Entrada" onclick="setFiltro(this)">
                                             <span class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 mr-1 align-middle"></span>Entradas
@@ -485,6 +486,28 @@
                                         <button class="chip text-center" data-filtro="Saída" onclick="setFiltro(this)">
                                             <span class="inline-block w-1.5 h-1.5 rounded-full bg-rose-400 mr-1 align-middle"></span>Saídas
                                         </button>
+                                        <button class="chip text-center" data-filtro="Transferência" onclick="setFiltro(this)">
+                                            <span class="inline-block w-1.5 h-1.5 rounded-full bg-violet-400 mr-1 align-middle"></span>Transf.
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Conta / Banco / Titular -->
+                                <div class="grid grid-cols-1 gap-2">
+                                    <div>
+                                        <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1.5">Conta</label>
+                                        <select id="filtroContaSel" onchange="renderizarLista(); atualizarBadgeFiltros()"
+                                            class="w-full bg-slate-50 border border-slate-100 rounded-xl py-2 px-3 text-slate-700 outline-none text-xs font-semibold cursor-pointer"></select>
+                                    </div>
+                                    <div>
+                                        <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1.5">Banco</label>
+                                        <select id="filtroBancoSel" onchange="renderizarLista(); atualizarBadgeFiltros()"
+                                            class="w-full bg-slate-50 border border-slate-100 rounded-xl py-2 px-3 text-slate-700 outline-none text-xs font-semibold cursor-pointer"></select>
+                                    </div>
+                                    <div>
+                                        <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1.5">Titular</label>
+                                        <select id="filtroTitularSel" onchange="renderizarLista(); atualizarBadgeFiltros()"
+                                            class="w-full bg-slate-50 border border-slate-100 rounded-xl py-2 px-3 text-slate-700 outline-none text-xs font-semibold cursor-pointer"></select>
                                     </div>
                                 </div>
 
@@ -545,6 +568,10 @@
                     <i class="fas fa-plus text-lg"></i>
                     <span class="text-[9px] font-bold uppercase tracking-wide">Novo</span>
                 </button>
+                <button onclick="window.location.href='contas.html'" class="flex flex-col items-center gap-1 text-slate-400 flex-1 py-2">
+                    <i class="fas fa-university text-lg"></i>
+                    <span class="text-[9px] font-bold uppercase tracking-wide">Contas</span>
+                </button>
                 <button class="flex flex-col items-center gap-1 text-rose-500 flex-1 py-2">
                     <i class="fas fa-sliders-h text-lg"></i>
                     <span class="text-[9px] font-bold uppercase tracking-wide">Gerenciar</span>
@@ -576,13 +603,39 @@
             <div class="space-y-4">
                 <input type="hidden" id="editRowIndex">
 
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Tipo</label>
+                    <select id="editTipo" class="input-edit cursor-pointer appearance-none" onchange="onEditTipoChange()">
+                        <option value="Entrada">🟢 Entrada</option>
+                        <option value="Saída">🔴 Saída</option>
+                        <option value="Transferência">🔁 Transferência</option>
+                    </select>
+                </div>
+
                 <div class="grid grid-cols-2 gap-3">
                     <div>
-                        <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Valor Principal</label>
+                        <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2" id="editLabelConta">Conta</label>
+                        <input type="text" id="editIdConta" class="input-edit" placeholder="ID da conta" list="editContasData">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Data</label>
+                        <input type="date" id="editData" class="input-edit">
+                    </div>
+                </div>
+                <datalist id="editContasData"></datalist>
+
+                <div id="editWrapContaDestino" class="hidden">
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2"><i class="fas fa-long-arrow-alt-right mr-1"></i> Conta Destino</label>
+                    <input type="text" id="editIdContaDestino" class="input-edit" placeholder="ID da conta destino" list="editContasData">
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2" id="editLabelValor">Valor Principal</label>
                         <input type="text" id="editValorAporte" class="input-edit text-emerald-600 font-black"
                             oninput="mascaraMoeda(this)" placeholder="R$ 0,00">
                     </div>
-                    <div>
+                    <div id="editWrapRendimento">
                         <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Rendimento</label>
                         <input type="text" id="editValorRendimento" class="input-edit text-indigo-600 font-black"
                             oninput="mascaraMoeda(this)" placeholder="R$ 0,00">
@@ -590,22 +643,9 @@
                 </div>
 
                 <div>
-                    <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Banco</label>
-                    <input type="text" id="editBanco" class="input-edit" placeholder="Nome do banco">
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Detalhamento</label>
+                    <input type="text" id="editDetalhamento" class="input-edit" placeholder="Opcional">
                 </div>
-
-                <div>
-                    <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Tipo</label>
-                    <select id="editTipo" class="input-edit cursor-pointer appearance-none">
-                        <option value="Entrada">🟢 Entrada</option>
-                        <option value="Saída">🔴 Saída</option>
-                    </select>
-                </div>
-
-                <!-- inputs ocultos para manter compatibilidade com salvarEdicao() -->
-                <input type="hidden" id="editManterData" value="true">
-                <input type="hidden" id="editData">
-                <input type="hidden" id="editHora">
 
                 <div class="flex gap-3 pt-2">
                     <button onclick="fecharModalEdicao()"
@@ -696,7 +736,103 @@
         // ============================================================
         // CONFIGURAÇÃO
         // ============================================================
-        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzGY_Ve4qndTXhGKFwb7SLTimVD-0jL2tuUgVFFI8ykxK8vqj98G32SrmZCWy_5OCgPVA/exec';
+        // ============================================================
+        // CONEXÃO COM A API (Google Apps Script)
+        // ============================================================
+        function getApiUrl() {
+            let u = localStorage.getItem('poppefinApiUrl');
+            if (!u) {
+                u = prompt('Cole aqui a URL do seu Web App do Apps Script:', 'https://script.google.com/macros/s/SEU_ID_AQUI/exec');
+                if (u) { u = u.trim(); localStorage.setItem('poppefinApiUrl', u); }
+            }
+            return u || '';
+        }
+        function trocarApiUrl() {
+            const atual = localStorage.getItem('poppefinApiUrl') || '';
+            const nova = prompt('URL do Apps Script:', atual);
+            if (nova && nova.trim()) { localStorage.setItem('poppefinApiUrl', nova.trim()); location.reload(); }
+        }
+        const SCRIPT_URL = getApiUrl();
+        console.log('[PoppeFin] SCRIPT_URL em uso:', SCRIPT_URL);
+
+        async function apiGet(action) {
+            let res;
+            try {
+                res = await fetch(`${SCRIPT_URL}?action=${action}&t=${Date.now()}`);
+            } catch (err) {
+                throw new Error('Falha de rede/CORS ao contatar a API. Confira a URL configurada (ícone da tomada).');
+            }
+            const text = await res.text();
+            let json;
+            try {
+                json = JSON.parse(text);
+            } catch (err) {
+                console.error('[PoppeFin] Resposta não-JSON recebida:', text.slice(0, 500));
+                if (/accounts\.google\.com|ServiceLogin|Sign in/i.test(text)) {
+                    throw new Error('O Apps Script pediu login do Google. Reimplante com acesso "Qualquer pessoa" (não "Qualquer pessoa com Google").');
+                }
+                throw new Error('A API não retornou JSON válido. Confira se a URL termina em /exec e se foi implantada como App da Web.');
+            }
+            if (!json.success) throw new Error(json.message || 'Erro ao buscar dados');
+            return json;
+        }
+        async function apiPost(action, data) {
+            let res;
+            try {
+                res = await fetch(SCRIPT_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify({ action, data })
+                });
+            } catch (err) {
+                throw new Error('Falha de rede/CORS ao contatar a API. Confira a URL configurada (ícone da tomada).');
+            }
+            const text = await res.text();
+            let json;
+            try {
+                json = JSON.parse(text);
+            } catch (err) {
+                console.error('[PoppeFin] Resposta não-JSON recebida:', text.slice(0, 500));
+                if (/accounts\.google\.com|ServiceLogin|Sign in/i.test(text)) {
+                    throw new Error('O Apps Script pediu login do Google. Reimplante com acesso "Qualquer pessoa" (não "Qualquer pessoa com Google").');
+                }
+                throw new Error('A API não retornou JSON válido ao salvar. Confira a implantação do Apps Script.');
+            }
+            if (!json.success) throw new Error(json.message || 'Erro ao salvar dados');
+            return json;
+        }
+                // Normaliza o campo "tipo" vindo da planilha — lida com dados antigos
+        // gravados como "Entrada"/"Saída" (só a 1ª maiúscula) em vez do formato
+        // ENTRADA/SAÍDA/TRANSFERÊNCIA que o backend novo grava.
+        function normalizarTipoApi(raw) {
+            const t = (raw || '').toString().trim().toUpperCase();
+            if (t === 'ENTRADA') return 'ENTRADA';
+            if (t === 'SAÍDA' || t === 'SAIDA') return 'SAÍDA';
+            if (t.indexOf('TRANSFER') === 0) return 'TRANSFERÊNCIA';
+            return 'SAÍDA';
+        }
+        let baseContas = [];
+
+        // Mantém a Transferência como um único registro (não divide como o
+        // dashboard) — aqui o usuário precisa editar/excluir o lançamento real.
+        function adaptarParaGerenciamento(movimentacoes) {
+            return (movimentacoes || []).map(m => ({
+                'ID': m.id,
+                'Data': m.data || '',
+                'DataOriginal': m.data,
+                'ID Conta': m.idConta,
+                'ID Conta Destino': m.idContaDestino || '',
+                'Banco': m.banco,
+                'Banco Destino': m.bancoDestino || '',
+                'Descrição': m.descricao,
+                'Tipo': normalizarTipoApi(m.tipo) === 'ENTRADA' ? 'Entrada' : normalizarTipoApi(m.tipo) === 'SAÍDA' ? 'Saída' : 'Transferência',
+                'Valor Aporte': parseFloat(m.valor) || 0,
+                'Valor Rendimento': parseFloat(m.valorRendimento) || 0,
+                'Detalhamento': m.detalhamento || '',
+                'Titular': m.titularConta,
+                'Titular Destino': m.titularDestino || ''
+            }));
+        }
 
         const USUARIOS = {
             "MACIEL": "37541680",
@@ -906,16 +1042,34 @@
         async function carregarDados() {
             setLoading(true);
             try {
-                const res = await fetch(`${SCRIPT_URL}?action=getDashboard&t=${Date.now()}`);
-                dadosRaw = await res.json();
+                const resultado = await apiGet('getAll');
+                dadosRaw = adaptarParaGerenciamento(resultado.movimentacoes);
+                baseContas = resultado.contas || [];
+                popularFiltrosGerenciamento();
                 renderizarLista();
                 atualizarStats();
                 mostrarToast('Dados carregados', 'success', 'fa-check-circle');
             } catch(e) {
-                mostrarToast('Erro ao carregar dados', 'error', 'fa-times-circle');
+                mostrarToast(e.message || 'Erro ao carregar dados', 'error', 'fa-times-circle');
             } finally {
                 setLoading(false);
             }
+        }
+
+        function popularFiltrosGerenciamento() {
+            const selConta = document.getElementById('filtroContaSel');
+            const selBanco = document.getElementById('filtroBancoSel');
+            const selTitular = document.getElementById('filtroTitularSel');
+            if (!selConta) return;
+
+            const contasOpts = baseContas.map(c => `<option value="${c.id}">${c.banco} - ${c.descricao}</option>`).join('');
+            selConta.innerHTML = '<option value="TODOS">Todas as Contas</option>' + contasOpts;
+
+            const bancos = [...new Set(dadosRaw.map(d => d['Banco']).filter(Boolean))].sort();
+            selBanco.innerHTML = '<option value="TODOS">Todos os Bancos</option>' + bancos.map(b => `<option value="${b}">${b}</option>`).join('');
+
+            const titulares = [...new Set(dadosRaw.map(d => d['Titular']).filter(Boolean))].sort();
+            selTitular.innerHTML = '<option value="TODOS">Todos os Titulares</option>' + titulares.map(t => `<option value="${t}">${t}</option>`).join('');
         }
 
         // ============================================================
@@ -969,6 +1123,9 @@
             document.getElementById('btnLimparBusca').classList.add('hidden');
             filtroAtivo = 'TODOS';
             ordemAtiva = 'recente';
+            if (document.getElementById('filtroContaSel')) document.getElementById('filtroContaSel').value = 'TODOS';
+            if (document.getElementById('filtroBancoSel')) document.getElementById('filtroBancoSel').value = 'TODOS';
+            if (document.getElementById('filtroTitularSel')) document.getElementById('filtroTitularSel').value = 'TODOS';
             document.querySelectorAll('.chip[data-filtro]').forEach(c => {
                 c.classList.toggle('ativo', c.getAttribute('data-filtro') === 'TODOS');
             });
@@ -1031,15 +1188,22 @@
         function dadosFiltrados() {
             const busca = document.getElementById('campoBusca').value.toLowerCase();
             const ordem = ordemAtiva;
+            const fConta = document.getElementById('filtroContaSel')?.value || 'TODOS';
+            const fBanco = document.getElementById('filtroBancoSel')?.value || 'TODOS';
+            const fTitular = document.getElementById('filtroTitularSel')?.value || 'TODOS';
 
             let lista = dadosRaw.filter(d => {
                 const matchTipo = filtroAtivo === 'TODOS' || d['Tipo'] === filtroAtivo;
+                const matchConta = fConta === 'TODOS' || String(d['ID Conta']) === fConta || String(d['ID Conta Destino']) === fConta;
+                const matchBanco = fBanco === 'TODOS' || d['Banco'] === fBanco || d['Banco Destino'] === fBanco;
+                const matchTitular = fTitular === 'TODOS' || d['Titular'] === fTitular || d['Titular Destino'] === fTitular;
                 const matchBusca = !busca ||
                     (d['Banco'] || '').toLowerCase().includes(busca) ||
                     (d['Descrição'] || '').toLowerCase().includes(busca) ||
+                    (d['Detalhamento'] || '').toLowerCase().includes(busca) ||
                     String(d['Valor Aporte'] || '').includes(busca) ||
                     (d['Titular'] || '').toLowerCase().includes(busca);
-                return matchTipo && matchBusca;
+                return matchTipo && matchConta && matchBanco && matchTitular && matchBusca;
             });
 
             lista.sort((a, b) => {
@@ -1196,7 +1360,16 @@
 
                 // Definições visuais por tipo
                 let cardClass, iconClass, iconBg, valorClass, sinal, valorExibido, chipHtml;
-                if (isRendimento) {
+                const isTransf = d['Tipo'] === 'Transferência';
+                if (isTransf) {
+                    cardClass  = 'transferencia';
+                    iconClass  = 'fa-exchange-alt text-violet-500';
+                    iconBg     = 'bg-violet-50';
+                    valorClass = 'text-violet-600';
+                    sinal      = '⇄';
+                    valorExibido = fmt(aporte);
+                    chipHtml   = `<span class="text-[9px] bg-violet-100 text-violet-700 font-black px-1.5 py-0.5 rounded-full uppercase tracking-wide">Transferência</span>`;
+                } else if (isRendimento) {
                     cardClass  = 'rendimento';
                     iconClass  = 'fa-chart-line text-indigo-500';
                     iconBg     = 'bg-indigo-50';
@@ -1222,6 +1395,13 @@
                     chipHtml   = '';
                 }
 
+                const descLinha = isTransf
+                    ? `${d['Banco']} <i class="fas fa-long-arrow-alt-right mx-1"></i> ${d['Banco Destino'] || ''}`
+                    : (d['Banco'] || '—');
+                const subLinha = isTransf
+                    ? `${d['Descrição'] || ''} ${d['Titular'] ? '· ' + d['Titular'] : ''} → ${d['Titular Destino'] || ''}`
+                    : `${d['Descrição'] || ''} ${d['Titular'] ? '· ' + d['Titular'] : ''}`;
+
                 return `
                 <div class="lanc-card ${cardClass}" style="animation-delay:${Math.min(i * 0.04, 0.4)}s" onclick="toggleCard(this)">
                     <div class="flex items-start justify-between gap-3">
@@ -1231,20 +1411,21 @@
                             </div>
                             <div class="min-w-0">
                                 <div class="flex items-center gap-1.5 flex-wrap">
-                                    <p class="font-bold text-slate-800 text-sm truncate">${d['Banco'] || '—'}</p>
+                                    <p class="font-bold text-slate-800 text-sm truncate">${descLinha}</p>
                                     ${chipHtml}
                                 </div>
-                                <p class="text-[10px] text-slate-400 font-semibold truncate">${d['Descrição'] || ''} ${d['Titular'] ? '· ' + d['Titular'] : ''}</p>
+                                <p class="text-[10px] text-slate-400 font-semibold truncate">${subLinha}</p>
                                 <div class="flex items-center gap-2 mt-0.5 flex-wrap">
                                     <p class="text-[10px] text-slate-300 font-medium">${dtFmt}</p>
                                     ${d['ID'] ? `<span class="text-[9px] bg-slate-100 text-slate-400 font-bold px-1.5 py-0.5 rounded-md">#${d['ID']}</span>` : ''}
+                                    ${d['Detalhamento'] ? `<span class="text-[9px] text-slate-400 italic truncate">${d['Detalhamento']}</span>` : ''}
                                 </div>
                             </div>
                         </div>
                         <div class="flex items-center gap-2 flex-shrink-0">
                             <div class="text-right">
                                 <p class="font-black text-sm ${valorClass}">${sinal} ${valorExibido}</p>
-                                ${!isRendimento && rend > 0 ? `<p class="text-[10px] text-indigo-500 font-bold">+rend ${fmt(rend)}</p>` : ''}
+                                ${!isRendimento && !isTransf && rend > 0 ? `<p class="text-[10px] text-indigo-500 font-bold">+rend ${fmt(rend)}</p>` : ''}
                             </div>
                             <i class="fas fa-chevron-down text-slate-300 text-[10px] card-chevron transition-transform duration-200"></i>
                         </div>
@@ -1268,11 +1449,12 @@
         }
 
         function atualizarStats() {
-            let total = 0, entradas = 0, saidas = 0;
+            let total = 0, entradas = 0, saidas = 0, transferido = 0;
             let qtdEntradas = 0, qtdSaidas = 0;
             dadosRaw.forEach(d => {
                 const v = parseFloat(d['Valor Aporte']) || 0;
-                if (d['Tipo'] === 'Entrada') { entradas += v; total += v; qtdEntradas++; }
+                if (d['Tipo'] === 'Transferência') { transferido += v; }
+                else if (d['Tipo'] === 'Entrada') { entradas += v; total += v; qtdEntradas++; }
                 else { saidas += v; total -= v; qtdSaidas++; }
                 total += parseFloat(d['Valor Rendimento']) || 0;
             });
@@ -1305,21 +1487,31 @@
         function abrirModal(id) { document.getElementById(id).classList.add('ativo'); }
         function fecharModal(id) { document.getElementById(id).classList.remove('ativo'); }
 
+        function onEditTipoChange() {
+            const isTransf = document.getElementById('editTipo').value === 'Transferência';
+            document.getElementById('editWrapContaDestino').classList.toggle('hidden', !isTransf);
+            document.getElementById('editWrapRendimento').classList.toggle('hidden', isTransf);
+            document.getElementById('editLabelConta').textContent = isTransf ? 'Conta Origem' : 'Conta';
+            document.getElementById('editLabelValor').textContent = isTransf ? 'Valor Transferido' : 'Valor Principal';
+        }
+
         function abrirEdicao(idx) {
             indexParaEditar = idx;
             const d = dadosRaw[idx];
-            _dataRawOriginal = d['Data'] ?? ''; // guarda string crua — nunca reprocessada
+
+            const datalist = document.getElementById('editContasData');
+            datalist.innerHTML = baseContas.map(c => `<option value="${c.id}">${c.banco} | ${c.descricao} | ${c.titular}</option>`).join('');
+
             document.getElementById('editRowIndex').value = idx;
             document.getElementById('editSubtitle').textContent = `ID: ${d['ID'] || '—'} · ${d['Banco'] || ''} · ${fmtData(d['Data'])}`;
             document.getElementById('editValorAporte').value = fmt(d['Valor Aporte']);
             document.getElementById('editValorRendimento').value = fmt(d['Valor Rendimento'] || 0);
-            document.getElementById('editBanco').value = d['Banco'] || '';
+            document.getElementById('editIdConta').value = d['ID Conta'] || '';
+            document.getElementById('editIdContaDestino').value = d['ID Conta Destino'] || '';
             document.getElementById('editTipo').value = d['Tipo'] || 'Entrada';
-            document.getElementById('editData').value = dataParaISO(d['Data']);
-            document.getElementById('editHora').value = dataParaHora(d['Data']);
-            document.getElementById('editManterData').checked = true;
-            document.getElementById('editData').disabled = true;
-            document.getElementById('editHora').disabled = true;
+            document.getElementById('editData').value = d['DataOriginal'] || dataParaISO(d['Data']);
+            document.getElementById('editDetalhamento').value = d['Detalhamento'] || '';
+            onEditTipoChange();
             abrirModal('modalEdicao');
         }
 
@@ -1348,40 +1540,46 @@
                 return;
             }
 
-            const novaData = _dataRawOriginal;
+            const tipo = document.getElementById('editTipo').value;
+            const tipoApi = tipo === 'Entrada' ? 'ENTRADA' : tipo === 'Saída' ? 'SAÍDA' : 'TRANSFERÊNCIA';
 
             const payload = {
-                action: 'editRegistro',
-                index: idx,
-                banco: document.getElementById('editBanco').value.trim(),
-                tipo: document.getElementById('editTipo').value,
-                valorAporte: descascarMoeda(document.getElementById('editValorAporte').value),
-                valorRendimento: descascarMoeda(document.getElementById('editValorRendimento').value),
-                // campo 'data' intencionalmente omitido — data nunca deve ser alterada
-                idConta: d['ID Conta'] || '',
-                descricao: d['Descrição'] || '',
-                titular: d['Titular'] || '',
+                id: d['ID'],
+                data: document.getElementById('editData').value,
+                idConta: document.getElementById('editIdConta').value.trim(),
+                idContaDestino: tipo === 'Transferência' ? document.getElementById('editIdContaDestino').value.trim() : '',
+                tipo: tipoApi,
+                valor: descascarMoeda(document.getElementById('editValorAporte').value),
+                valorRendimento: tipo === 'Transferência' ? 0 : descascarMoeda(document.getElementById('editValorRendimento').value),
+                detalhamento: document.getElementById('editDetalhamento').value.trim()
             };
 
             try {
-                await fetch(SCRIPT_URL, {
-                    method: 'POST',
-                    mode: 'no-cors',
-                    headers: { 'Content-Type': 'text/plain' },
-                    body: JSON.stringify(payload)
-                });
+                const resultado = await apiPost('updateTransaction', payload);
+                const atualizado = resultado.data || {};
+                dadosRaw[idx] = {
+                    'ID': atualizado.id ?? d['ID'],
+                    'Data': (atualizado.data || payload.data),
+                    'DataOriginal': atualizado.data || payload.data,
+                    'ID Conta': atualizado.idConta ?? payload.idConta,
+                    'ID Conta Destino': atualizado.idContaDestino ?? payload.idContaDestino,
+                    'Banco': atualizado.banco ?? d['Banco'],
+                    'Banco Destino': atualizado.bancoDestino ?? '',
+                    'Descrição': atualizado.descricao ?? d['Descrição'],
+                    'Tipo': tipo,
+                    'Valor Aporte': parseFloat(atualizado.valor ?? payload.valor) || 0,
+                    'Valor Rendimento': parseFloat(atualizado.valorRendimento ?? payload.valorRendimento) || 0,
+                    'Detalhamento': atualizado.detalhamento ?? payload.detalhamento,
+                    'Titular': atualizado.titularConta ?? d['Titular'],
+                    'Titular Destino': atualizado.titularDestino ?? ''
+                };
 
-                dadosRaw[idx]['Banco'] = payload.banco;
-                dadosRaw[idx]['Tipo'] = payload.tipo;
-                dadosRaw[idx]['Valor Aporte'] = payload.valorAporte;
-                dadosRaw[idx]['Valor Rendimento'] = payload.valorRendimento;
-                // Data preservada intencionalmente — não atualizar
-
+                popularFiltrosGerenciamento();
                 renderizarLista();
                 atualizarStats();
                 mostrarToast('✅ Lançamento atualizado com sucesso!', 'success', 'fa-check-circle');
             } catch(e) {
-                mostrarToast('Erro ao salvar alterações', 'error', 'fa-times-circle');
+                mostrarToast(e.message || 'Erro ao salvar alterações', 'error', 'fa-times-circle');
             } finally {
                 setLoading(false);
             }
@@ -1431,26 +1629,16 @@
                 return;
             }
 
-            const payload = {
-                action: 'deleteRegistro',
-                index: idx,
-                id: d['ID'] || '',
-            };
-
             try {
-                await fetch(SCRIPT_URL, {
-                    method: 'POST',
-                    mode: 'no-cors',
-                    headers: { 'Content-Type': 'text/plain' },
-                    body: JSON.stringify(payload)
-                });
+                await apiPost('deleteTransaction', { id: d['ID'] });
 
                 dadosRaw.splice(idx, 1);
+                popularFiltrosGerenciamento();
                 renderizarLista();
                 atualizarStats();
                 mostrarToast('🗑️ Lançamento excluído com sucesso!', 'success', 'fa-check-circle');
             } catch(e) {
-                mostrarToast('Erro ao excluir lançamento', 'error', 'fa-times-circle');
+                mostrarToast(e.message || 'Erro ao excluir lançamento', 'error', 'fa-times-circle');
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = '<i class="fas fa-trash text-sm"></i> Excluir';
