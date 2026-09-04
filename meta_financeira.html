@@ -1,0 +1,1165 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+    <title>PoppeFin | Metas Financeiras</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+
+        * { -webkit-tap-highlight-color: transparent; }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.08);
+        }
+
+        .chart-container { position: relative; height: 220px; width: 100%; }
+
+        @media (max-width: 768px) {
+            .chart-container { height: 200px; }
+            body { padding-bottom: 84px; }
+        }
+
+        /* Bottom Nav */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0; left: 0; right: 0;
+            background: rgba(255, 255, 255, 0.92);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-top: 1px solid rgba(255,255,255,0.5);
+            box-shadow: 0 -8px 32px rgba(0,0,0,0.08);
+            z-index: 50;
+            padding: 8px 0 env(safe-area-inset-bottom);
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+        .slide-up { animation: slideUp 0.5s ease-out forwards; }
+        .slide-up-d1 { animation: slideUp 0.5s ease-out 0.1s both; }
+        .slide-up-d2 { animation: slideUp 0.5s ease-out 0.2s both; }
+        .slide-up-d3 { animation: slideUp 0.5s ease-out 0.3s both; }
+        .slide-up-d4 { animation: slideUp 0.5s ease-out 0.4s both; }
+
+        .loading-bar {
+            position: fixed; top: 0; left: 0; right: 0; height: 3px;
+            background: linear-gradient(90deg, #6366f1, #8b5cf6, #6366f1);
+            background-size: 200% 100%;
+            animation: loading-shimmer 1.5s infinite;
+            z-index: 999; transform: scaleX(0); transform-origin: left;
+            transition: transform 0.3s;
+        }
+        .loading-bar.ativo { transform: scaleX(1); }
+        @keyframes loading-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+        .toast {
+            position: fixed; bottom: 90px; left: 50%;
+            transform: translateX(-50%) translateY(20px);
+            background: rgba(30, 41, 59, 0.95); color: white;
+            padding: 10px 20px; border-radius: 50px; font-size: 12px; font-weight: 600;
+            white-space: nowrap; opacity: 0; transition: all 0.3s; z-index: 200; pointer-events: none;
+        }
+        .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+        #modalEditarMeta, #modalInfoMetas {
+            display: none; position: fixed; inset: 0;
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+            z-index: 100; align-items: flex-end; justify-content: center;
+        }
+        .modal-sheet {
+            background: white; border-radius: 28px 28px 0 0; padding: 8px 24px 36px;
+            width: 100%; max-width: 560px; animation: slideUp 0.3s ease-out;
+            max-height: 90vh; overflow-y: auto;
+        }
+        .modal-handle { width: 40px; height: 4px; background: #e2e8f0; border-radius: 4px; margin: 12px auto 20px; }
+
+        .btn-gerenc {
+            display: flex; align-items: center; gap: 8px;
+            background: linear-gradient(135deg, #1e293b, #334155);
+            color: white; font-size: 12px; font-weight: 700; padding: 10px 18px;
+            border-radius: 16px; transition: all 0.2s; box-shadow: 0 4px 14px rgba(30,41,59,0.25);
+        }
+        .btn-gerenc:active { transform: scale(0.96); }
+
+        .updated-badge { font-size: 10px; color: #94a3b8; font-weight: 600; }
+
+        .btn-info {
+            width: 20px; height: 20px; border-radius: 50%;
+            background: rgba(99,102,241,0.12); color: #6366f1; font-size: 10px; font-weight: 900;
+            display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
+            transition: all 0.2s; flex-shrink: 0; border: 1.5px solid rgba(99,102,241,0.2); vertical-align: middle;
+        }
+        .btn-info:hover { background: rgba(99,102,241,0.22); transform: scale(1.1); }
+
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
+        .oculto-blur { filter: blur(6px); user-select: none; }
+
+        /* Progresso da meta */
+        .progress-track { width: 100%; background: rgba(148,163,184,0.2); border-radius: 50px; height: 14px; overflow: hidden; position: relative; }
+        .progress-fill { height: 100%; border-radius: 50px; background: linear-gradient(90deg, #6366f1, #8b5cf6); transition: width 1s ease; }
+        .progress-fill.superado { background: linear-gradient(90deg, #10b981, #34d399); }
+
+        /* Status pill */
+        .status-pill { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; font-weight: 800; padding: 3px 9px; border-radius: 50px; white-space: nowrap; }
+        .status-pill.verde { background: rgba(16,185,129,0.12); color: #059669; }
+        .status-pill.amarelo { background: rgba(245,158,11,0.14); color: #b45309; }
+        .status-pill.vermelho { background: rgba(244,63,94,0.12); color: #e11d48; }
+        .status-pill.cinza { background: rgba(148,163,184,0.16); color: #64748b; }
+
+        /* Card do acompanhamento mensal */
+        .mes-card {
+            background: rgba(255,255,255,0.55); border: 1px solid rgba(255,255,255,0.7);
+            border-radius: 18px; padding: 12px 14px 14px;
+        }
+        .mes-card.atual { border-color: rgba(99,102,241,0.45); background: rgba(99,102,241,0.06); }
+        .mes-card.pendente { opacity: 0.55; }
+        .mes-card-topo { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+        .mes-card-mes { font-size: 13px; font-weight: 800; color: #1e293b; display: flex; align-items: center; gap: 6px; }
+        .mes-card-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+        .mes-stat { text-align: center; background: rgba(255,255,255,0.6); border-radius: 12px; padding: 7px 4px; }
+        .mes-stat-label { font-size: 8.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.02em; color: #94a3b8; margin-bottom: 2px; }
+        .mes-stat-valor { font-size: 11.5px; font-weight: 800; color: #1e293b; line-height: 1.2; }
+        .mes-mini-track { width: 100%; height: 5px; border-radius: 50px; background: rgba(148,163,184,0.2); overflow: hidden; margin-top: 10px; }
+        .mes-mini-fill { height: 100%; border-radius: 50px; transition: width 0.6s ease; }
+        @media (max-width: 380px) {
+            .mes-stat-valor { font-size: 10.5px; }
+        }
+
+        /* Alertas */
+        .alert-block { border-radius: 16px; padding: 12px 16px; border-left: 4px solid #6366f1; background: #f8fafc; display: flex; align-items: flex-start; gap: 10px; }
+        .alert-block.verde { border-left-color: #10b981; background: rgba(16,185,129,0.06); }
+        .alert-block.amarelo { border-left-color: #f59e0b; background: rgba(245,158,11,0.07); }
+        .alert-block.vermelho { border-left-color: #f43f5e; background: rgba(244,63,94,0.06); }
+        .alert-block.indigo { border-left-color: #6366f1; background: rgba(99,102,241,0.06); }
+
+        /* Conta mini card */
+        .conta-mini {
+            background: rgba(255,255,255,0.55); border: 1px solid rgba(255,255,255,0.7);
+            border-radius: 16px; padding: 12px 14px; margin-bottom: 8px;
+        }
+
+        /* Histórico item */
+        .hist-item {
+            display: flex; align-items: center; justify-content: space-between; gap: 10px;
+            padding: 12px 14px; border-radius: 16px; background: rgba(255,255,255,0.5);
+            border: 1px solid rgba(255,255,255,0.6); cursor: pointer; transition: all .2s;
+        }
+        .hist-item:active { transform: scale(0.98); }
+        .hist-item.selecionado { border-color: rgba(99,102,241,0.5); background: rgba(99,102,241,0.07); }
+
+        input[type=number]::-webkit-inner-spin-button { opacity: 1; }
+    </style>
+</head>
+<body class="text-slate-800">
+
+    <div id="loadingBar" class="loading-bar"></div>
+    <div id="toastMsg" class="toast"></div>
+
+    <!-- Modal Editar Meta -->
+    <div id="modalEditarMeta">
+        <div class="modal-sheet">
+            <div class="modal-handle"></div>
+            <h3 class="text-lg font-bold text-slate-800 mb-1 flex items-center gap-2">
+                <i class="fas fa-bullseye text-indigo-600"></i> Editar Meta
+            </h3>
+            <p class="text-slate-400 text-xs font-medium mb-5">Defina a meta anual, mensal e (opcionalmente) por conta.</p>
+
+            <div class="space-y-4">
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="text-[10px] font-bold text-slate-400 uppercase ml-1">Ano</label>
+                        <select id="editAno" class="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl font-bold outline-none focus:border-indigo-500 transition-all mt-1"></select>
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-bold text-slate-400 uppercase ml-1">Meta Anual (R$)</label>
+                        <input type="number" id="editMetaAnual" min="0" step="0.01" placeholder="500000.00"
+                            oninput="atualizarResumoDistribuicao()"
+                            class="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl font-bold outline-none focus:border-indigo-500 transition-all mt-1">
+                    </div>
+                </div>
+
+                <div class="border-t border-slate-100 pt-4">
+                    <div class="flex items-center justify-between mb-2">
+                        <label class="text-[10px] font-bold text-slate-400 uppercase">Metas Mensais</label>
+                        <button type="button" onclick="distribuirAutomaticamente()"
+                            class="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2.5 py-1.5 rounded-lg active:scale-95 transition-all">
+                            <i class="fas fa-wand-magic-sparkles mr-1"></i>Distribuir automaticamente
+                        </button>
+                    </div>
+                    <div class="grid grid-cols-3 gap-2" id="gridMesesEdit"></div>
+                    <p id="resumoDistribuicao" class="text-[10px] font-semibold mt-2 text-slate-400"></p>
+                </div>
+
+                <div class="border-t border-slate-100 pt-4">
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" id="editContasHabilitado" onchange="toggleContasEdicao()"
+                            class="w-4 h-4 accent-indigo-600 cursor-pointer">
+                        <span class="text-xs font-bold text-slate-700">Definir metas por conta (opcional)</span>
+                    </label>
+                    <div id="wrapContasEdicao" class="mt-3 space-y-2 hidden"></div>
+                </div>
+
+                <div class="flex gap-3 pt-2">
+                    <button onclick="fecharModalEdicao()" class="flex-1 py-3.5 font-bold text-slate-500 bg-slate-100 rounded-xl transition-all active:scale-95">Cancelar</button>
+                    <button onclick="salvarMeta()" class="flex-1 py-3.5 font-bold bg-indigo-600 text-white rounded-xl shadow-lg active:scale-95">Salvar Meta</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Info -->
+    <div id="modalInfoMetas">
+        <div class="modal-sheet">
+            <div class="modal-handle"></div>
+            <h3 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+                <i class="fas fa-circle-info text-indigo-600"></i> Como os cálculos funcionam
+            </h3>
+            <div class="space-y-3 text-xs text-slate-600 leading-relaxed">
+                <p><strong>Realizado</strong> = soma de (Entradas − Saídas + Rendimentos) de todas as movimentações do ano selecionado. Transferências entre contas próprias não contam como entrada/saída no total consolidado.</p>
+                <p><strong>Necessário por mês</strong> = (Meta anual − Realizado) ÷ meses restantes no ano.</p>
+                <p><strong>Projeção anual</strong> = (Realizado até o momento ÷ meses decorridos) × 12 — ou seja, projeta o ritmo médio atual para o ano inteiro.</p>
+                <p>Tudo é recalculado automaticamente sempre que uma movimentação é criada, editada ou excluída.</p>
+            </div>
+            <button onclick="document.getElementById('modalInfoMetas').style.display='none'" class="w-full mt-5 py-3.5 font-bold bg-indigo-600 text-white rounded-xl shadow-lg active:scale-95">Entendi</button>
+        </div>
+    </div>
+
+    <div class="max-w-6xl mx-auto p-4 md:p-8 space-y-5">
+
+        <!-- Header -->
+        <div class="slide-up">
+            <div class="flex items-center justify-between mb-1">
+                <div class="flex items-center gap-3">
+                    <button onclick="window.location.href='dashboard.html'"
+                        class="w-10 h-10 bg-white/60 rounded-xl flex items-center justify-center shadow-sm active:scale-95 flex-shrink-0">
+                        <i class="fas fa-arrow-left text-slate-500"></i>
+                    </button>
+                    <div>
+                        <h1 class="text-xl md:text-2xl font-extrabold tracking-tight">Metas <span class="text-indigo-600">Financeiras</span></h1>
+                        <p class="text-slate-500 text-xs font-medium">Acompanhamento e planejamento do resultado</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="toggleOcultarValores()" id="btnOcultar"
+                        class="w-10 h-10 bg-white/60 rounded-xl flex items-center justify-center shadow-sm active:scale-95">
+                        <i class="fas fa-eye text-indigo-600"></i>
+                    </button>
+                    <button onclick="carregarDados()"
+                        class="w-10 h-10 bg-white/60 rounded-xl flex items-center justify-center shadow-sm active:scale-95">
+                        <i class="fas fa-sync-alt text-indigo-500 text-sm" id="iconSync"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Seletor de ano + editar -->
+            <div class="glass-card rounded-2xl p-3 mt-3">
+                <div class="flex items-center gap-3 flex-wrap md:flex-nowrap">
+                    <div class="flex flex-col flex-1 min-w-[110px]">
+                        <label class="text-[9px] font-bold text-slate-400 uppercase mb-1 ml-1">Ano</label>
+                        <select id="seletorAno" onchange="mudarAno(this.value)"
+                            class="bg-white/80 border border-slate-100 p-2 rounded-xl outline-none text-sm font-semibold text-slate-700 shadow-sm"></select>
+                    </div>
+                    <div class="flex-1 min-w-[110px]"></div>
+                    <button onclick="abrirModalEdicao()" class="btn-gerenc flex-shrink-0">
+                        <i class="fas fa-pen"></i> Editar Meta
+                    </button>
+                </div>
+                <div class="updated-badge mt-2 text-right" id="lastUpdated"></div>
+            </div>
+        </div>
+
+        <!-- Card de destaque META -->
+        <div class="glass-card p-5 md:p-6 rounded-[28px] slide-up-d1 relative overflow-hidden">
+            <div class="absolute top-0 right-0 w-40 h-40 bg-indigo-50 rounded-full -translate-y-16 translate-x-16"></div>
+            <div class="flex items-center justify-between mb-4 relative z-10 flex-wrap gap-2">
+                <h2 class="text-sm font-black text-slate-700 uppercase tracking-widest flex items-center gap-2">
+                    <i class="fas fa-bullseye text-indigo-600"></i> Meta <span id="tituloMetaAno">—</span>
+                </h2>
+                <button class="btn-info" onclick="document.getElementById('modalInfoMetas').style.display='flex'" title="Como os cálculos funcionam">i</button>
+            </div>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 relative z-10 mb-5">
+                <div>
+                    <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Meta</p>
+                    <p id="valMetaAnual" class="text-lg md:text-2xl font-black text-slate-800">R$ 0,00</p>
+                </div>
+                <div>
+                    <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Realizado</p>
+                    <p id="valRealizadoAnual" class="text-lg md:text-2xl font-black text-indigo-600">R$ 0,00</p>
+                </div>
+                <div>
+                    <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Restante</p>
+                    <p id="valRestanteAnual" class="text-lg md:text-2xl font-black text-slate-800">R$ 0,00</p>
+                </div>
+                <div>
+                    <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Progresso</p>
+                    <p id="valPercentualAnual" class="text-lg md:text-2xl font-black text-emerald-600">0%</p>
+                </div>
+            </div>
+            <div class="progress-track relative z-10">
+                <div id="barraProgressoMeta" class="progress-fill" style="width:0%"></div>
+            </div>
+            <p id="labelProgressoMeta" class="text-[11px] text-slate-500 font-semibold mt-2 relative z-10"></p>
+        </div>
+
+        <!-- Ritmo necessário + Projeção -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 slide-up-d2">
+            <div class="glass-card p-5 rounded-[28px]">
+                <div class="flex items-center gap-2.5 mb-3">
+                    <div class="w-9 h-9 bg-violet-100 rounded-xl flex items-center justify-center">
+                        <i class="fas fa-gauge-high text-violet-600 text-sm"></i>
+                    </div>
+                    <div>
+                        <p class="text-[9px] font-black uppercase tracking-widest text-slate-400">Ritmo necessário</p>
+                        <p class="text-[10px] text-slate-400 font-medium">Para atingir a meta anual</p>
+                    </div>
+                </div>
+                <p id="valNecessarioMes" class="text-xl md:text-2xl font-black text-slate-800">R$ 0,00<span class="text-xs font-bold text-slate-400">/mês</span></p>
+                <p id="labelMesesRestantes" class="text-[11px] text-slate-500 font-semibold mt-1"></p>
+            </div>
+            <div class="glass-card p-5 rounded-[28px]">
+                <div class="flex items-center justify-between mb-3">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-9 h-9 bg-amber-100 rounded-xl flex items-center justify-center">
+                            <i class="fas fa-chart-line text-amber-600 text-sm"></i>
+                        </div>
+                        <div>
+                            <p class="text-[9px] font-black uppercase tracking-widest text-slate-400">Projeção para o fim do ano</p>
+                            <p class="text-[10px] text-slate-400 font-medium">Baseada no ritmo atual</p>
+                        </div>
+                    </div>
+                    <span id="badgeProjecao" class="status-pill cinza">—</span>
+                </div>
+                <p id="valProjecao" class="text-xl md:text-2xl font-black text-slate-800">—</p>
+            </div>
+        </div>
+
+        <!-- Gráficos -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 slide-up-d2">
+            <div class="glass-card p-5 rounded-[28px]">
+                <h3 class="text-sm font-bold text-slate-700 mb-3">Meta x Realizado</h3>
+                <div class="chart-container"><canvas id="chartMetaRealizado"></canvas></div>
+            </div>
+            <div class="glass-card p-5 rounded-[28px]">
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="text-sm font-bold text-slate-700">Evolução Mensal</h3>
+                    <div class="flex items-center gap-3 text-[10px] font-bold text-slate-500">
+                        <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-indigo-500 inline-block"></span>Realizado</span>
+                        <span class="inline-flex items-center gap-1"><span class="w-3 border-t-2 border-dashed border-amber-400 inline-block"></span>Meta</span>
+                    </div>
+                </div>
+                <div class="chart-container"><canvas id="chartEvolucao"></canvas></div>
+            </div>
+        </div>
+
+        <!-- Acompanhamento mensal -->
+        <div class="glass-card p-5 rounded-[28px] slide-up-d3">
+            <h3 class="text-sm font-bold text-slate-700 mb-3">Acompanhamento Mensal</h3>
+            <div id="listaMeses" class="space-y-2.5"></div>
+        </div>
+
+        <!-- Metas por conta -->
+        <div class="glass-card p-5 rounded-[28px] slide-up-d3 hidden" id="cardMetasContas">
+            <h3 class="text-sm font-bold text-slate-700 mb-3">Metas por Conta</h3>
+            <div id="listaContasMetas"></div>
+        </div>
+
+        <!-- Comparação com ano anterior -->
+        <div class="glass-card p-5 rounded-[28px] slide-up-d3">
+            <div class="flex items-center justify-between mb-3">
+                <h3 class="text-sm font-bold text-slate-700">Comparação com o Ano Anterior</h3>
+                <span id="badgeComparacao" class="status-pill cinza">—</span>
+            </div>
+            <div class="grid grid-cols-2 gap-4 mb-2">
+                <div>
+                    <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1" id="labelAnoAtualComp">—</p>
+                    <p id="valAnoAtualComp" class="text-base md:text-lg font-black text-indigo-600">R$ 0,00</p>
+                </div>
+                <div>
+                    <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1" id="labelAnoAnteriorComp">—</p>
+                    <p id="valAnoAnteriorComp" class="text-base md:text-lg font-black text-slate-700">R$ 0,00</p>
+                </div>
+            </div>
+            <p id="textoCrescimento" class="text-[11px] text-slate-500 font-semibold"></p>
+        </div>
+
+        <!-- Alertas -->
+        <div class="glass-card p-5 rounded-[28px] slide-up-d4">
+            <h3 class="text-sm font-bold text-slate-700 mb-3">Alertas de Desempenho</h3>
+            <div id="listaAlertas" class="space-y-2.5"></div>
+        </div>
+
+        <!-- Histórico de metas -->
+        <div class="glass-card p-5 rounded-[28px] slide-up-d4">
+            <h3 class="text-sm font-bold text-slate-700 mb-3">Histórico de Metas</h3>
+            <div id="listaHistorico" class="space-y-2"></div>
+        </div>
+
+    </div>
+
+    <!-- Bottom Nav -->
+    <nav class="bottom-nav md:hidden">
+        <div class="relative flex items-center justify-around px-2 h-16">
+            <button onclick="window.location.href='dashboard.html'" class="flex flex-col items-center gap-1 text-slate-400 flex-1 py-2">
+                <i class="fas fa-chart-pie text-lg"></i>
+                <span class="text-[9px] font-bold uppercase tracking-wide">Dashboard</span>
+            </button>
+            <button onclick="window.location.href='extrato.html'" class="flex flex-col items-center gap-1 text-slate-400 flex-1 py-2">
+                <i class="fas fa-list-ul text-lg"></i>
+                <span class="text-[9px] font-bold uppercase tracking-wide">Extrato</span>
+            </button>
+            <div class="flex-1 flex items-center justify-center">
+                <button onclick="window.location.href='lancamento.html'"
+                    class="absolute w-14 h-14 bg-indigo-600 rounded-full flex items-center justify-center shadow-lg shadow-indigo-300 hover:bg-indigo-700 active:scale-95 transition-all"
+                    style="bottom: 20px;">
+                    <i class="fas fa-plus text-white text-xl"></i>
+                </button>
+            </div>
+            <button class="flex flex-col items-center gap-1 text-indigo-600 flex-1 py-2">
+                <i class="fas fa-bullseye text-lg"></i>
+                <span class="text-[9px] font-bold uppercase tracking-wide">Metas</span>
+            </button>
+            <button onclick="confirmarSairMetas()" class="flex flex-col items-center gap-1 text-rose-400 flex-1 py-2">
+                <i class="fas fa-sign-out-alt text-lg"></i>
+                <span class="text-[9px] font-bold uppercase tracking-wide">Sair</span>
+            </button>
+        </div>
+    </nav>
+
+    <script>
+        // ============================================================
+        // CONEXÃO COM A API (mesma API do dashboard, Google Apps Script)
+        // ============================================================
+        const DEFAULT_API_URL = 'https://script.google.com/macros/s/AKfycbwaIsf1cABPNnlYHZRwzf2oAItMbyKk33Uz_JPj9fysQHVF9dBaCRqnJvCsjOA8_crG_g/exec';
+        function getApiUrl() { return sessionStorage.getItem('poppefinApiUrlTeste') || DEFAULT_API_URL; }
+        const SCRIPT_URL = getApiUrl();
+
+        async function apiGet(action) {
+            const res = await fetch(`${SCRIPT_URL}?action=${action}&t=${Date.now()}`);
+            const text = await res.text();
+            let json;
+            try { json = JSON.parse(text); }
+            catch (err) { throw new Error('A API não retornou JSON válido.'); }
+            if (!json.success) throw new Error(json.message || 'Erro ao buscar dados');
+            return json;
+        }
+
+        function contasParaMapa(contas) {
+            const mapa = {};
+            (contas || []).forEach(c => mapa[String(c.id)] = c);
+            return mapa;
+        }
+        function normalizarTipoApi(raw) {
+            const t = (raw || '').toString().trim().toUpperCase();
+            if (t === 'ENTRADA') return 'ENTRADA';
+            if (t === 'SAÍDA' || t === 'SAIDA') return 'SAÍDA';
+            if (t.indexOf('TRANSFER') === 0) return 'TRANSFERÊNCIA';
+            return 'SAÍDA';
+        }
+        function adaptarParaDashboard(movimentacoes, contasMap) {
+            const out = [];
+            (movimentacoes || []).forEach(m => {
+                const dataISO = m.data || '';
+                if (normalizarTipoApi(m.tipo) === 'TRANSFERÊNCIA') {
+                    const destino = contasMap[String(m.idContaDestino)] || {};
+                    out.push({ 'Data': dataISO, 'ID Conta': m.idConta, 'Banco': m.banco, 'Descrição': m.descricao, 'Tipo': 'Saída', 'Valor Aporte': m.valor, 'Valor Rendimento': 0, isTransferencia: true });
+                    out.push({ 'Data': dataISO, 'ID Conta': m.idContaDestino, 'Banco': m.bancoDestino, 'Descrição': destino.descricao || m.descricao, 'Tipo': 'Entrada', 'Valor Aporte': m.valor, 'Valor Rendimento': 0, isTransferencia: true });
+                } else {
+                    out.push({ 'Data': dataISO, 'ID Conta': m.idConta, 'Banco': m.banco, 'Descrição': m.descricao, 'Tipo': normalizarTipoApi(m.tipo) === 'ENTRADA' ? 'Entrada' : 'Saída', 'Valor Aporte': m.valor, 'Valor Rendimento': m.valorRendimento, isTransferencia: false });
+                }
+            });
+            return out;
+        }
+
+        // ============================================================
+        // ESTADO GERAL
+        // ============================================================
+        const MESES_ABR = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+        let dadosRaw = [];
+        let contasRaw = [];
+        let anoSelecionado = new Date().getFullYear();
+        let valoresOcultos = false;
+        let metasStore = {};
+        let chartMetaRealizado = null, chartEvolucao = null;
+
+        function fmt(v) { return (v || 0).toLocaleString('pt-br', { style: 'currency', currency: 'BRL' }); }
+        function fmtPct(v) { return (isFinite(v) ? v : 0).toFixed(2).replace('.', ',') + '%'; }
+        function oc(str) { return valoresOcultos ? '••••••' : str; }
+
+        function mostrarToast(msg) {
+            const t = document.getElementById('toastMsg');
+            t.textContent = msg;
+            t.classList.add('show');
+            clearTimeout(window._toastTimer);
+            window._toastTimer = setTimeout(() => t.classList.remove('show'), 2600);
+        }
+
+        function toggleOcultarValores() {
+            valoresOcultos = !valoresOcultos;
+            const btn = document.getElementById('btnOcultar');
+            btn.innerHTML = valoresOcultos ? '<i class="fas fa-eye-slash text-slate-400"></i>' : '<i class="fas fa-eye text-indigo-600"></i>';
+            renderAll();
+        }
+
+        function confirmarSairMetas() {
+            if (confirm('Sair do sistema?')) { sessionStorage.clear(); window.location.href = 'index.html'; }
+        }
+
+        // ============================================================
+        // PERSISTÊNCIA DAS METAS (localStorage — não há endpoint de metas
+        // na API atual; assim que houver, basta trocar loadMetasStore/
+        // saveMetasStore por chamadas a apiGet/apiPost)
+        // ============================================================
+        function loadMetasStore() {
+            try { metasStore = JSON.parse(localStorage.getItem('poppefinMetas') || '{}'); }
+            catch (e) { metasStore = {}; }
+        }
+        function saveMetasStore() { localStorage.setItem('poppefinMetas', JSON.stringify(metasStore)); }
+
+        function getMetaAno(ano) {
+            if (!metasStore[ano]) {
+                metasStore[ano] = { metaAnual: 0, metasMensais: new Array(12).fill(0), contasHabilitado: false, metasContas: {} };
+            }
+            const m = metasStore[ano];
+            if (!Array.isArray(m.metasMensais) || m.metasMensais.length !== 12) m.metasMensais = new Array(12).fill(0);
+            if (!m.metasContas) m.metasContas = {};
+            return m;
+        }
+
+        // ============================================================
+        // CÁLCULO DO REALIZADO A PARTIR DAS MOVIMENTAÇÕES REAIS
+        // ============================================================
+        function computeRealizado(ano) {
+            const porMes = new Array(12).fill(0);
+            const porConta = {};
+            let total = 0;
+            dadosRaw.forEach(d => {
+                const dataStr = (d['Data'] || '').split('T')[0];
+                if (!dataStr || dataStr.length < 7) return;
+                const y = parseInt(dataStr.substring(0, 4), 10);
+                if (y !== ano) return;
+                const mIdx = parseInt(dataStr.substring(5, 7), 10) - 1;
+                const vA = parseFloat(d['Valor Aporte']) || 0;
+                const vR = parseFloat(d['Valor Rendimento']) || 0;
+
+                // Consolidado (exclui transferências das entradas/saídas, igual ao dashboard)
+                let valorConsolidado = vR;
+                if (!d.isTransferencia) valorConsolidado += (d['Tipo'] === 'Entrada' ? vA : -vA);
+                if (mIdx >= 0 && mIdx < 12) porMes[mIdx] += valorConsolidado;
+                total += valorConsolidado;
+
+                // Por conta (inclui transferências, pois afetam o saldo daquela conta)
+                const contaId = String(d['ID Conta']);
+                const valorConta = vR + (d['Tipo'] === 'Entrada' ? vA : -vA);
+                porConta[contaId] = (porConta[contaId] || 0) + valorConta;
+            });
+            return { total, porMes, porConta };
+        }
+
+        function computeRealizadoAteCutoff(ano, mesCutoffIdx, diaCutoff) {
+            let total = 0;
+            const cutoffStr = `${ano}-${String(mesCutoffIdx + 1).padStart(2, '0')}-${String(diaCutoff).padStart(2, '0')}`;
+            dadosRaw.forEach(d => {
+                const dataStr = (d['Data'] || '').split('T')[0];
+                if (!dataStr) return;
+                if (dataStr.substring(0, 4) != String(ano)) return;
+                if (dataStr > cutoffStr) return;
+                const vA = parseFloat(d['Valor Aporte']) || 0;
+                const vR = parseFloat(d['Valor Rendimento']) || 0;
+                let valor = vR;
+                if (!d.isTransferencia) valor += (d['Tipo'] === 'Entrada' ? vA : -vA);
+                total += valor;
+            });
+            return total;
+        }
+
+        function anosComDados() {
+            const anos = new Set();
+            dadosRaw.forEach(d => {
+                const dataStr = (d['Data'] || '').split('T')[0];
+                if (dataStr && dataStr.length >= 4) anos.add(parseInt(dataStr.substring(0, 4), 10));
+            });
+            Object.keys(metasStore).forEach(a => anos.add(parseInt(a, 10)));
+            return anos;
+        }
+
+        // ============================================================
+        // CARREGAMENTO DE DADOS (reaproveita o cache do dashboard quando existir)
+        // ============================================================
+        async function carregarDados() {
+            const icon = document.getElementById('iconSync');
+            const lb = document.getElementById('loadingBar');
+            icon.classList.add('animate-spin');
+            lb.classList.add('ativo');
+            try {
+                const resultado = await apiGet('getAll');
+                const contasMap = contasParaMapa(resultado.contas);
+                contasRaw = resultado.contas || [];
+                dadosRaw = adaptarParaDashboard(resultado.movimentacoes, contasMap);
+                sessionStorage.setItem('dashData', JSON.stringify(dadosRaw));
+                sessionStorage.setItem('dashContas', JSON.stringify(contasRaw));
+
+                const now = new Date().toLocaleTimeString('pt-br', { hour: '2-digit', minute: '2-digit' });
+                document.getElementById('lastUpdated').innerHTML = `<i class="fas fa-check-circle text-emerald-400 mr-1"></i>Sync ${now}`;
+
+                popularSeletorAno();
+                renderAll();
+                mostrarToast('Dados atualizados ✓');
+            } catch (e) {
+                console.error('[PoppeFin] Falha ao carregar dados:', e);
+                const cached = sessionStorage.getItem('dashData');
+                if (cached) {
+                    dadosRaw = JSON.parse(cached);
+                    const cachedContas = sessionStorage.getItem('dashContas');
+                    if (cachedContas) contasRaw = JSON.parse(cachedContas);
+                    document.getElementById('lastUpdated').innerHTML = '<i class="fas fa-clock text-amber-400 mr-1"></i>Usando dados em cache';
+                    popularSeletorAno();
+                    renderAll();
+                    mostrarToast('Sem conexão — usando dados em cache');
+                } else {
+                    mostrarToast('Erro ao carregar dados: ' + (e.message || 'falha desconhecida'));
+                }
+            } finally {
+                icon.classList.remove('animate-spin');
+                lb.classList.remove('ativo');
+            }
+        }
+
+        // ============================================================
+        // SELETOR DE ANO
+        // ============================================================
+        function popularSeletorAno() {
+            const atual = new Date().getFullYear();
+            const anos = new Set([atual - 2, atual - 1, atual, atual + 1, atual + 2]);
+            anosComDados().forEach(a => anos.add(a));
+            const lista = [...anos].sort((a, b) => b - a);
+            const sel = document.getElementById('seletorAno');
+            sel.innerHTML = lista.map(a => `<option value="${a}">${a}</option>`).join('');
+            if (![...sel.options].some(o => o.value == anoSelecionado)) anoSelecionado = atual;
+            sel.value = anoSelecionado;
+        }
+
+        function garantirOpcaoAno(ano) {
+            const sel = document.getElementById('seletorAno');
+            if (![...sel.options].some(o => o.value == ano)) {
+                const anos = [...sel.options].map(o => parseInt(o.value, 10));
+                anos.push(ano);
+                anos.sort((a, b) => b - a);
+                sel.innerHTML = anos.map(a => `<option value="${a}">${a}</option>`).join('');
+            }
+            sel.value = ano;
+        }
+
+        function mudarAno(v) {
+            anoSelecionado = parseInt(v, 10);
+            renderAll();
+        }
+
+        // ============================================================
+        // RENDERIZAÇÃO
+        // ============================================================
+        function renderAll() {
+            const meta = getMetaAno(anoSelecionado);
+            const real = computeRealizado(anoSelecionado);
+            renderDestaque(meta, real);
+            renderRitmoProjecao(meta, real);
+            renderGraficos(meta, real);
+            renderTabelaMensal(meta, real);
+            renderContas(meta, real);
+            renderComparacaoAnoAnterior();
+            renderAlertas(meta, real);
+            renderHistorico();
+        }
+
+        function renderDestaque(meta, real) {
+            document.getElementById('tituloMetaAno').textContent = anoSelecionado;
+            const restante = meta.metaAnual - real.total;
+            const pct = meta.metaAnual > 0 ? (real.total / meta.metaAnual) * 100 : 0;
+
+            document.getElementById('valMetaAnual').textContent = oc(fmt(meta.metaAnual));
+            document.getElementById('valRealizadoAnual').textContent = oc(fmt(real.total));
+            document.getElementById('valRestanteAnual').textContent = oc(restante > 0 ? fmt(restante) : 'Meta superada');
+            document.getElementById('valRestanteAnual').className = 'text-lg md:text-2xl font-black ' + (restante > 0 ? 'text-slate-800' : 'text-emerald-600');
+            document.getElementById('valPercentualAnual').textContent = oc(fmtPct(pct));
+
+            const barra = document.getElementById('barraProgressoMeta');
+            barra.style.width = Math.min(100, Math.max(0, pct)) + '%';
+            barra.classList.toggle('superado', pct >= 100);
+
+            const label = document.getElementById('labelProgressoMeta');
+            if (meta.metaAnual <= 0) label.textContent = 'Defina uma meta anual em "Editar Meta" para começar a acompanhar.';
+            else if (pct >= 100) label.textContent = `Meta atingida! Você superou em ${oc(fmt(real.total - meta.metaAnual))}.`;
+            else label.textContent = `${oc(fmtPct(pct))} concluído — faltam ${oc(fmt(restante))}.`;
+        }
+
+        function statusEmoji(cor) { return cor === 'verde' ? '🟢' : cor === 'amarelo' ? '🟡' : cor === 'vermelho' ? '🔴' : '⚪'; }
+
+        function renderRitmoProjecao(meta, real) {
+            const hoje = new Date();
+            const anoAtual = hoje.getFullYear();
+            const mesAtualIdx = hoje.getMonth();
+
+            let mesesDecorridos, mesesRestantes;
+            if (anoSelecionado < anoAtual) { mesesDecorridos = 12; mesesRestantes = 0; }
+            else if (anoSelecionado > anoAtual) { mesesDecorridos = 0; mesesRestantes = 12; }
+            else { mesesDecorridos = mesAtualIdx + 1; mesesRestantes = 12 - mesesDecorridos; }
+
+            const faltaPositivo = Math.max(0, meta.metaAnual - real.total);
+            const necessarioMes = mesesRestantes > 0 ? faltaPositivo / mesesRestantes : 0;
+            document.getElementById('valNecessarioMes').innerHTML = mesesRestantes > 0
+                ? `${oc(fmt(necessarioMes))}<span class="text-xs font-bold text-slate-400">/mês</span>`
+                : (real.total >= meta.metaAnual && meta.metaAnual > 0 ? 'Meta já atingida 🎉' : '—');
+            document.getElementById('labelMesesRestantes').textContent = mesesRestantes > 0
+                ? `${mesesRestantes} ${mesesRestantes === 1 ? 'mês restante' : 'meses restantes'} em ${anoSelecionado}`
+                : (anoSelecionado < anoAtual ? 'Ano encerrado' : anoSelecionado > anoAtual ? 'Ano ainda não iniciado' : 'Último mês do ano');
+
+            const badge = document.getElementById('badgeProjecao');
+            const valEl = document.getElementById('valProjecao');
+            if (mesesDecorridos <= 0) {
+                valEl.textContent = '—';
+                badge.className = 'status-pill cinza';
+                badge.textContent = 'Sem dados ainda';
+                return;
+            }
+            const projecao = (real.total / mesesDecorridos) * 12;
+            valEl.textContent = oc(fmt(projecao));
+            if (meta.metaAnual <= 0) {
+                badge.className = 'status-pill cinza';
+                badge.textContent = 'Sem meta definida';
+                return;
+            }
+            const pctProj = (projecao / meta.metaAnual) * 100;
+            let cor = pctProj >= 100 ? 'verde' : pctProj >= 85 ? 'amarelo' : 'vermelho';
+            badge.className = 'status-pill ' + cor;
+            badge.textContent = statusEmoji(cor) + ' ' + (cor === 'verde' ? 'Tendência de atingir' : cor === 'amarelo' ? 'Próximo da meta' : 'Tendência de ficar abaixo');
+        }
+
+        function renderGraficos(meta, real) {
+            const ctx1 = document.getElementById('chartMetaRealizado').getContext('2d');
+            const corRealizado = real.total >= meta.metaAnual && meta.metaAnual > 0 ? '#10b981' : '#6366f1';
+            if (chartMetaRealizado) chartMetaRealizado.destroy();
+            chartMetaRealizado = new Chart(ctx1, {
+                type: 'bar',
+                data: {
+                    labels: ['Meta', 'Realizado'],
+                    datasets: [{
+                        data: [meta.metaAnual, real.total],
+                        backgroundColor: ['#f59e0b', corRealizado],
+                        borderRadius: 10,
+                        maxBarThickness: 70
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => (valoresOcultos ? '••••••' : fmt(c.parsed.y)) } } },
+                    scales: {
+                        y: { ticks: { display: !valoresOcultos, callback: (v) => fmt(v) }, grid: { color: 'rgba(148,163,184,0.15)' } },
+                        x: { grid: { display: false } }
+                    }
+                }
+            });
+
+            const ctx2 = document.getElementById('chartEvolucao').getContext('2d');
+            const hoje = new Date();
+            const limiteMes = (anoSelecionado === hoje.getFullYear()) ? hoje.getMonth() : (anoSelecionado < hoje.getFullYear() ? 11 : -1);
+
+            let acumReal = 0, acumMeta = 0;
+            const realizadoAcumulado = [], metaAcumulada = [];
+            for (let i = 0; i < 12; i++) {
+                acumMeta += meta.metasMensais[i] || 0;
+                metaAcumulada.push(acumMeta);
+                if (i <= limiteMes) {
+                    acumReal += real.porMes[i] || 0;
+                    realizadoAcumulado.push(acumReal);
+                } else {
+                    realizadoAcumulado.push(null);
+                }
+            }
+
+            if (chartEvolucao) chartEvolucao.destroy();
+            chartEvolucao = new Chart(ctx2, {
+                type: 'line',
+                data: {
+                    labels: MESES_ABR,
+                    datasets: [
+                        {
+                            label: 'Realizado acumulado', data: realizadoAcumulado,
+                            borderColor: '#6366f1', backgroundColor: 'rgba(99,102,241,0.12)',
+                            fill: true, tension: 0.35, pointRadius: 3, spanGaps: false
+                        },
+                        {
+                            label: 'Meta acumulada', data: metaAcumulada,
+                            borderColor: '#f59e0b', borderDash: [6, 4],
+                            backgroundColor: 'transparent', fill: false, tension: 0.35, pointRadius: 0
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => `${c.dataset.label}: ${valoresOcultos ? '••••••' : fmt(c.parsed.y)}` } } },
+                    scales: {
+                        y: { ticks: { display: !valoresOcultos, callback: (v) => fmt(v) }, grid: { color: 'rgba(148,163,184,0.15)' } },
+                        x: { grid: { display: false } }
+                    }
+                }
+            });
+        }
+
+        const MESES_LONGOS = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+        function renderTabelaMensal(meta, real) {
+            const hoje = new Date();
+            const container = document.getElementById('listaMeses');
+            let html = '';
+            for (let i = 0; i < 12; i++) {
+                const metaMes = meta.metasMensais[i] || 0;
+                const realizadoMes = real.porMes[i] || 0;
+                const diff = realizadoMes - metaMes;
+                const jaOcorreu = anoSelecionado < hoje.getFullYear() || (anoSelecionado === hoje.getFullYear() && i <= hoje.getMonth());
+                const ehMesAtual = anoSelecionado === hoje.getFullYear() && i === hoje.getMonth();
+                const pct = metaMes > 0 ? (realizadoMes / metaMes) * 100 : (realizadoMes > 0 ? 100 : 0);
+
+                let statusHtml, corBarra;
+                if (!jaOcorreu) {
+                    statusHtml = '<span class="status-pill cinza">Pendente</span>';
+                    corBarra = '#cbd5e1';
+                } else if (metaMes <= 0) {
+                    statusHtml = '<span class="status-pill cinza">Sem meta</span>';
+                    corBarra = '#cbd5e1';
+                } else if (pct >= 100) {
+                    statusHtml = '<span class="status-pill verde">🟢 Acima</span>';
+                    corBarra = '#10b981';
+                } else if (pct >= 70) {
+                    statusHtml = '<span class="status-pill amarelo">🟡 Abaixo</span>';
+                    corBarra = '#f59e0b';
+                } else {
+                    statusHtml = '<span class="status-pill vermelho">🔴 Crítico</span>';
+                    corBarra = '#f43f5e';
+                }
+
+                const diffTexto = (diff >= 0 ? '+' : '−') + oc(fmt(Math.abs(diff)));
+                const diffCor = diff >= 0 ? '#059669' : '#e11d48';
+
+                html += `
+                <div class="mes-card ${ehMesAtual ? 'atual' : ''} ${!jaOcorreu ? 'pendente' : ''}">
+                    <div class="mes-card-topo">
+                        <span class="mes-card-mes">${MESES_LONGOS[i]}${ehMesAtual ? ' <span class=\"text-[9px] font-bold text-indigo-500 uppercase\">· atual</span>' : ''}</span>
+                        ${statusHtml}
+                    </div>
+                    <div class="mes-card-stats">
+                        <div class="mes-stat">
+                            <p class="mes-stat-label">Meta</p>
+                            <p class="mes-stat-valor">${oc(fmt(metaMes))}</p>
+                        </div>
+                        <div class="mes-stat">
+                            <p class="mes-stat-label">Realizado</p>
+                            <p class="mes-stat-valor">${oc(fmt(realizadoMes))}</p>
+                        </div>
+                        <div class="mes-stat">
+                            <p class="mes-stat-label">Diferença</p>
+                            <p class="mes-stat-valor" style="color:${diffCor}">${diffTexto}</p>
+                        </div>
+                    </div>
+                    ${jaOcorreu && metaMes > 0 ? `
+                    <div class="mes-mini-track">
+                        <div class="mes-mini-fill" style="width:${Math.min(100, Math.max(0, pct))}%;background:${corBarra}"></div>
+                    </div>` : ''}
+                </div>`;
+            }
+            container.innerHTML = html;
+        }
+
+        function renderContas(meta, real) {
+            const card = document.getElementById('cardMetasContas');
+            if (!meta.contasHabilitado || contasRaw.length === 0) { card.classList.add('hidden'); return; }
+            card.classList.remove('hidden');
+            const cont = document.getElementById('listaContasMetas');
+            let html = '';
+            contasRaw.forEach(c => {
+                const id = String(c.id);
+                const alvo = parseFloat(meta.metasContas[id]) || 0;
+                const realizadoConta = real.porConta[id] || 0;
+                const pct = alvo > 0 ? (realizadoConta / alvo) * 100 : 0;
+                html += `
+                <div class="conta-mini">
+                    <div class="flex items-center justify-between mb-1.5">
+                        <span class="text-xs font-bold text-slate-700 truncate">${c.banco || ''} ${c.descricao ? '· ' + c.descricao : ''}</span>
+                        <span class="text-[10px] font-bold text-slate-400">${alvo > 0 ? oc(fmtPct(pct)) : 'sem meta'}</span>
+                    </div>
+                    <div class="progress-track" style="height:8px;">
+                        <div class="progress-fill ${pct >= 100 ? 'superado' : ''}" style="width:${Math.min(100, Math.max(0, pct))}%"></div>
+                    </div>
+                    <div class="flex items-center justify-between mt-1.5 text-[10px] font-semibold text-slate-500">
+                        <span>${oc(fmt(realizadoConta))} realizado</span>
+                        <span>Meta: ${oc(fmt(alvo))}</span>
+                    </div>
+                </div>`;
+            });
+            cont.innerHTML = html;
+        }
+
+        function renderComparacaoAnoAnterior() {
+            const hoje = new Date();
+            const isAnoAtual = anoSelecionado === hoje.getFullYear();
+            const mesCutoff = isAnoAtual ? hoje.getMonth() : 11;
+            const diaCutoff = isAnoAtual ? hoje.getDate() : 31;
+
+            const realAtual = computeRealizadoAteCutoff(anoSelecionado, mesCutoff, diaCutoff);
+            const realAnterior = computeRealizadoAteCutoff(anoSelecionado - 1, mesCutoff, diaCutoff);
+
+            document.getElementById('labelAnoAtualComp').textContent = `Realizado em ${anoSelecionado}`;
+            document.getElementById('labelAnoAnteriorComp').textContent = `Mesmo período em ${anoSelecionado - 1}`;
+            document.getElementById('valAnoAtualComp').textContent = oc(fmt(realAtual));
+            document.getElementById('valAnoAnteriorComp').textContent = oc(fmt(realAnterior));
+
+            const badge = document.getElementById('badgeComparacao');
+            const texto = document.getElementById('textoCrescimento');
+            let crescimento;
+            if (realAnterior !== 0) crescimento = ((realAtual - realAnterior) / Math.abs(realAnterior)) * 100;
+            else crescimento = realAtual > 0 ? 100 : 0;
+
+            let cor = crescimento > 5 ? 'verde' : crescimento < -5 ? 'vermelho' : 'amarelo';
+            badge.className = 'status-pill ' + cor;
+            badge.textContent = statusEmoji(cor) + ' ' + (cor === 'verde' ? 'Acima do ano anterior' : cor === 'vermelho' ? 'Abaixo do ano anterior' : 'Próximo do ano anterior');
+            texto.textContent = `Crescimento: ${crescimento >= 0 ? '+' : ''}${oc(fmtPct(crescimento))}`;
+        }
+
+        function renderAlertas(meta, real) {
+            const hoje = new Date();
+            const anoAtual = hoje.getFullYear();
+            const alertas = [];
+
+            if (meta.metaAnual <= 0) {
+                alertas.push({ tone: 'indigo', icon: 'fa-circle-info', text: 'Defina uma meta anual para começar a receber alertas de desempenho.' });
+            } else {
+                const pct = (real.total / meta.metaAnual) * 100;
+                const restante = meta.metaAnual - real.total;
+
+                if (pct >= 100) {
+                    alertas.push({ tone: 'verde', icon: 'fa-trophy', text: 'Meta anual já atingida! 🎉' });
+                } else {
+                    if (restante > 0 && restante <= 10000) {
+                        alertas.push({ tone: 'amarelo', icon: 'fa-flag-checkered', text: `Faltam apenas ${oc(fmt(restante))} para atingir sua meta.` });
+                    }
+                    let mesesDecorridos = anoSelecionado < anoAtual ? 12 : anoSelecionado > anoAtual ? 0 : hoje.getMonth() + 1;
+                    if (mesesDecorridos > 0) {
+                        const ritmoAtual = real.total / mesesDecorridos;
+                        const mesesRestantes = 12 - mesesDecorridos;
+                        const necessarioMes = mesesRestantes > 0 ? Math.max(0, restante) / mesesRestantes : 0;
+                        if (mesesRestantes > 0 && necessarioMes > 0) {
+                            const diffRitmo = ((ritmoAtual - necessarioMes) / necessarioMes) * 100;
+                            if (diffRitmo >= 0) {
+                                alertas.push({ tone: 'verde', icon: 'fa-gauge-high', text: `Você está ${oc(fmtPct(diffRitmo))} acima do ritmo necessário.` });
+                            } else {
+                                const falta = necessarioMes - ritmoAtual;
+                                alertas.push({ tone: 'vermelho', icon: 'fa-gauge-high', text: `Você precisa aumentar o resultado mensal em ${oc(fmt(falta))} para atingir a meta.` });
+                            }
+                        }
+                    }
+                    if (pct >= 75) {
+                        alertas.push({ tone: 'amarelo', icon: 'fa-chart-simple', text: `Você atingiu ${oc(fmtPct(pct))} da meta anual.` });
+                    }
+                }
+
+                if (anoSelecionado === anoAtual) {
+                    const mIdx = hoje.getMonth();
+                    const metaMes = meta.metasMensais[mIdx] || 0;
+                    const realizadoMes = real.porMes[mIdx] || 0;
+                    if (metaMes > 0 && realizadoMes >= metaMes) {
+                        alertas.push({ tone: 'verde', icon: 'fa-calendar-check', text: 'A meta deste mês já foi atingida.' });
+                    }
+                }
+            }
+
+            const cont = document.getElementById('listaAlertas');
+            if (alertas.length === 0) {
+                cont.innerHTML = '<p class="text-xs text-slate-400 font-medium">Nenhum alerta no momento.</p>';
+                return;
+            }
+            cont.innerHTML = alertas.map(a => `
+                <div class="alert-block ${a.tone}">
+                    <i class="fas ${a.icon} text-sm mt-0.5" style="color:${a.tone === 'verde' ? '#059669' : a.tone === 'amarelo' ? '#b45309' : a.tone === 'vermelho' ? '#e11d48' : '#6366f1'}"></i>
+                    <p class="text-xs font-semibold text-slate-700 leading-relaxed">${a.text}</p>
+                </div>`).join('');
+        }
+
+        function renderHistorico() {
+            const anos = [...anosComDados()].sort((a, b) => b - a);
+            const cont = document.getElementById('listaHistorico');
+            if (anos.length === 0) { cont.innerHTML = '<p class="text-xs text-slate-400 font-medium">Sem histórico ainda.</p>'; return; }
+            let html = '';
+            anos.forEach(ano => {
+                const metaAno = metasStore[ano];
+                const real = computeRealizado(ano);
+                const temMeta = metaAno && metaAno.metaAnual > 0;
+                const pct = temMeta ? (real.total / metaAno.metaAnual) * 100 : null;
+                html += `
+                <div class="hist-item ${ano === anoSelecionado ? 'selecionado' : ''}" onclick="selecionarAnoHistorico(${ano})">
+                    <div>
+                        <p class="text-sm font-black text-slate-800">${ano}</p>
+                        <p class="text-[10px] text-slate-400 font-semibold">${temMeta ? `Meta: ${oc(fmt(metaAno.metaAnual))}` : 'Meta não definida'}</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-sm font-black text-indigo-600">${oc(fmt(real.total))}</p>
+                        <p class="text-[10px] font-bold ${pct === null ? 'text-slate-400' : pct >= 100 ? 'text-emerald-600' : 'text-slate-400'}">${pct === null ? 'realizado' : oc(fmtPct(pct)) + ' da meta'}</p>
+                    </div>
+                </div>`;
+            });
+            cont.innerHTML = html;
+        }
+
+        function selecionarAnoHistorico(ano) {
+            anoSelecionado = ano;
+            garantirOpcaoAno(ano);
+            renderAll();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // ============================================================
+        // MODAL DE EDIÇÃO
+        // ============================================================
+        function popularSelectAnoEdicao() {
+            const atual = new Date().getFullYear();
+            const anos = new Set([atual - 2, atual - 1, atual, atual + 1, atual + 2, anoSelecionado]);
+            anosComDados().forEach(a => anos.add(a));
+            const lista = [...anos].sort((a, b) => b - a);
+            document.getElementById('editAno').innerHTML = lista.map(a => `<option value="${a}">${a}</option>`).join('');
+        }
+
+        function renderGridMesesEdit(metasMensais) {
+            const grid = document.getElementById('gridMesesEdit');
+            grid.innerHTML = MESES_ABR.map((m, i) => `
+                <div>
+                    <label class="text-[9px] font-bold text-slate-400">${m}</label>
+                    <input type="number" min="0" step="0.01" id="editMes${i}" value="${(metasMensais[i] || 0).toFixed(2)}"
+                        oninput="atualizarResumoDistribuicao()"
+                        class="w-full bg-slate-50 border border-slate-200 p-2 rounded-lg text-xs font-bold outline-none focus:border-indigo-500 transition-all mt-0.5">
+                </div>`).join('');
+        }
+
+        function distribuirAutomaticamente() {
+            const anual = parseFloat(document.getElementById('editMetaAnual').value) || 0;
+            const parte = anual / 12;
+            for (let i = 0; i < 12; i++) document.getElementById(`editMes${i}`).value = parte.toFixed(2);
+            atualizarResumoDistribuicao();
+        }
+
+        function atualizarResumoDistribuicao() {
+            let soma = 0;
+            for (let i = 0; i < 12; i++) soma += parseFloat(document.getElementById(`editMes${i}`)?.value) || 0;
+            const anual = parseFloat(document.getElementById('editMetaAnual').value) || 0;
+            const resumo = document.getElementById('resumoDistribuicao');
+            const diff = anual - soma;
+            if (Math.abs(diff) < 0.01) {
+                resumo.className = 'text-[10px] font-semibold mt-2 text-emerald-600';
+                resumo.textContent = `Soma dos meses: ${fmt(soma)} — bate com a meta anual ✓`;
+            } else {
+                resumo.className = 'text-[10px] font-semibold mt-2 text-amber-600';
+                resumo.textContent = `Soma dos meses: ${fmt(soma)} (${diff > 0 ? 'faltam' : 'excedem'} ${fmt(Math.abs(diff))} em relação à meta anual)`;
+            }
+        }
+
+        function renderInputsContas(meta) {
+            const wrap = document.getElementById('wrapContasEdicao');
+            if (contasRaw.length === 0) { wrap.innerHTML = '<p class="text-xs text-slate-400">Nenhuma conta encontrada.</p>'; return; }
+            wrap.innerHTML = contasRaw.map(c => `
+                <div class="flex items-center gap-2">
+                    <span class="text-xs font-semibold text-slate-600 flex-1 truncate">${c.banco || ''} ${c.descricao ? '· ' + c.descricao : ''}</span>
+                    <input type="number" min="0" step="0.01" data-conta-id="${c.id}" value="${(meta.metasContas[c.id] || 0).toFixed(2)}"
+                        class="w-32 bg-slate-50 border border-slate-200 p-2 rounded-lg text-xs font-bold outline-none focus:border-indigo-500 transition-all">
+                </div>`).join('');
+        }
+
+        function toggleContasEdicao() {
+            const on = document.getElementById('editContasHabilitado').checked;
+            document.getElementById('wrapContasEdicao').classList.toggle('hidden', !on);
+        }
+
+        function abrirModalEdicao() {
+            popularSelectAnoEdicao();
+            document.getElementById('editAno').value = anoSelecionado;
+            const meta = getMetaAno(anoSelecionado);
+            document.getElementById('editMetaAnual').value = meta.metaAnual || '';
+            renderGridMesesEdit(meta.metasMensais);
+            document.getElementById('editContasHabilitado').checked = !!meta.contasHabilitado;
+            renderInputsContas(meta);
+            toggleContasEdicao();
+            atualizarResumoDistribuicao();
+            document.getElementById('modalEditarMeta').style.display = 'flex';
+        }
+
+        function fecharModalEdicao() {
+            document.getElementById('modalEditarMeta').style.display = 'none';
+        }
+
+        function salvarMeta() {
+            const anoVal = parseInt(document.getElementById('editAno').value, 10);
+            if (isNaN(anoVal) || anoVal < 2000 || anoVal > 2100) return mostrarToast('Ano inválido.');
+
+            const metaAnualVal = parseFloat(document.getElementById('editMetaAnual').value);
+            if (isNaN(metaAnualVal) || metaAnualVal < 0) return mostrarToast('Informe uma meta anual válida.');
+
+            const mesesVals = [];
+            for (let i = 0; i < 12; i++) {
+                const v = parseFloat(document.getElementById(`editMes${i}`).value);
+                if (isNaN(v) || v < 0) return mostrarToast(`Meta de ${MESES_ABR[i]} inválida.`);
+                mesesVals.push(v);
+            }
+
+            const contasHabilitado = document.getElementById('editContasHabilitado').checked;
+            const metasContas = {};
+            if (contasHabilitado) {
+                document.querySelectorAll('#wrapContasEdicao input[data-conta-id]').forEach(inp => {
+                    const v = parseFloat(inp.value) || 0;
+                    if (v < 0) return;
+                    metasContas[inp.dataset.contaId] = v;
+                });
+            }
+
+            metasStore[anoVal] = { metaAnual: metaAnualVal, metasMensais: mesesVals, contasHabilitado, metasContas };
+            saveMetasStore();
+
+            anoSelecionado = anoVal;
+            garantirOpcaoAno(anoVal);
+            fecharModalEdicao();
+            renderAll();
+            mostrarToast('Meta salva ✓');
+        }
+
+        // ============================================================
+        // INICIALIZAÇÃO
+        // ============================================================
+        (function init() {
+            loadMetasStore();
+            const cachedData = sessionStorage.getItem('dashData');
+            const cachedContas = sessionStorage.getItem('dashContas');
+            if (cachedData) {
+                dadosRaw = JSON.parse(cachedData);
+                if (cachedContas) contasRaw = JSON.parse(cachedContas);
+                popularSeletorAno();
+                renderAll();
+            }
+            carregarDados();
+        })();
+    </script>
+</body>
+</html>

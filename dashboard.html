@@ -518,6 +518,60 @@
             </div>
         </div>
 
+        <!-- Card-resumo do módulo de Metas Financeiras -->
+        <div class="glass-card p-5 rounded-[28px] slide-up-d1 relative overflow-hidden" id="cardResumoMeta">
+            <div class="absolute top-0 right-0 w-32 h-32 bg-violet-50 rounded-full -translate-y-12 translate-x-12"></div>
+            <div class="flex items-center justify-between mb-4 relative z-10 flex-wrap gap-2">
+                <h3 class="text-sm font-bold text-slate-700 flex items-center gap-2">
+                    <i class="fas fa-bullseye text-violet-600"></i> Meta Financeira <span id="rmAnoLabel" class="text-slate-400 font-semibold">—</span>
+                </h3>
+                <button onclick="window.location.href='meta_financeira.html'"
+                    class="text-[11px] font-bold text-violet-700 bg-violet-50 border border-violet-100 px-3 py-1.5 rounded-full active:scale-95 transition-all">
+                    Ver detalhes da meta <i class="fas fa-arrow-right ml-1"></i>
+                </button>
+            </div>
+            <div id="rmSemMeta" class="hidden relative z-10">
+                <p class="text-xs text-slate-400 font-medium">Nenhuma meta definida para este ano ainda.</p>
+                <button onclick="window.location.href='meta_financeira.html'"
+                    class="mt-3 text-[11px] font-bold text-white bg-violet-600 px-4 py-2 rounded-xl active:scale-95 transition-all">
+                    <i class="fas fa-plus mr-1"></i>Definir meta
+                </button>
+            </div>
+            <div id="rmComMeta" class="relative z-10">
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                    <div>
+                        <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Meta anual</p>
+                        <p id="rmMetaAnual" class="text-sm md:text-base font-black text-slate-800">R$ 0,00</p>
+                    </div>
+                    <div>
+                        <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Realizado</p>
+                        <p id="rmRealizado" class="text-sm md:text-base font-black text-violet-600">R$ 0,00</p>
+                    </div>
+                    <div>
+                        <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Falta</p>
+                        <p id="rmFalta" class="text-sm md:text-base font-black text-slate-800">R$ 0,00</p>
+                    </div>
+                    <div>
+                        <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Progresso</p>
+                        <p id="rmProgresso" class="text-sm md:text-base font-black text-emerald-600">0%</p>
+                    </div>
+                </div>
+                <div class="progress-track mb-3" style="width:100%;background:rgba(148,163,184,0.2);border-radius:50px;height:10px;overflow:hidden;">
+                    <div id="rmBarra" style="height:100%;border-radius:50px;background:linear-gradient(90deg,#8b5cf6,#6366f1);transition:width 1s ease;width:0%;"></div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="bg-slate-50 rounded-xl p-3 border border-slate-100">
+                        <p class="text-[9px] font-bold text-slate-400 uppercase mb-1">Necessário/mês</p>
+                        <p id="rmNecessarioMes" class="text-xs md:text-sm font-black text-slate-700">R$ 0,00</p>
+                    </div>
+                    <div class="bg-slate-50 rounded-xl p-3 border border-slate-100">
+                        <p class="text-[9px] font-bold text-slate-400 uppercase mb-1">Projeção</p>
+                        <p id="rmProjecao" class="text-xs md:text-sm font-black text-slate-700">R$ 0,00</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Gráficos -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 slide-up-d2">
             <div class="glass-card p-5 rounded-[28px]">
@@ -682,7 +736,7 @@
         <!-- Atalhos rápidos mobile (apenas visual no desktop) -->
         <div class="glass-card p-5 rounded-[28px] slide-up">
             <h3 class="text-sm font-bold text-slate-700 mb-3">Atalhos Rápidos</h3>
-            <div class="grid grid-cols-4 gap-3">
+            <div class="grid grid-cols-3 sm:grid-cols-5 gap-3">
                 <button onclick="window.location.href='extrato.html'"
                     class="flex flex-col items-center gap-2 bg-indigo-50 border border-indigo-100 p-4 rounded-2xl active:scale-95 transition-all">
                     <div class="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center">
@@ -703,6 +757,13 @@
                         <i class="fas fa-university text-white text-sm"></i>
                     </div>
                     <span class="text-[11px] font-bold text-amber-700">Contas</span>
+                </button>
+                <button onclick="window.location.href='meta_financeira.html'"
+                    class="flex flex-col items-center gap-2 bg-violet-50 border border-violet-100 p-4 rounded-2xl active:scale-95 transition-all">
+                    <div class="w-10 h-10 bg-violet-600 rounded-xl flex items-center justify-center">
+                        <i class="fas fa-bullseye text-white text-sm"></i>
+                    </div>
+                    <span class="text-[11px] font-bold text-violet-700">Metas</span>
                 </button>
                 <button onclick="carregarDados()"
                     class="flex flex-col items-center gap-2 bg-slate-50 border border-slate-100 p-4 rounded-2xl active:scale-95 transition-all">
@@ -2182,7 +2243,70 @@
 
             renderizarGraficos(dadosAteHoje, dadosFiltradosPeriodo, resumoContas);
             atualizarStatusLancamento();
+            renderResumoMeta();
             salvarEstado();
+        }
+
+        // =============================================
+        // RESUMO DA META FINANCEIRA (integração com meta_financeira.html)
+        // Lê a meta salva em localStorage (mesma chave usada pelo módulo de
+        // Metas) e calcula o realizado a partir das movimentações reais
+        // (dadosRaw), já carregadas por este dashboard.
+        // =============================================
+        function renderResumoMeta() {
+            const cardEl = document.getElementById('cardResumoMeta');
+            if (!cardEl) return;
+            const ano = new Date().getFullYear();
+            document.getElementById('rmAnoLabel').textContent = ano;
+
+            let metasStore = {};
+            try { metasStore = JSON.parse(localStorage.getItem('poppefinMetas') || '{}'); } catch (e) { metasStore = {}; }
+            const meta = metasStore[ano];
+
+            const semMetaEl = document.getElementById('rmSemMeta');
+            const comMetaEl = document.getElementById('rmComMeta');
+            if (!meta || !meta.metaAnual || meta.metaAnual <= 0) {
+                semMetaEl.classList.remove('hidden');
+                comMetaEl.classList.add('hidden');
+                return;
+            }
+            semMetaEl.classList.add('hidden');
+            comMetaEl.classList.remove('hidden');
+
+            // Realizado = Entradas - Saídas + Rendimentos do ano corrente (mesma
+            // lógica do saldo líquido do dashboard), ignorando transferências
+            // entre contas próprias nos totais de entrada/saída.
+            let realizado = 0;
+            const porMes = new Array(12).fill(0);
+            (dadosRaw || []).forEach(d => {
+                const dataStr = (d['Data'] || '').split('T')[0];
+                if (!dataStr || dataStr.substring(0, 4) != String(ano)) return;
+                const mIdx = parseInt(dataStr.substring(5, 7), 10) - 1;
+                const vA = parseFloat(d['Valor Aporte']) || 0;
+                const vR = parseFloat(d['Valor Rendimento']) || 0;
+                let valor = vR;
+                if (!d.isTransferencia) valor += (d['Tipo'] === 'Entrada' ? vA : -vA);
+                realizado += valor;
+                if (mIdx >= 0 && mIdx < 12) porMes[mIdx] += valor;
+            });
+
+            const falta = meta.metaAnual - realizado;
+            const pct = (realizado / meta.metaAnual) * 100;
+
+            document.getElementById('rmMetaAnual').textContent = formatar(meta.metaAnual);
+            document.getElementById('rmRealizado').textContent = formatar(realizado);
+            document.getElementById('rmFalta').textContent = falta > 0 ? formatar(falta) : 'Meta superada';
+            document.getElementById('rmProgresso').textContent = valoresOcultos ? '••%' : `${Math.max(0, pct).toFixed(2).replace('.', ',')}%`;
+            document.getElementById('rmBarra').style.width = Math.min(100, Math.max(0, pct)) + '%';
+
+            const hoje = new Date();
+            const mesesDecorridos = hoje.getMonth() + 1;
+            const mesesRestantes = 12 - mesesDecorridos;
+            const necessarioMes = mesesRestantes > 0 ? Math.max(0, falta) / mesesRestantes : 0;
+            const projecao = (realizado / mesesDecorridos) * 12;
+
+            document.getElementById('rmNecessarioMes').textContent = mesesRestantes > 0 ? formatar(necessarioMes) + '/mês' : '—';
+            document.getElementById('rmProjecao').textContent = formatar(projecao);
         }
 
         // =============================================
