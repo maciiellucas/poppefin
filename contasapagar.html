@@ -608,6 +608,12 @@ function iniciais(nome) {
 function escapeHtml(s) {
     return String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 }
+function mesmoId(a, b) {
+    // IDs de pessoa são strings (UUID) e IDs de lançamento agora são números
+    // sequenciais vindos do backend, mas chegam como string via onclick/HTML —
+    // comparar sempre como texto evita falhas de igualdade por tipo.
+    return String(a) === String(b);
+}
 
 /* =====================================================================
    UI: LOADING / TOAST
@@ -1112,7 +1118,7 @@ function abrirModalLancamento(modo, id, pessoaIdPreSelecionada) {
     }
 
     if (modo === 'editar') {
-        const l = state.lancamentos.find(x => x.ID === id);
+        const l = state.lancamentos.find(x => mesmoId(x.ID, id));
         if (!l) return;
         document.getElementById('tituloModalLancamento').innerHTML = '<i class="fas fa-pen text-indigo-600"></i> Editar lançamento';
         document.getElementById('flPessoa').value = l.PESSOA_ID;
@@ -1208,7 +1214,7 @@ async function salvarLancamento() {
             } else {
                 base.ID = idLancamentoEditando;
                 await apiPost('editarLancamento', { lancamento: base });
-                const i = state.lancamentos.findIndex(x => x.ID === idLancamentoEditando);
+                const i = state.lancamentos.findIndex(x => mesmoId(x.ID, idLancamentoEditando));
                 if (i > -1) state.lancamentos[i] = { ...state.lancamentos[i], ...base };
                 toast('✅ Alteração salva');
             }
@@ -1236,7 +1242,7 @@ async function salvarLancamento() {
 }
 
 function confirmarExcluirLancamento(id) {
-    const l = state.lancamentos.find(x => x.ID === id);
+    const l = state.lancamentos.find(x => mesmoId(x.ID, id));
     if (!l) return;
     mostrarConfirm({
         titulo: 'Excluir lançamento?',
@@ -1249,7 +1255,7 @@ function confirmarExcluirLancamento(id) {
             setLoading(true);
             try {
                 await apiPost('excluirLancamento', { id });
-                state.lancamentos = state.lancamentos.filter(x => x.ID !== id);
+                state.lancamentos = state.lancamentos.filter(x => !mesmoId(x.ID, id));
                 toast('🗑️ Lançamento excluído');
                 renderTudo();
             } catch (e) {
@@ -1260,7 +1266,7 @@ function confirmarExcluirLancamento(id) {
 }
 
 function confirmarMarcarPago(id) {
-    const l = state.lancamentos.find(x => x.ID === id);
+    const l = state.lancamentos.find(x => mesmoId(x.ID, id));
     if (!l) return;
     mostrarConfirm({
         titulo: 'Confirmar pagamento?',
@@ -1285,20 +1291,9 @@ function confirmarMarcarPago(id) {
 
 /* =====================================================================
    GERAÇÃO DE IMAGEM (relatório para WhatsApp) — canvas 1080x1920
+   Design: dark, minimalista, resultado líquido como elemento dominante.
    ===================================================================== */
 let ultimoBlobRelatorio = null;
-function quebrarTexto(ctx, texto, maxLargura) {
-    const palavras = String(texto).split(' ');
-    const linhas = [];
-    let atual = '';
-    palavras.forEach(p => {
-        const teste = atual ? atual + ' ' + p : p;
-        if (ctx.measureText(teste).width > maxLargura && atual) { linhas.push(atual); atual = p; }
-        else atual = teste;
-    });
-    if (atual) linhas.push(atual);
-    return linhas;
-}
 function roundRect(ctx, x, y, w, h, r) {
     ctx.beginPath();
     ctx.moveTo(x + r, y);
@@ -1308,126 +1303,185 @@ function roundRect(ctx, x, y, w, h, r) {
     ctx.arcTo(x, y, x + w, y, r);
     ctx.closePath();
 }
+function truncarTexto(ctx, texto, maxLargura) {
+    texto = String(texto);
+    if (ctx.measureText(texto).width <= maxLargura) return texto;
+    let t = texto;
+    while (t.length > 1 && ctx.measureText(t + '…').width > maxLargura) t = t.slice(0, -1);
+    return t + '…';
+}
+function fonteRelatorio(peso, tamanho) {
+    return `${peso} ${tamanho}px 'Plus Jakarta Sans', Arial, sans-serif`;
+}
 
-function gerarRelatorio() {
+/**
+ * Calcula o saldo líquido simples entre "eu" e a pessoa, no mês informado.
+ * Saldo = A PESSOA DEVE − EU DEVO
+ *   > 0  → tenho que RECEBER
+ *   < 0  → tenho que PAGAR
+ *   = 0  → está QUITADO
+ * (considera apenas lançamentos pendentes, como o restante do app)
+ */
+function calcularSaldoLiquido(calc) {
+    const saldo = +(calc.meDevem - calc.euDevo).toFixed(2);
+    if (saldo > 0) return { status: 'RECEBER', saldo, cor: '#34d399' };
+    if (saldo < 0) return { status: 'PAGAR', saldo: Math.abs(saldo), cor: '#fb7185' };
+    return { status: 'QUITADO', saldo: 0, cor: '#cbd5e1' };
+}
+
+async function gerarRelatorio() {
     const p = state.pessoas.find(x => x.ID === pessoaAtualId);
     if (!p) return;
+    if (document.fonts && document.fonts.ready) { try { await document.fonts.ready; } catch (e) {} }
+
     const calc = calcularPessoaMes(p.ID, state.mesPessoa);
     const proxMes = somarMes(state.mesPessoa, 1);
     const calcProx = calcularPessoaMes(p.ID, proxMes);
+    const saldoProx = calcularSaldoLiquido(calcProx);
     const hoje = hojeISO();
     const futuros = state.lancamentos
         .filter(l => l.PESSOA_ID === p.ID && String(l.STATUS).toUpperCase() !== 'PAGO')
         .filter(l => (l.VENCIMENTO || l.DATA) > hoje)
+        .filter(l => l.MES_REFERENCIA > state.mesPessoa) // só meses futuros, evita repetir itens do mês corrente
         .sort((a, b) => (a.VENCIMENTO || a.DATA).localeCompare(b.VENCIMENTO || b.DATA))
-        .slice(0, 5);
+        .slice(0, 3);
 
-    const itensDevo = calc.itens.filter(l => l.TIPO === 'EU_DEVO' && String(l.STATUS).toUpperCase() !== 'PAGO');
-    const itensDeve = calc.itens.filter(l => l.TIPO === 'ME_DEVE' && String(l.STATUS).toUpperCase() !== 'PAGO');
-    const totalDetalhes = itensDevo.length + itensDeve.length;
-    // densidade: reduz espaçamentos se houver muitos itens
-    const denso = totalDetalhes > 10;
-    const maxPorGrupo = denso ? 5 : 8;
+    const resultado = calcularSaldoLiquido(calc);
+    const nome = (p.APELIDO || p.NOME).toUpperCase();
+
+    // ---- pré-cálculo da altura necessária (relatório dinâmico) ----
+    const temProximo = calcProx.itens.length > 0 || futuros.length > 0;
+    const linhasFuturos = futuros.length;
+    const alturaResultado = 660;
+    const alturaProximo = temProximo ? (232 + (linhasFuturos > 0 ? 30 + linhasFuturos * 50 : 0)) : 0;
+    const fimConteudo = 350 + alturaResultado + 56 + (temProximo ? alturaProximo + 56 : 0);
+    const W = 1080;
+    const H = Math.min(1920, Math.max(1400, Math.round(fimConteudo + 230)));
 
     const canvas = document.getElementById('relatorioCanvas');
     const ctx = canvas.getContext('2d');
-    const W = 1080, H = 1920;
     canvas.width = W; canvas.height = H;
+    const margem = 80;
+    const larguraConteudo = W - margem * 2;
 
-    // fundo
-    const grad = ctx.createLinearGradient(0, 0, W, H);
-    grad.addColorStop(0, '#eef1f9'); grad.addColorStop(1, '#c9d3ea');
-    ctx.fillStyle = grad; ctx.fillRect(0, 0, W, H);
-
-    let y = 90;
-    const margem = 64;
-
-    // topo
-    ctx.fillStyle = '#94a3b8'; ctx.font = '700 30px Arial'; ctx.textAlign = 'center';
-    ctx.fillText('RESUMO DE CONTAS', W / 2, y); y += 62;
-    ctx.fillStyle = '#1e293b'; ctx.font = '800 56px Arial';
-    ctx.fillText((p.APELIDO || p.NOME).toUpperCase(), W / 2, y); y += 48;
-    ctx.fillStyle = '#6366f1'; ctx.font = '700 30px Arial';
-    ctx.fillText(mesLabel(state.mesPessoa), W / 2, y); y += 56;
-
-    // card principal (acerto)
-    const alturaCard = 380;
-    ctx.fillStyle = '#ffffff'; roundRect(ctx, margem, y, W - margem * 2, alturaCard, 36); ctx.fill();
-    let cy = y + 70;
-    ctx.fillStyle = '#94a3b8'; ctx.font = '700 26px Arial';
-    ctx.fillText('⚖️  ACERTO DO MÊS', W / 2, cy); cy += 74;
-    const corAcerto = calc.acerto.quem === 'EU' ? '#e11d48' : calc.acerto.quem === 'PESSOA' ? '#059669' : '#475569';
-    ctx.fillStyle = corAcerto; ctx.font = '800 62px Arial';
-    const txtAcerto = calc.acerto.quem === 'OK' ? 'ACERTADO' : (calc.acerto.quem === 'EU' ? 'VOCÊ DEVE ' : (p.APELIDO || p.NOME).toUpperCase() + ' DEVE ') + (calc.acerto.quem !== 'OK' ? formatBRL(calc.acerto.valor) : '');
-    ctx.font = calc.acerto.quem === 'OK' ? '800 62px Arial' : '800 50px Arial';
-    ctx.fillText(txtAcerto, W / 2, cy); cy += 78;
-
-    ctx.font = '600 28px Arial'; ctx.fillStyle = '#64748b';
-    ctx.textAlign = 'left';
-    ctx.fillText('Você deve', margem + 60, cy);
-    ctx.fillText((p.APELIDO || p.NOME) + ' deve', W / 2 + 20, cy);
-    cy += 42;
-    ctx.font = '800 34px Arial'; ctx.fillStyle = '#e11d48';
-    ctx.fillText(formatBRL(calc.euDevo), margem + 60, cy);
-    ctx.fillStyle = '#059669';
-    ctx.fillText(formatBRL(calc.meDevem), W / 2 + 20, cy);
-    y += alturaCard + 50;
+    /* ---------- fundo ---------- */
+    const fundo = ctx.createLinearGradient(0, 0, 0, H);
+    fundo.addColorStop(0, '#0c1120'); fundo.addColorStop(1, '#161d33');
+    ctx.fillStyle = fundo; ctx.fillRect(0, 0, W, H);
     ctx.textAlign = 'center';
 
-    // detalhamento
-    const espacoLinha = denso ? 44 : 52;
-    function desenharGrupo(titulo, cor, itens) {
-        ctx.textAlign = 'left'; ctx.fillStyle = '#1e293b'; ctx.font = '800 32px Arial';
-        ctx.fillText(titulo, margem, y); y += 46;
-        const visiveis = itens.slice(0, maxPorGrupo);
-        visiveis.forEach(l => {
-            ctx.font = '600 27px Arial'; ctx.fillStyle = '#475569';
-            ctx.fillText(`${formatDataCurta(l.DATA)} • ${l.DESCRICAO}`, margem + 10, y);
-            ctx.textAlign = 'right'; ctx.fillStyle = cor; ctx.font = '800 27px Arial';
-            ctx.fillText(formatBRL(l.VALOR), W - margem, y);
-            ctx.textAlign = 'left';
-            y += espacoLinha;
+    let y = 156;
+
+    /* ---------- cabeçalho ---------- */
+    ctx.fillStyle = '#818cf8'; ctx.font = fonteRelatorio(800, 26);
+    ctx.fillText('P O P P E F I N', W / 2, y); y += 66;
+    ctx.fillStyle = '#f8fafc'; ctx.font = fonteRelatorio(800, 68);
+    ctx.fillText(nome, W / 2, y); y += 44;
+    ctx.fillStyle = '#94a3b8'; ctx.font = fonteRelatorio(600, 30);
+    ctx.fillText(mesLabel(state.mesPessoa), W / 2, y);
+
+    y += 84;
+
+    /* ---------- card do resultado (elemento dominante) ---------- */
+    ctx.fillStyle = 'rgba(255,255,255,0.045)';
+    roundRect(ctx, margem, y, larguraConteudo, alturaResultado, 40); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.08)'; ctx.lineWidth = 1.5;
+    roundRect(ctx, margem, y, larguraConteudo, alturaResultado, 40); ctx.stroke();
+
+    let cy = y + 92;
+    ctx.fillStyle = '#94a3b8'; ctx.font = fonteRelatorio(700, 26);
+    ctx.fillText('SALDO DO MÊS', W / 2, cy); cy += 76;
+
+    const rotuloResultado = resultado.status === 'QUITADO' ? 'ESTÁ QUITADO'
+        : resultado.status === 'PAGAR' ? 'TENHO QUE PAGAR' : 'TENHO QUE RECEBER';
+    ctx.fillStyle = resultado.cor; ctx.font = fonteRelatorio(800, 46);
+    ctx.fillText(rotuloResultado, W / 2, cy); cy += 108;
+
+    if (resultado.status !== 'QUITADO') {
+        ctx.font = fonteRelatorio(800, 108);
+        ctx.fillText(formatBRL(resultado.saldo), W / 2, cy); cy += 70;
+    } else {
+        ctx.font = fonteRelatorio(800, 60);
+        ctx.fillText('•', W / 2, cy); cy += 40;
+    }
+
+    cy += 30;
+    ctx.strokeStyle = 'rgba(255,255,255,0.09)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(margem + 56, cy); ctx.lineTo(W - margem - 56, cy); ctx.stroke();
+    cy += 62;
+
+    const colEsqX = margem + larguraConteudo * 0.28;
+    const colDirX = margem + larguraConteudo * 0.72;
+    ctx.font = fonteRelatorio(700, 25); ctx.fillStyle = '#94a3b8';
+    ctx.fillText('EU DEVO', colEsqX, cy);
+    ctx.fillText('A PESSOA DEVE', colDirX, cy);
+    cy += 56;
+    ctx.font = fonteRelatorio(800, 42);
+    ctx.fillStyle = '#fb7185'; ctx.fillText(formatBRL(calc.euDevo), colEsqX, cy);
+    ctx.fillStyle = '#34d399'; ctx.fillText(formatBRL(calc.meDevem), colDirX, cy);
+
+    y += alturaResultado + 56;
+
+    /* ---------- próximo mês (mini resumo) ---------- */
+    if (temProximo) {
+        ctx.fillStyle = 'rgba(255,255,255,0.03)';
+        roundRect(ctx, margem, y, larguraConteudo, alturaProximo, 32); ctx.fill();
+        ctx.strokeStyle = 'rgba(255,255,255,0.07)'; ctx.lineWidth = 1.5;
+        roundRect(ctx, margem, y, larguraConteudo, alturaProximo, 32); ctx.stroke();
+
+        let py = y + 58;
+        ctx.textAlign = 'left';
+        ctx.fillStyle = '#818cf8'; ctx.font = fonteRelatorio(800, 24);
+        ctx.fillText('PRÓXIMO MÊS', margem + 44, py);
+        ctx.fillStyle = '#64748b'; ctx.font = fonteRelatorio(600, 24); ctx.textAlign = 'right';
+        ctx.fillText(mesLabel(proxMes), W - margem - 44, py);
+        py += 66;
+
+        const largColuna = (larguraConteudo - 88) / 3;
+        const stats = [
+            { rotulo: 'A PAGAR', valor: calcProx.euDevo, cor: '#fb7185' },
+            { rotulo: 'A RECEBER', valor: calcProx.meDevem, cor: '#34d399' },
+            { rotulo: 'SALDO PREVISTO', valor: saldoProx.status === 'PAGAR' ? -saldoProx.saldo : saldoProx.saldo, cor: saldoProx.cor },
+        ];
+        ctx.textAlign = 'center';
+        stats.forEach((s, i) => {
+            const cx = margem + 44 + largColuna * i + largColuna / 2;
+            ctx.fillStyle = '#64748b'; ctx.font = fonteRelatorio(700, 19);
+            ctx.fillText(s.rotulo, cx, py);
+            ctx.fillStyle = s.cor; ctx.font = fonteRelatorio(800, 30);
+            ctx.fillText(formatBRL(s.valor), cx, py + 40);
         });
-        if (itens.length > maxPorGrupo) {
-            ctx.fillStyle = '#94a3b8'; ctx.font = '700 24px Arial';
-            ctx.fillText(`+ ${itens.length - maxPorGrupo} lançamentos`, margem + 10, y);
-            y += espacoLinha;
+        py += 92;
+
+        if (linhasFuturos > 0) {
+            ctx.strokeStyle = 'rgba(255,255,255,0.07)'; ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.moveTo(margem + 44, py); ctx.lineTo(W - margem - 44, py); ctx.stroke();
+            py += 42;
+            ctx.textAlign = 'left';
+            futuros.forEach(l => {
+                const cor = l.TIPO === 'EU_DEVO' ? '#fb7185' : '#34d399';
+                const emoji = l.TIPO === 'EU_DEVO' ? '🔴' : '🟢';
+                ctx.font = fonteRelatorio(600, 25); ctx.fillStyle = '#cbd5e1';
+                const rotulo = truncarTexto(ctx, `${formatDataCurta(l.VENCIMENTO || l.DATA)} • ${l.DESCRICAO}`, larguraConteudo * 0.56);
+                ctx.fillText(rotulo, margem + 44, py);
+                ctx.textAlign = 'right'; ctx.font = fonteRelatorio(800, 25); ctx.fillStyle = cor;
+                ctx.fillText(`${formatBRL(l.VALOR)} ${emoji}`, W - margem - 44, py);
+                ctx.textAlign = 'left';
+                py += 50;
+            });
         }
-        y += 14;
-    }
-    if (itensDevo.length) desenharGrupo('🔴 VOCÊ DEVE', '#e11d48', itensDevo);
-    if (itensDeve.length) desenharGrupo((p.APELIDO || p.NOME).toUpperCase() + ' 🟢 DEVE', '#059669', itensDeve);
-
-    // próximo mês
-    if (calcProx.itens.length > 0) {
-        y += 10;
-        ctx.fillStyle = '#1e293b'; ctx.font = '800 30px Arial';
-        ctx.fillText('PRÓXIMO MÊS · ' + mesLabel(proxMes), margem, y); y += 44;
-        ctx.font = '600 26px Arial'; ctx.fillStyle = '#475569';
-        ctx.fillText(`Você deve ${formatBRL(calcProx.euDevo)}   ·   ${p.APELIDO || p.NOME} deve ${formatBRL(calcProx.meDevem)}`, margem, y); y += 40;
-        ctx.fillStyle = '#6366f1'; ctx.font = '800 28px Arial';
-        ctx.fillText('Acerto previsto: ' + textoAcerto(calcProx, p.APELIDO || p.NOME), margem, y); y += 50;
+        y += alturaProximo + 56;
+        ctx.textAlign = 'center';
     }
 
-    // próximas parcelas
-    if (futuros.length > 0) {
-        ctx.fillStyle = '#1e293b'; ctx.font = '800 30px Arial';
-        ctx.fillText('PRÓXIMAS PARCELAS', margem, y); y += 44;
-        futuros.forEach(l => {
-            ctx.font = '600 26px Arial'; ctx.fillStyle = '#475569';
-            const cor = l.TIPO === 'EU_DEVO' ? '#e11d48' : '#059669';
-            const emoji = l.TIPO === 'EU_DEVO' ? '🔴' : '🟢';
-            ctx.fillText(`${formatDataCurta(l.VENCIMENTO || l.DATA)} • ${l.DESCRICAO}`, margem, y);
-            ctx.textAlign = 'right'; ctx.fillStyle = cor; ctx.font = '800 26px Arial';
-            ctx.fillText(`${formatBRL(l.VALOR)} ${emoji}`, W - margem, y);
-            ctx.textAlign = 'left';
-            y += espacoLinha;
-        });
-    }
-
-    // rodapé
-    ctx.textAlign = 'center'; ctx.fillStyle = '#94a3b8'; ctx.font = '600 24px Arial';
-    ctx.fillText('Atualizado em ' + formatDateBR(hoje), W / 2, H - 50);
+    /* ---------- rodapé ---------- */
+    const yRodape = H - 96;
+    ctx.strokeStyle = 'rgba(255,255,255,0.08)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(margem, yRodape - 34); ctx.lineTo(W - margem, yRodape - 34); ctx.stroke();
+    ctx.textAlign = 'left'; ctx.fillStyle = '#475569'; ctx.font = fonteRelatorio(700, 24);
+    ctx.fillText('PoppeFin', margem, yRodape);
+    ctx.textAlign = 'right'; ctx.fillStyle = '#475569'; ctx.font = fonteRelatorio(500, 22);
+    ctx.fillText('Atualizado em ' + formatDateBR(hoje), W - margem, yRodape);
 
     abrirModal('modalRelatorio');
     canvas.toBlob(blob => { ultimoBlobRelatorio = blob; }, 'image/png');
