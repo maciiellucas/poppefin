@@ -429,7 +429,7 @@ input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin
             </div>
             <div>
                 <label class="field-label">Mês de referência *</label>
-                <input id="flMesReferencia" type="month" class="field-input">
+                <input id="flMesReferencia" type="month" class="field-input" oninput="mesReferenciaTocadoManualmente = true;">
             </div>
             <div>
                 <label class="field-label">Observação</label>
@@ -600,6 +600,31 @@ function hojeISO() {
 function uid() {
     return 'id' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 }
+/**
+ * Blindagem contra o Google Sheets convertendo campos de texto (ex: "2026-09")
+ * em um valor de data internamente. Sempre que um lançamento chega do backend,
+ * qualquer campo de mês/data é reconduzido ao formato canônico ("YYYY-MM" ou
+ * "YYYY-MM-DD"), não importa que formato/tipo tenha vindo na resposta.
+ */
+function normalizarMesRef(valor) {
+    if (!valor) return valor;
+    const m = String(valor).match(/^(\d{4})-(\d{2})/);
+    return m ? `${m[1]}-${m[2]}` : String(valor);
+}
+function normalizarDataISO(valor) {
+    if (!valor) return valor;
+    const m = String(valor).match(/^(\d{4})-(\d{2})-(\d{2})/);
+    return m ? `${m[1]}-${m[2]}-${m[3]}` : String(valor);
+}
+function normalizarCamposLancamento(l) {
+    return {
+        ...l,
+        MES_REFERENCIA: normalizarMesRef(l.MES_REFERENCIA),
+        DATA: normalizarDataISO(l.DATA),
+        VENCIMENTO: l.VENCIMENTO ? normalizarDataISO(l.VENCIMENTO) : l.VENCIMENTO,
+        DATA_PAGAMENTO: l.DATA_PAGAMENTO ? normalizarDataISO(l.DATA_PAGAMENTO) : l.DATA_PAGAMENTO,
+    };
+}
 function iniciais(nome) {
     if (!nome) return '?';
     const p = nome.trim().split(/\s+/);
@@ -687,7 +712,7 @@ async function carregarTudo(manual) {
             apiGet('lancamentos'),
         ]);
         state.pessoas = (pessoas || []).filter(p => p.ATIVO !== false && p.ATIVO !== 'FALSE' && p.ATIVO !== 'false');
-        state.lancamentos = lancamentos || [];
+        state.lancamentos = (lancamentos || []).map(normalizarCamposLancamento);
         renderTudo();
         if (manual) toast('✅ Dados atualizados');
     } catch (e) {
@@ -1094,10 +1119,12 @@ function setTipoLancamento(tipo) {
     document.getElementById('btnTipoDevo').classList.toggle('ativo-devo', tipo === 'EU_DEVO');
     document.getElementById('btnTipoDeve').classList.toggle('ativo-deve', tipo === 'ME_DEVE');
 }
+let mesReferenciaTocadoManualmente = false; // true = o usuário (ou o próprio app, de propósito) já definiu o mês; não sobrescrever mais
 function sincronizarMesReferencia() {
+    if (mesReferenciaTocadoManualmente) return; // respeita uma escolha já feita (manual ou intencional)
     const data = document.getElementById('flData').value;
     const campoMes = document.getElementById('flMesReferencia');
-    if (data && !campoMes.value) campoMes.value = data.slice(0, 7);
+    if (data) campoMes.value = data.slice(0, 7);
 }
 function toggleParcelamento() {
     document.getElementById('wrapParcelas').classList.toggle('hidden', !document.getElementById('flParcelado').checked);
@@ -1107,6 +1134,7 @@ function abrirModalLancamento(modo, id, pessoaIdPreSelecionada) {
     modoModalLancamento = modo;
     idLancamentoEditando = id || null;
     preencherSelectPessoas(pessoaIdPreSelecionada);
+    mesReferenciaTocadoManualmente = false;
 
     document.getElementById('blocoParcelamento').style.display = modo === 'criar' ? 'block' : 'none';
     document.getElementById('flParcelado').checked = false;
@@ -1130,6 +1158,7 @@ function abrirModalLancamento(modo, id, pessoaIdPreSelecionada) {
         document.getElementById('flVencimento').value = (l.VENCIMENTO || '').slice(0, 10);
         document.getElementById('flMesReferencia').value = l.MES_REFERENCIA || '';
         document.getElementById('flObservacao').value = l.OBSERVACAO || '';
+        mesReferenciaTocadoManualmente = true; // não sobrescrever o mês já salvo se o usuário mexer na data
     } else {
         document.getElementById('tituloModalLancamento').innerHTML = '<i class="fas fa-file-invoice-dollar text-indigo-600"></i> Novo lançamento';
         setTipoLancamento('EU_DEVO');
@@ -1138,7 +1167,15 @@ function abrirModalLancamento(modo, id, pessoaIdPreSelecionada) {
         document.getElementById('flDescricao').value = '';
         document.getElementById('flData').value = hojeISO();
         document.getElementById('flVencimento').value = '';
-        document.getElementById('flMesReferencia').value = state.mesPessoa && pessoaIdPreSelecionada ? state.mesPessoa : mesKeyDeData(new Date());
+        if (pessoaIdPreSelecionada && state.mesPessoa) {
+            // aberto a partir da página de uma pessoa: o mês de referência deve ser o mês que
+            // está sendo navegado ali, mesmo que a data escolhida seja de outro dia/mês
+            document.getElementById('flMesReferencia').value = state.mesPessoa;
+            mesReferenciaTocadoManualmente = true;
+        } else {
+            // aberto pelo botão "+" geral: mês de referência acompanha a Data automaticamente
+            document.getElementById('flMesReferencia').value = hojeISO().slice(0, 7);
+        }
         document.getElementById('flObservacao').value = '';
         document.getElementById('flNumParcelas').value = 2;
     }
@@ -1204,18 +1241,18 @@ async function salvarLancamento() {
                         criados.push(item);
                     }
                     const salvos = await apiPost('criarLancamentosEmLote', { lancamentos: criados });
-                    (salvos || criados).forEach(l => state.lancamentos.push(l));
+                    (salvos || criados).map(normalizarCamposLancamento).forEach(l => state.lancamentos.push(l));
                     toast(`✅ ${n} parcelas criadas`);
                 } else {
                     const novo = await apiPost('criarLancamento', { lancamento: base });
-                    state.lancamentos.push(novo);
+                    state.lancamentos.push(normalizarCamposLancamento(novo));
                     toast('✅ Lançamento criado');
                 }
             } else {
                 base.ID = idLancamentoEditando;
                 await apiPost('editarLancamento', { lancamento: base });
                 const i = state.lancamentos.findIndex(x => mesmoId(x.ID, idLancamentoEditando));
-                if (i > -1) state.lancamentos[i] = { ...state.lancamentos[i], ...base };
+                if (i > -1) state.lancamentos[i] = normalizarCamposLancamento({ ...state.lancamentos[i], ...base });
                 toast('✅ Alteração salva');
             }
             fecharModal('modalLancamento');
