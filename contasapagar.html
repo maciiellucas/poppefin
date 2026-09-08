@@ -200,9 +200,14 @@ input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin
     <!-- Header -->
     <div class="slide-up">
         <div class="flex items-center justify-between">
-            <div>
-                <h1 class="text-xl md:text-2xl font-extrabold tracking-tight">Dívidas<span class="text-indigo-600"> & Acertos</span></h1>
-                <p class="text-slate-500 text-xs font-medium">Controle pessoal entre você e outras pessoas</p>
+            <div class="flex items-center gap-3">
+                <button onclick="window.location.href='dashboard.html'" class="w-10 h-10 bg-white/60 rounded-xl flex items-center justify-center shadow-sm active:scale-95 shrink-0" title="Voltar ao início">
+                    <i class="fas fa-arrow-left text-indigo-600"></i>
+                </button>
+                <div>
+                    <h1 class="text-xl md:text-2xl font-extrabold tracking-tight">Dívidas<span class="text-indigo-600"> & Acertos</span></h1>
+                    <p class="text-slate-500 text-xs font-medium">Controle pessoal entre você e outras pessoas</p>
+                </div>
             </div>
             <div class="flex items-center gap-2">
                 <button onclick="toggleOcultar()" id="btnOcultar" class="w-10 h-10 bg-white/60 rounded-xl flex items-center justify-center shadow-sm active:scale-95">
