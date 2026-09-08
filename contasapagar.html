@@ -11,7 +11,15 @@
 
 * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
 
+html, body {
+    overflow-x: hidden;
+    width: 100%;
+    max-width: 100vw;
+    position: relative;
+}
+
 body {
+    margin: 0;
     font-family: 'Plus Jakarta Sans', sans-serif;
     background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
     min-height: 100vh;
@@ -89,11 +97,11 @@ input, select, textarea {
 }
 .field-label { font-size: 10px; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 4px; display: block; margin-left: 2px; }
 .field-input {
-    width: 100%; background: #f8fafc; border: 1.5px solid #e2e8f0; padding: 12px 14px;
+    width: 100%; max-width: 100%; background: #f8fafc; border: 1.5px solid #cbd5e1; padding: 12px 14px;
     border-radius: 14px; font-weight: 600; font-size: 14px; outline: none; color: #1e293b;
-    transition: all 0.15s;
+    transition: all 0.15s; box-shadow: 0 1px 2px rgba(15,23,42,0.04);
 }
-.field-input:focus { border-color: #6366f1; background: #fff; box-shadow: 0 0 0 3px rgba(99,102,241,0.1); }
+.field-input:focus { border-color: #6366f1; background: #fff; box-shadow: 0 0 0 3px rgba(99,102,241,0.12); }
 
 .btn-primary {
     background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #fff; font-weight: 700;
@@ -143,6 +151,7 @@ input, select, textarea {
 .icon-btn.edit { background: rgba(99,102,241,0.1); color: #6366f1; }
 .icon-btn.del { background: rgba(244,63,94,0.1); color: #e11d48; }
 .icon-btn.pay { background: rgba(16,185,129,0.1); color: #059669; }
+.icon-btn.undo { background: rgba(245,158,11,0.12); color: #b45309; }
 
 .view { display: none; }
 .view.ativa { display: block; animation: fadeIn 0.3s ease-out; }
@@ -157,12 +166,13 @@ input, select, textarea {
 .empty-state i { font-size: 32px; margin-bottom: 10px; opacity: 0.5; }
 
 .fab {
-    position: absolute; bottom: 20px; width: 58px; height: 58px; border-radius: 50%;
+    position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+    width: 58px; height: 58px; border-radius: 50%;
     background: linear-gradient(135deg, #6366f1, #8b5cf6);
     box-shadow: 0 10px 25px rgba(99,102,241,0.4);
     display: flex; align-items: center; justify-content: center; transition: all 0.15s;
 }
-.fab:active { transform: scale(0.93); }
+.fab:active { transform: translateX(-50%) scale(0.93); }
 
 #relatorioCanvas { width: 100%; border-radius: 20px; box-shadow: 0 15px 40px rgba(0,0,0,0.15); }
 
@@ -965,6 +975,7 @@ function cardLancamento(l) {
         </div>
         <div class="flex items-center gap-2 justify-end mt-3 pt-2 border-t border-slate-100">
             ${!pago ? `<button class="icon-btn pay" onclick="confirmarMarcarPago('${l.ID}')" title="Marcar como pago"><i class="fas fa-check"></i></button>` : ''}
+            ${pago ? `<button class="icon-btn undo" onclick="confirmarReverterPagamento('${l.ID}')" title="Reverter para pendente"><i class="fas fa-rotate-left"></i></button>` : ''}
             <button class="icon-btn edit" onclick="abrirModalLancamento('editar','${l.ID}')" title="Editar"><i class="fas fa-pen"></i></button>
             <button class="icon-btn del" onclick="confirmarExcluirLancamento('${l.ID}')" title="Excluir"><i class="fas fa-trash"></i></button>
         </div>
@@ -1321,6 +1332,28 @@ function confirmarMarcarPago(id) {
                 renderTudo();
             } catch (e) {
                 toast('❌ Não foi possível registrar o pagamento', 'erro');
+            } finally { setLoading(false); }
+        }
+    });
+}
+function confirmarReverterPagamento(id) {
+    const l = state.lancamentos.find(x => mesmoId(x.ID, id));
+    if (!l) return;
+    mostrarConfirm({
+        titulo: 'Reverter pagamento?',
+        descricaoHtml: `Este lançamento volta para <b>pendente</b> e a data de pagamento é apagada.<br><b class="text-base">${formatBRL(l.VALOR)}</b> · ${escapeHtml(l.DESCRICAO)}`,
+        textoBotao: 'Reverter para pendente',
+        icone: 'fa-rotate-left',
+        onConfirm: async () => {
+            setLoading(true);
+            try {
+                await apiPost('reverterPagamento', { id });
+                l.STATUS = 'PENDENTE';
+                l.DATA_PAGAMENTO = '';
+                toast('↩️ Pagamento revertido');
+                renderTudo();
+            } catch (e) {
+                toast('❌ Não foi possível reverter o pagamento', 'erro');
             } finally { setLoading(false); }
         }
     });
