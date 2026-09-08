@@ -1421,9 +1421,13 @@ async function gerarRelatorio() {
 
     // ---- pré-cálculo da altura necessária (relatório dinâmico) ----
     const temProximo = calcProx.itens.length > 0 || futuros.length > 0;
-    const linhasFuturos = futuros.length;
+    const itensFuturosInfo = futuros.map(l => {
+        const temParcela = !!(l.PARCELA_TOTAL && Number(l.PARCELA_TOTAL) > 1);
+        return { l, temParcela, altura: temParcela ? 86 : 52 };
+    });
+    const alturaItensFuturos = itensFuturosInfo.reduce((acc, it) => acc + it.altura, 0);
     const alturaResultado = 660;
-    const alturaProximo = temProximo ? (232 + (linhasFuturos > 0 ? 30 + linhasFuturos * 50 : 0)) : 0;
+    const alturaProximo = temProximo ? (232 + (itensFuturosInfo.length > 0 ? 30 + alturaItensFuturos : 0)) : 0;
     const fimConteudo = 350 + alturaResultado + 56 + (temProximo ? alturaProximo + 56 : 0);
     const W = 1080;
     const H = Math.min(1920, Math.max(1400, Math.round(fimConteudo + 230)));
@@ -1523,21 +1527,46 @@ async function gerarRelatorio() {
         });
         py += 92;
 
-        if (linhasFuturos > 0) {
+        if (itensFuturosInfo.length > 0) {
             ctx.strokeStyle = 'rgba(255,255,255,0.07)'; ctx.lineWidth = 1;
             ctx.beginPath(); ctx.moveTo(margem + 44, py); ctx.lineTo(W - margem - 44, py); ctx.stroke();
             py += 42;
             ctx.textAlign = 'left';
-            futuros.forEach(l => {
+            itensFuturosInfo.forEach(({ l, temParcela }) => {
                 const cor = l.TIPO === 'EU_DEVO' ? '#fb7185' : '#34d399';
                 const emoji = l.TIPO === 'EU_DEVO' ? '🔴' : '🟢';
-                ctx.font = fonteRelatorio(600, 25); ctx.fillStyle = '#cbd5e1';
-                const rotulo = truncarTexto(ctx, `${formatDataCurta(l.VENCIMENTO || l.DATA)} • ${l.DESCRICAO}`, larguraConteudo * 0.56);
-                ctx.fillText(rotulo, margem + 44, py);
+
+                // Data (tom neutro) ... espaço maior ... Descrição (destacada), bem separadas
+                const dataTexto = formatDataCurta(l.VENCIMENTO || l.DATA);
+                ctx.font = fonteRelatorio(700, 24); ctx.fillStyle = '#64748b';
+                ctx.fillText(dataTexto, margem + 44, py);
+                const larguraData = ctx.measureText(dataTexto).width;
+                const xDescricao = margem + 44 + larguraData + 30; // respiro extra entre data e descrição
+
+                ctx.font = fonteRelatorio(700, 26); ctx.fillStyle = '#e2e8f0';
+                const descTruncada = truncarTexto(ctx, l.DESCRICAO, larguraConteudo * 0.4);
+                ctx.fillText(descTruncada, xDescricao, py);
+
                 ctx.textAlign = 'right'; ctx.font = fonteRelatorio(800, 25); ctx.fillStyle = cor;
                 ctx.fillText(`${formatBRL(l.VALOR)} ${emoji}`, W - margem - 44, py);
                 ctx.textAlign = 'left';
-                py += 50;
+                py += 44;
+
+                // Chip da parcela — visualmente separado da data, numa linha própria
+                if (temParcela) {
+                    const parcelaTexto = `PARCELA ${String(l.PARCELA_ATUAL).padStart(2, '0')}/${String(l.PARCELA_TOTAL).padStart(2, '0')}`;
+                    ctx.font = fonteRelatorio(800, 18);
+                    const largChip = ctx.measureText(parcelaTexto).width;
+                    const chipPadX = 14, chipAltura = 32;
+                    const chipX = margem + 44, chipY = py - 23;
+                    ctx.fillStyle = 'rgba(129,140,248,0.16)';
+                    roundRect(ctx, chipX, chipY, largChip + chipPadX * 2, chipAltura, 16); ctx.fill();
+                    ctx.fillStyle = '#a5b4fc';
+                    ctx.fillText(parcelaTexto, chipX + chipPadX, chipY + 22);
+                    py += 42;
+                } else {
+                    py += 8;
+                }
             });
         }
         y += alturaProximo + 56;
