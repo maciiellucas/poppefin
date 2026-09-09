@@ -716,7 +716,7 @@ function toast(msg, tipo) {
     if (tipo === 'erro') el.classList.add('erro');
     el.classList.add('show');
     clearTimeout(el._timer);
-    el._timer = setTimeout(() => el.classList.remove('show'), 2600);
+    el._timer = setTimeout(() => el.classList.remove('show'), tipo === 'erro' ? 5000 : 2600);
 }
 function travarBotao(id, travar) {
     const b = document.getElementById(id);
@@ -1130,7 +1130,8 @@ async function salvarPessoa() {
         fecharModal('modalPessoa');
         renderTudo();
     } catch (e) {
-        toast('❌ Não foi possível salvar', 'erro');
+        console.error(e);
+        toast('❌ ' + (e.message || 'Não foi possível salvar'), 'erro');
     } finally {
         travarBotao('btnSalvarPessoa', false);
         setLoading(false);
@@ -1158,7 +1159,8 @@ function confirmarExcluirPessoa(id) {
                 toast('🗑️ Pessoa excluída');
                 renderTudo();
             } catch (e) {
-                toast('❌ Não foi possível excluir', 'erro');
+                console.error(e);
+                toast('❌ ' + (e.message || 'Não foi possível excluir'), 'erro');
             } finally { setLoading(false); }
         }
     });
@@ -1380,7 +1382,8 @@ async function salvarLancamento() {
             fecharModal('modalLancamento');
             renderTudo();
         } catch (e) {
-            toast('❌ Não foi possível salvar', 'erro');
+            console.error(e);
+            toast('❌ ' + (e.message || 'Não foi possível salvar'), 'erro');
         } finally {
             travarBotao('btnSalvarLancamento', false);
             setLoading(false);
@@ -1423,7 +1426,8 @@ function confirmarExcluirLancamento(id) {
                 toast('🗑️ Lançamento excluído');
                 renderTudo();
             } catch (e) {
-                toast('❌ Não foi possível excluir', 'erro');
+                console.error(e);
+                toast('❌ ' + (e.message || 'Não foi possível excluir'), 'erro');
             } finally { setLoading(false); }
         }
     });
@@ -1447,7 +1451,8 @@ function confirmarMarcarPago(id) {
                 toast('✅ Pagamento registrado');
                 renderTudo();
             } catch (e) {
-                toast('❌ Não foi possível registrar o pagamento', 'erro');
+                console.error(e);
+                toast('❌ ' + (e.message || 'Não foi possível registrar o pagamento'), 'erro');
             } finally { setLoading(false); }
         }
     });
@@ -1469,7 +1474,8 @@ function confirmarReverterPagamento(id) {
                 toast('↩️ Pagamento revertido');
                 renderTudo();
             } catch (e) {
-                toast('❌ Não foi possível reverter o pagamento', 'erro');
+                console.error(e);
+                toast('❌ ' + (e.message || 'Não foi possível reverter o pagamento'), 'erro');
             } finally { setLoading(false); }
         }
     });
@@ -1497,7 +1503,8 @@ function confirmarEncerrarRecorrencia(id) {
                 toast('⏹️ Assinatura encerrada');
                 renderTudo();
             } catch (e) {
-                toast('❌ Não foi possível encerrar', 'erro');
+                console.error(e);
+                toast('❌ ' + (e.message || 'Não foi possível encerrar'), 'erro');
             } finally { setLoading(false); }
         }
     });
