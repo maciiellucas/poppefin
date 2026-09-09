@@ -656,6 +656,47 @@ function hojeISO() {
     const d = new Date();
     return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
 }
+/**
+ * Mantém o dia do mês original ao mover uma data para outro mês/ano
+ * (mesma lógica usada no backend), para projetar a data de uma assinatura
+ * no mês seguinte mesmo antes dela existir na planilha.
+ */
+function ajustarDiaParaMes(dataOriginalISO, novoMesKey) {
+    if (!dataOriginalISO) return '';
+    const partes = String(dataOriginalISO).slice(0, 10).split('-');
+    const dia = Number(partes[2]) || 1;
+    const [ano, mes] = novoMesKey.split('-').map(Number);
+    const ultimoDiaDoMes = new Date(ano, mes, 0).getDate();
+    const diaFinal = Math.min(dia, ultimoDiaDoMes);
+    return `${ano}-${String(mes).padStart(2, '0')}-${String(diaFinal).padStart(2, '0')}`;
+}
+/**
+ * Garante que toda assinatura/conta fixa ainda ativa da pessoa apareça no mês
+ * indicado, mesmo que o backend ainda não tenha gerado a linha daquele mês
+ * na planilha (a geração roda no próximo carregamento de dados) — projeta a
+ * ocorrência a partir da última conhecida do grupo, ajustando data e mês.
+ */
+function assinaturasDoMes(pessoaId, mesKey) {
+    const porGrupo = {};
+    state.lancamentos.forEach(l => {
+        if (l.PESSOA_ID !== pessoaId || l.CATEGORIA !== 'RECORRENTE' || !l.RECORRENCIA_GRUPO_ID) return;
+        const g = l.RECORRENCIA_GRUPO_ID;
+        if (!porGrupo[g] || String(l.MES_REFERENCIA) > String(porGrupo[g].MES_REFERENCIA)) porGrupo[g] = l;
+    });
+    return Object.values(porGrupo)
+        .filter(ultimo => paraBooleano(ultimo.RECORRENCIA_ATIVA) && String(ultimo.MES_REFERENCIA) <= String(mesKey))
+        .map(ultimo => {
+            const jaExiste = state.lancamentos.find(l => l.RECORRENCIA_GRUPO_ID === ultimo.RECORRENCIA_GRUPO_ID && l.MES_REFERENCIA === mesKey);
+            if (jaExiste) return jaExiste;
+            return {
+                ...ultimo,
+                MES_REFERENCIA: mesKey,
+                DATA: ajustarDiaParaMes(ultimo.DATA, mesKey),
+                VENCIMENTO: ultimo.VENCIMENTO ? ajustarDiaParaMes(ultimo.VENCIMENTO, mesKey) : '',
+                STATUS: 'PENDENTE',
+            };
+        });
+}
 function uid() {
     return 'id' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 }
@@ -1661,14 +1702,25 @@ async function gerarRelatorio() {
 
     const calc = calcularPessoaMes(p.ID, state.mesPessoa);
     const proxMes = somarMes(state.mesPessoa, 1);
-    const calcProx = calcularPessoaMes(p.ID, proxMes);
+    const calcProxBase = calcularPessoaMes(p.ID, proxMes);
+    // Garante que assinaturas/contas fixas ainda ativas entrem no próximo mês mesmo que
+    // o backend ainda não tenha gravado a linha daquele mês na planilha.
+    const idsJaContados = new Set(calcProxBase.itens.map(i => i.ID));
+    const assinaturasProjetadas = assinaturasDoMes(p.ID, proxMes).filter(a => !idsJaContados.has(a.ID));
+    let euDevoProx = calcProxBase.euDevo, meDevemProx = calcProxBase.meDevem;
+    assinaturasProjetadas.forEach(a => {
+        const v = Number(a.VALOR) || 0;
+        if (a.TIPO === 'EU_DEVO') euDevoProx = +(euDevoProx + v).toFixed(2);
+        else meDevemProx = +(meDevemProx + v).toFixed(2);
+    });
+    const calcProx = { euDevo: euDevoProx, meDevem: meDevemProx, itens: [...calcProxBase.itens, ...assinaturasProjetadas] };
     const saldoProx = calcularSaldoLiquido(calcProx);
     const hoje = hojeISO();
-    const futuros = state.lancamentos
-        .filter(l => l.PESSOA_ID === p.ID && String(l.STATUS).toUpperCase() !== 'PAGO')
-        .filter(l => (l.VENCIMENTO || l.DATA) > hoje)
-        .filter(l => l.MES_REFERENCIA > state.mesPessoa) // só meses futuros, evita repetir itens do mês corrente
-        .sort((a, b) => (a.VENCIMENTO || a.DATA).localeCompare(b.VENCIMENTO || b.DATA));
+    // "Próximo mês" mostra só o que realmente pertence a esse mês (inclusive assinaturas
+    // projetadas) — nada de meses mais distantes misturado na mesma seção.
+    const futuros = calcProx.itens
+        .filter(l => String(l.STATUS).toUpperCase() !== 'PAGO')
+        .sort((a, b) => (a.VENCIMENTO || a.DATA || '').localeCompare(b.VENCIMENTO || b.DATA || ''));
 
     const resultado = calcularSaldoLiquido(calc);
     const nome = (p.APELIDO || p.NOME).toUpperCase();
@@ -1682,13 +1734,15 @@ async function gerarRelatorio() {
     });
     const alturaItensFuturos = itensFuturosInfo.reduce((acc, it) => acc + it.altura, 0);
     const categorias = calcularDetalhesCategoria(calc.itens);
-    const alturaResultado = 480; // card "saldo do mês" — compacto, pois "Por categoria" é o destaque visual agora
+    const alturaResultado = 510; // card "saldo do mês" — compacto, pois "Por categoria" é o destaque visual agora
     const ALTURA_CABECALHO_CATEGORIA = 46; // linha "emoji + nome da categoria" + valor total
     const ALTURA_BLOCO_DIRECAO = 104;      // "Eu devo"/"A pessoa deve" + nomes dos itens + pago/em aberto
-    const ALTURA_GAP_CATEGORIA = 26;       // respiro entre categorias
+    const ALTURA_DIVISOR_DIRECAO = 16;     // respiro extra quando há linha divisória entre "Eu devo" e "A pessoa deve"
+    const ALTURA_GAP_CATEGORIA = 26;       // respiro entre categorias (a linha divisória usa esse mesmo espaço)
     const alturaCategoria = cat => {
         const numDirecoes = (cat.euDevo.qtd > 0 ? 1 : 0) + (cat.meDeve.qtd > 0 ? 1 : 0);
-        return ALTURA_CABECALHO_CATEGORIA + numDirecoes * ALTURA_BLOCO_DIRECAO + ALTURA_GAP_CATEGORIA;
+        const divisoresInternos = Math.max(0, numDirecoes - 1) * ALTURA_DIVISOR_DIRECAO;
+        return ALTURA_CABECALHO_CATEGORIA + numDirecoes * ALTURA_BLOCO_DIRECAO + divisoresInternos + ALTURA_GAP_CATEGORIA;
     };
     const alturaCategorias = categorias.length > 0
         ? (96 + categorias.reduce((acc, c) => acc + alturaCategoria(c), 0) + 24)
@@ -1739,7 +1793,7 @@ async function gerarRelatorio() {
     const rotuloResultado = resultado.status === 'QUITADO' ? 'ESTÁ QUITADO'
         : resultado.status === 'PAGAR' ? 'TENHO QUE PAGAR' : 'TENHO QUE RECEBER';
     ctx.fillStyle = resultado.cor; ctx.font = fonteRelatorio(800, 32);
-    ctx.fillText(rotuloResultado, W / 2, cy); cy += 56;
+    ctx.fillText(rotuloResultado, W / 2, cy); cy += 86;
 
     if (resultado.status !== 'QUITADO') {
         ctx.font = fonteRelatorio(800, 72);
@@ -1781,7 +1835,7 @@ async function gerarRelatorio() {
         ctx.fillText('POR CATEGORIA', margem + 48, qy);
         qy += 60;
 
-        categorias.forEach(cat => {
+        categorias.forEach((cat, idxCat) => {
             const totalCat = cat.euDevo.pendente + cat.euDevo.pago + cat.meDeve.pendente + cat.meDeve.pago;
             const iconeCat = { AVULSO: 'cartao', PARCELADO: 'camadas', RECORRENTE: 'rotacao' }[cat.chave] || 'cartao';
             const tamIconeCat = 30;
@@ -1794,12 +1848,12 @@ async function gerarRelatorio() {
             ctx.textAlign = 'left';
             qy += ALTURA_CABECALHO_CATEGORIA;
 
-            [
+            const direcoes = [
                 { sub: cat.euDevo, label: 'Eu devo', cor: '#fb7185', icone: 'seta-cima' },
                 { sub: cat.meDeve, label: 'A pessoa deve', cor: '#34d399', icone: 'seta-baixo' },
-            ].forEach(({ sub, label, cor, icone }) => {
-                if (sub.qtd === 0) return;
+            ].filter(d => d.sub.qtd > 0);
 
+            direcoes.forEach(({ sub, label, cor, icone }, idxDir) => {
                 const tamIconeDir = 22;
                 drawIcone(ctx, icone, margem + 60 + tamIconeDir / 2, qy - 7, tamIconeDir, cor);
                 ctx.font = fonteRelatorio(700, 22); ctx.fillStyle = cor;
@@ -1833,8 +1887,23 @@ async function gerarRelatorio() {
                     ctx.fillText(`Pago: ${formatBRL(sub.pago)}`, px, qy);
                 }
                 qy += 42;
+
+                // linha bem sutil separando "Eu devo" de "A pessoa deve" dentro da mesma categoria
+                if (idxDir < direcoes.length - 1) {
+                    ctx.strokeStyle = 'rgba(255,255,255,0.07)'; ctx.lineWidth = 1;
+                    ctx.beginPath(); ctx.moveTo(margem + 60, qy + 5); ctx.lineTo(W - margem - 44, qy + 5); ctx.stroke();
+                    qy += ALTURA_DIVISOR_DIRECAO;
+                }
             });
 
+            // linha divisória entre categorias (mais visível, marca claramente onde uma acaba e a outra começa)
+            if (idxCat < categorias.length - 1) {
+                ctx.strokeStyle = 'rgba(129,140,248,0.20)'; ctx.lineWidth = 1.3;
+                ctx.beginPath();
+                ctx.moveTo(margem + 44, qy + ALTURA_GAP_CATEGORIA / 2);
+                ctx.lineTo(W - margem - 44, qy + ALTURA_GAP_CATEGORIA / 2);
+                ctx.stroke();
+            }
             qy += ALTURA_GAP_CATEGORIA;
         });
         y += alturaCategorias + 56;
