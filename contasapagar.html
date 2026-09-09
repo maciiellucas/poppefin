@@ -1734,18 +1734,29 @@ async function gerarRelatorio() {
     });
     const alturaItensFuturos = itensFuturosInfo.reduce((acc, it) => acc + it.altura, 0);
     const categorias = calcularDetalhesCategoria(calc.itens);
-    const alturaResultado = 510; // card "saldo do mês" — compacto, pois "Por categoria" é o destaque visual agora
-    const ALTURA_CABECALHO_CATEGORIA = 46; // linha "emoji + nome da categoria" + valor total
-    const ALTURA_BLOCO_DIRECAO = 104;      // "Eu devo"/"A pessoa deve" + nomes dos itens + pago/em aberto
-    const ALTURA_DIVISOR_DIRECAO = 16;     // respiro extra quando há linha divisória entre "Eu devo" e "A pessoa deve"
-    const ALTURA_GAP_CATEGORIA = 26;       // respiro entre categorias (a linha divisória usa esse mesmo espaço)
-    const alturaCategoria = cat => {
-        const numDirecoes = (cat.euDevo.qtd > 0 ? 1 : 0) + (cat.meDeve.qtd > 0 ? 1 : 0);
-        const divisoresInternos = Math.max(0, numDirecoes - 1) * ALTURA_DIVISOR_DIRECAO;
-        return ALTURA_CABECALHO_CATEGORIA + numDirecoes * ALTURA_BLOCO_DIRECAO + divisoresInternos + ALTURA_GAP_CATEGORIA;
+    const alturaResultado = 460; // card "saldo do mês" — compacto, pois "Por categoria" é o destaque visual agora
+
+    // ---- "Por categoria": cada categoria vira um subcard próprio, com cor distinta ----
+    const PAD_TOPO_SUB = 34;
+    const GAP_HEADER_TO_PRIMEIRO = 74;
+    const LINE_LABEL_PARA_PROXIMA = 36;
+    const LINE_NOMES_PARA_PROXIMA = 30;
+    const LINE_PAGOABERTO_GAP = 40; // espaço após a linha "em aberto/pago" — também serve de vão pra linha divisória
+    const PAD_BASE_SUB = 24;
+    const GAP_ENTRE_SUBCARDS = 26;
+    const TOPO_CONTAINER_CATEGORIAS = 122; // até o início do 1º subcard (título "POR CATEGORIA" + respiro)
+    const BASE_CONTAINER_CATEGORIAS = 36;
+
+    const alturaBlocoDirecao = sub => LINE_LABEL_PARA_PROXIMA + (sub.nomesTexto ? LINE_NOMES_PARA_PROXIMA : 0) + LINE_PAGOABERTO_GAP;
+    const alturaSubcard = cat => {
+        const direcoes = [cat.euDevo, cat.meDeve].filter(s => s.qtd > 0);
+        return PAD_TOPO_SUB + GAP_HEADER_TO_PRIMEIRO + direcoes.reduce((acc, s) => acc + alturaBlocoDirecao(s), 0) + PAD_BASE_SUB;
     };
     const alturaCategorias = categorias.length > 0
-        ? (96 + categorias.reduce((acc, c) => acc + alturaCategoria(c), 0) + 24)
+        ? (TOPO_CONTAINER_CATEGORIAS
+            + categorias.reduce((acc, c) => acc + alturaSubcard(c), 0)
+            + GAP_ENTRE_SUBCARDS * Math.max(0, categorias.length - 1)
+            + BASE_CONTAINER_CATEGORIAS)
         : 0;
     const alturaProximo = temProximo ? (232 + (itensFuturosInfo.length > 0 ? 30 + alturaItensFuturos : 0)) : 0;
     const fimConteudo = 350 + alturaResultado + 56
@@ -1833,20 +1844,40 @@ async function gerarRelatorio() {
         let qy = y + 60;
         ctx.textAlign = 'left'; ctx.fillStyle = '#a5b4fc'; ctx.font = fonteRelatorio(800, 28);
         ctx.fillText('POR CATEGORIA', margem + 48, qy);
-        qy += 60;
+        qy += 62;
+
+        const CORES_CATEGORIA = {
+            AVULSO: { fundo: 'rgba(251,191,36,0.08)', borda: 'rgba(251,191,36,0.24)', icone: '#fbbf24' },
+            PARCELADO: { fundo: 'rgba(56,189,248,0.08)', borda: 'rgba(56,189,248,0.24)', icone: '#38bdf8' },
+            RECORRENTE: { fundo: 'rgba(167,139,250,0.10)', borda: 'rgba(167,139,250,0.28)', icone: '#c4b5fd' },
+        };
+        const xSub = margem + 32, larguraSub = larguraConteudo - 64;
 
         categorias.forEach((cat, idxCat) => {
-            const totalCat = cat.euDevo.pendente + cat.euDevo.pago + cat.meDeve.pendente + cat.meDeve.pago;
-            const iconeCat = { AVULSO: 'cartao', PARCELADO: 'camadas', RECORRENTE: 'rotacao' }[cat.chave] || 'cartao';
-            const tamIconeCat = 30;
-            drawIcone(ctx, iconeCat, margem + 44 + tamIconeCat / 2, qy - 9, tamIconeCat, '#a5b4fc');
-            ctx.font = fonteRelatorio(700, 27); ctx.fillStyle = '#e2e8f0';
-            ctx.fillText(cat.label, margem + 44 + tamIconeCat + 14, qy);
+            const cores = CORES_CATEGORIA[cat.chave] || CORES_CATEGORIA.AVULSO;
+            const altoSub = alturaSubcard(cat);
 
-            ctx.textAlign = 'right'; ctx.font = fonteRelatorio(800, 27); ctx.fillStyle = '#f8fafc';
-            ctx.fillText(formatBRL(totalCat), W - margem - 44, qy);
+            // subcard da categoria — fundo e borda com cor própria, diferenciando visualmente cada grupo
+            ctx.fillStyle = cores.fundo;
+            roundRect(ctx, xSub, qy, larguraSub, altoSub, 24); ctx.fill();
+            ctx.strokeStyle = cores.borda; ctx.lineWidth = 1.5;
+            roundRect(ctx, xSub, qy, larguraSub, altoSub, 24); ctx.stroke();
+
+            let sy = qy + PAD_TOPO_SUB;
+            const iconeCat = { AVULSO: 'cartao', PARCELADO: 'camadas', RECORRENTE: 'rotacao' }[cat.chave] || 'cartao';
+            const tamIconeCat = 28;
+            drawIcone(ctx, iconeCat, xSub + 30 + tamIconeCat / 2, sy - 8, tamIconeCat, cores.icone);
+            ctx.font = fonteRelatorio(700, 26); ctx.fillStyle = '#f1f5f9';
+            ctx.fillText(cat.label, xSub + 30 + tamIconeCat + 14, sy);
+
+            // total da categoria SEMPRE compensado (o que a pessoa deve menos o que eu devo) — nunca a soma bruta
+            const netCat = +(cat.meDeve.pendente - cat.euDevo.pendente).toFixed(2);
+            const corNet = netCat > 0 ? '#34d399' : netCat < 0 ? '#fb7185' : '#94a3b8';
+            ctx.textAlign = 'right'; ctx.font = fonteRelatorio(800, 27); ctx.fillStyle = corNet;
+            ctx.fillText(formatBRL(netCat), xSub + larguraSub - 30, sy);
             ctx.textAlign = 'left';
-            qy += ALTURA_CABECALHO_CATEGORIA;
+
+            sy += GAP_HEADER_TO_PRIMEIRO;
 
             const direcoes = [
                 { sub: cat.euDevo, label: 'Eu devo', cor: '#fb7185', icone: 'seta-cima' },
@@ -1854,57 +1885,52 @@ async function gerarRelatorio() {
             ].filter(d => d.sub.qtd > 0);
 
             direcoes.forEach(({ sub, label, cor, icone }, idxDir) => {
-                const tamIconeDir = 22;
-                drawIcone(ctx, icone, margem + 60 + tamIconeDir / 2, qy - 7, tamIconeDir, cor);
-                ctx.font = fonteRelatorio(700, 22); ctx.fillStyle = cor;
-                ctx.fillText(label, margem + 60 + tamIconeDir + 10, qy);
-                ctx.textAlign = 'right'; ctx.font = fonteRelatorio(800, 24); ctx.fillStyle = '#f1f5f9';
-                ctx.fillText(formatBRL(sub.pendente + sub.pago), W - margem - 44, qy);
+                const tamIconeDir = 20;
+                drawIcone(ctx, icone, xSub + 48 + tamIconeDir / 2, sy - 7, tamIconeDir, cor);
+                ctx.font = fonteRelatorio(700, 21); ctx.fillStyle = cor;
+                ctx.fillText(label, xSub + 48 + tamIconeDir + 10, sy);
+                ctx.textAlign = 'right'; ctx.font = fonteRelatorio(800, 23); ctx.fillStyle = '#f1f5f9';
+                ctx.fillText(formatBRL(sub.pendente + sub.pago), xSub + larguraSub - 30, sy);
                 ctx.textAlign = 'left';
-                qy += 32;
+                sy += LINE_LABEL_PARA_PROXIMA;
 
                 if (sub.nomesTexto) {
-                    ctx.font = fonteRelatorio(600, 20); ctx.fillStyle = '#a1a8b8';
-                    const nomesTruncados = truncarTexto(ctx, sub.nomesTexto, larguraConteudo - 104);
-                    ctx.fillText(nomesTruncados, margem + 60, qy);
-                    qy += 30;
+                    ctx.font = fonteRelatorio(600, 19); ctx.fillStyle = '#9aa3b5';
+                    const nomesTruncados = truncarTexto(ctx, sub.nomesTexto, larguraSub - 88);
+                    ctx.fillText(nomesTruncados, xSub + 48, sy);
+                    sy += LINE_NOMES_PARA_PROXIMA;
                 }
 
-                ctx.font = fonteRelatorio(600, 19);
-                let px = margem + 60;
+                ctx.font = fonteRelatorio(600, 18);
+                let px = xSub + 48;
                 if (sub.pendente > 0) {
-                    drawIcone(ctx, 'relogio', px + 9, qy - 6, 18, '#64748b');
-                    px += 26;
-                    ctx.fillStyle = '#64748b';
+                    drawIcone(ctx, 'relogio', px + 8, sy - 6, 16, '#8790a3');
+                    px += 24;
+                    ctx.fillStyle = '#8790a3';
                     const t1 = `Em aberto: ${formatBRL(sub.pendente)}`;
-                    ctx.fillText(t1, px, qy);
-                    px += ctx.measureText(t1).width + 26;
+                    ctx.fillText(t1, px, sy);
+                    px += ctx.measureText(t1).width + 24;
                 }
                 if (sub.pago > 0) {
-                    drawIcone(ctx, 'check', px + 9, qy - 6, 18, '#64748b');
-                    px += 26;
-                    ctx.fillStyle = '#64748b';
-                    ctx.fillText(`Pago: ${formatBRL(sub.pago)}`, px, qy);
+                    drawIcone(ctx, 'check', px + 8, sy - 6, 16, '#8790a3');
+                    px += 24;
+                    ctx.fillStyle = '#8790a3';
+                    ctx.fillText(`Pago: ${formatBRL(sub.pago)}`, px, sy);
                 }
-                qy += 42;
+                sy += LINE_PAGOABERTO_GAP;
 
-                // linha bem sutil separando "Eu devo" de "A pessoa deve" dentro da mesma categoria
+                // linha sutil separando "Eu devo" de "A pessoa deve", exatamente no meio do vão entre os blocos
                 if (idxDir < direcoes.length - 1) {
-                    ctx.strokeStyle = 'rgba(255,255,255,0.07)'; ctx.lineWidth = 1;
-                    ctx.beginPath(); ctx.moveTo(margem + 60, qy + 5); ctx.lineTo(W - margem - 44, qy + 5); ctx.stroke();
-                    qy += ALTURA_DIVISOR_DIRECAO;
+                    ctx.strokeStyle = 'rgba(255,255,255,0.10)'; ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.moveTo(xSub + 48, sy - LINE_PAGOABERTO_GAP / 2);
+                    ctx.lineTo(xSub + larguraSub - 30, sy - LINE_PAGOABERTO_GAP / 2);
+                    ctx.stroke();
                 }
             });
 
-            // linha divisória entre categorias (mais visível, marca claramente onde uma acaba e a outra começa)
-            if (idxCat < categorias.length - 1) {
-                ctx.strokeStyle = 'rgba(129,140,248,0.20)'; ctx.lineWidth = 1.3;
-                ctx.beginPath();
-                ctx.moveTo(margem + 44, qy + ALTURA_GAP_CATEGORIA / 2);
-                ctx.lineTo(W - margem - 44, qy + ALTURA_GAP_CATEGORIA / 2);
-                ctx.stroke();
-            }
-            qy += ALTURA_GAP_CATEGORIA;
+            qy += altoSub;
+            if (idxCat < categorias.length - 1) qy += GAP_ENTRE_SUBCARDS;
         });
         y += alturaCategorias + 56;
         ctx.textAlign = 'center';
@@ -1959,12 +1985,35 @@ async function gerarRelatorio() {
 
                 ctx.font = fonteRelatorio(700, 26); ctx.fillStyle = '#e2e8f0';
                 const descTruncada = truncarTexto(ctx, l.DESCRICAO, larguraConteudo * 0.4);
+                const larguraDescricao = ctx.measureText(descTruncada).width;
                 ctx.fillText(descTruncada, xDescricao, py);
 
                 const tamIconeValor = 20;
-                ctx.textAlign = 'right'; ctx.font = fonteRelatorio(800, 25); ctx.fillStyle = cor;
+                const valorTexto = formatBRL(l.VALOR);
+                ctx.font = fonteRelatorio(800, 25);
+                const larguraValor = ctx.measureText(valorTexto).width;
                 const xValorDireita = W - margem - 44 - tamIconeValor - 10;
-                ctx.fillText(formatBRL(l.VALOR), xValorDireita, py);
+                const xInicioValor = xValorDireita - larguraValor;
+
+                // conector pontilhado ligando a descrição ao valor, pra facilitar o acompanhamento visual da linha
+                const xConectorIni = xDescricao + larguraDescricao + 16;
+                const xConectorFim = xInicioValor - 16;
+                if (xConectorFim > xConectorIni + 10) {
+                    ctx.save();
+                    ctx.strokeStyle = 'rgba(255,255,255,0.16)';
+                    ctx.lineWidth = 1.6;
+                    ctx.lineCap = 'round';
+                    ctx.setLineDash([1, 7]);
+                    ctx.beginPath();
+                    ctx.moveTo(xConectorIni, py - 9);
+                    ctx.lineTo(xConectorFim, py - 9);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                    ctx.restore();
+                }
+
+                ctx.textAlign = 'right'; ctx.fillStyle = cor;
+                ctx.fillText(valorTexto, xValorDireita, py);
                 ctx.textAlign = 'left';
                 drawIcone(ctx, l.TIPO === 'EU_DEVO' ? 'seta-cima' : 'seta-baixo', W - margem - 44 - tamIconeValor / 2, py - 7, tamIconeValor, cor);
                 py += 44;
