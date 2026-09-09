@@ -1741,11 +1741,13 @@ async function gerarRelatorio() {
     const GAP_HEADER_TO_PRIMEIRO = 74;
     const LINE_LABEL_PARA_PROXIMA = 36;
     const LINE_NOMES_PARA_PROXIMA = 30;
-    const LINE_PAGOABERTO_GAP = 40; // espaço após a linha "em aberto/pago" — também serve de vão pra linha divisória
+    const LINE_PAGOABERTO_GAP = 58; // espaço após a linha "em aberto/pago" — também serve de vão pra linha divisória
     const PAD_BASE_SUB = 24;
     const GAP_ENTRE_SUBCARDS = 26;
     const TOPO_CONTAINER_CATEGORIAS = 122; // até o início do 1º subcard (título "POR CATEGORIA" + respiro)
     const BASE_CONTAINER_CATEGORIAS = 36;
+    const PAD_ESQ_SUB = 44; // margem interna esquerda do subcard (ícone/texto)
+    const PAD_DIR_SUB = 44; // margem interna direita do subcard (valores) — simétrica à esquerda
 
     const alturaBlocoDirecao = sub => LINE_LABEL_PARA_PROXIMA + (sub.nomesTexto ? LINE_NOMES_PARA_PROXIMA : 0) + LINE_PAGOABERTO_GAP;
     const alturaSubcard = cat => {
@@ -1866,15 +1868,15 @@ async function gerarRelatorio() {
             let sy = qy + PAD_TOPO_SUB;
             const iconeCat = { AVULSO: 'cartao', PARCELADO: 'camadas', RECORRENTE: 'rotacao' }[cat.chave] || 'cartao';
             const tamIconeCat = 28;
-            drawIcone(ctx, iconeCat, xSub + 30 + tamIconeCat / 2, sy - 8, tamIconeCat, cores.icone);
+            drawIcone(ctx, iconeCat, xSub + PAD_ESQ_SUB + tamIconeCat / 2, sy - 8, tamIconeCat, cores.icone);
             ctx.font = fonteRelatorio(700, 26); ctx.fillStyle = '#f1f5f9';
-            ctx.fillText(cat.label, xSub + 30 + tamIconeCat + 14, sy);
+            ctx.fillText(cat.label, xSub + PAD_ESQ_SUB + tamIconeCat + 14, sy);
 
             // total da categoria SEMPRE compensado (o que a pessoa deve menos o que eu devo) — nunca a soma bruta
             const netCat = +(cat.meDeve.pendente - cat.euDevo.pendente).toFixed(2);
             const corNet = netCat > 0 ? '#34d399' : netCat < 0 ? '#fb7185' : '#94a3b8';
             ctx.textAlign = 'right'; ctx.font = fonteRelatorio(800, 27); ctx.fillStyle = corNet;
-            ctx.fillText(formatBRL(netCat), xSub + larguraSub - 30, sy);
+            ctx.fillText(formatBRL(netCat), xSub + larguraSub - PAD_DIR_SUB, sy);
             ctx.textAlign = 'left';
 
             sy += GAP_HEADER_TO_PRIMEIRO;
@@ -1886,23 +1888,23 @@ async function gerarRelatorio() {
 
             direcoes.forEach(({ sub, label, cor, icone }, idxDir) => {
                 const tamIconeDir = 20;
-                drawIcone(ctx, icone, xSub + 48 + tamIconeDir / 2, sy - 7, tamIconeDir, cor);
+                drawIcone(ctx, icone, xSub + PAD_ESQ_SUB + tamIconeDir / 2, sy - 7, tamIconeDir, cor);
                 ctx.font = fonteRelatorio(700, 21); ctx.fillStyle = cor;
-                ctx.fillText(label, xSub + 48 + tamIconeDir + 10, sy);
+                ctx.fillText(label, xSub + PAD_ESQ_SUB + tamIconeDir + 10, sy);
                 ctx.textAlign = 'right'; ctx.font = fonteRelatorio(800, 23); ctx.fillStyle = '#f1f5f9';
-                ctx.fillText(formatBRL(sub.pendente + sub.pago), xSub + larguraSub - 30, sy);
+                ctx.fillText(formatBRL(sub.pendente + sub.pago), xSub + larguraSub - PAD_DIR_SUB, sy);
                 ctx.textAlign = 'left';
                 sy += LINE_LABEL_PARA_PROXIMA;
 
                 if (sub.nomesTexto) {
                     ctx.font = fonteRelatorio(600, 19); ctx.fillStyle = '#9aa3b5';
-                    const nomesTruncados = truncarTexto(ctx, sub.nomesTexto, larguraSub - 88);
-                    ctx.fillText(nomesTruncados, xSub + 48, sy);
+                    const nomesTruncados = truncarTexto(ctx, sub.nomesTexto, larguraSub - PAD_ESQ_SUB - PAD_DIR_SUB - 4);
+                    ctx.fillText(nomesTruncados, xSub + PAD_ESQ_SUB, sy);
                     sy += LINE_NOMES_PARA_PROXIMA;
                 }
 
                 ctx.font = fonteRelatorio(600, 18);
-                let px = xSub + 48;
+                let px = xSub + PAD_ESQ_SUB;
                 if (sub.pendente > 0) {
                     drawIcone(ctx, 'relogio', px + 8, sy - 6, 16, '#8790a3');
                     px += 24;
@@ -1923,8 +1925,8 @@ async function gerarRelatorio() {
                 if (idxDir < direcoes.length - 1) {
                     ctx.strokeStyle = 'rgba(255,255,255,0.10)'; ctx.lineWidth = 1;
                     ctx.beginPath();
-                    ctx.moveTo(xSub + 48, sy - LINE_PAGOABERTO_GAP / 2);
-                    ctx.lineTo(xSub + larguraSub - 30, sy - LINE_PAGOABERTO_GAP / 2);
+                    ctx.moveTo(xSub + PAD_ESQ_SUB, sy - LINE_PAGOABERTO_GAP / 2);
+                    ctx.lineTo(xSub + larguraSub - PAD_DIR_SUB, sy - LINE_PAGOABERTO_GAP / 2);
                     ctx.stroke();
                 }
             });
