@@ -1668,8 +1668,7 @@ async function gerarRelatorio() {
         .filter(l => l.PESSOA_ID === p.ID && String(l.STATUS).toUpperCase() !== 'PAGO')
         .filter(l => (l.VENCIMENTO || l.DATA) > hoje)
         .filter(l => l.MES_REFERENCIA > state.mesPessoa) // só meses futuros, evita repetir itens do mês corrente
-        .sort((a, b) => (a.VENCIMENTO || a.DATA).localeCompare(b.VENCIMENTO || b.DATA))
-        .slice(0, 3);
+        .sort((a, b) => (a.VENCIMENTO || a.DATA).localeCompare(b.VENCIMENTO || b.DATA));
 
     const resultado = calcularSaldoLiquido(calc);
     const nome = (p.APELIDO || p.NOME).toUpperCase();
@@ -1683,7 +1682,7 @@ async function gerarRelatorio() {
     });
     const alturaItensFuturos = itensFuturosInfo.reduce((acc, it) => acc + it.altura, 0);
     const categorias = calcularDetalhesCategoria(calc.itens);
-    const alturaResultado = 660;
+    const alturaResultado = 480; // card "saldo do mês" — compacto, pois "Por categoria" é o destaque visual agora
     const ALTURA_CABECALHO_CATEGORIA = 46; // linha "emoji + nome da categoria" + valor total
     const ALTURA_BLOCO_DIRECAO = 104;      // "Eu devo"/"A pessoa deve" + nomes dos itens + pago/em aberto
     const ALTURA_GAP_CATEGORIA = 26;       // respiro entre categorias
@@ -1727,57 +1726,60 @@ async function gerarRelatorio() {
 
     y += 84;
 
-    /* ---------- card do resultado (elemento dominante) ---------- */
-    ctx.fillStyle = 'rgba(255,255,255,0.045)';
-    roundRect(ctx, margem, y, larguraConteudo, alturaResultado, 40); ctx.fill();
+    /* ---------- card do resultado: agora compacto, um resumo rápido ---------- */
+    ctx.fillStyle = 'rgba(255,255,255,0.04)';
+    roundRect(ctx, margem, y, larguraConteudo, alturaResultado, 36); ctx.fill();
     ctx.strokeStyle = 'rgba(255,255,255,0.08)'; ctx.lineWidth = 1.5;
-    roundRect(ctx, margem, y, larguraConteudo, alturaResultado, 40); ctx.stroke();
+    roundRect(ctx, margem, y, larguraConteudo, alturaResultado, 36); ctx.stroke();
 
-    let cy = y + 92;
-    ctx.fillStyle = '#94a3b8'; ctx.font = fonteRelatorio(700, 26);
-    ctx.fillText('SALDO DO MÊS', W / 2, cy); cy += 76;
+    let cy = y + 70;
+    ctx.fillStyle = '#8b95a8'; ctx.font = fonteRelatorio(700, 22);
+    ctx.fillText('SALDO DO MÊS', W / 2, cy); cy += 46;
 
     const rotuloResultado = resultado.status === 'QUITADO' ? 'ESTÁ QUITADO'
         : resultado.status === 'PAGAR' ? 'TENHO QUE PAGAR' : 'TENHO QUE RECEBER';
-    ctx.fillStyle = resultado.cor; ctx.font = fonteRelatorio(800, 46);
-    ctx.fillText(rotuloResultado, W / 2, cy); cy += 108;
+    ctx.fillStyle = resultado.cor; ctx.font = fonteRelatorio(800, 32);
+    ctx.fillText(rotuloResultado, W / 2, cy); cy += 56;
 
     if (resultado.status !== 'QUITADO') {
-        ctx.font = fonteRelatorio(800, 108);
-        ctx.fillText(formatBRL(resultado.saldo), W / 2, cy); cy += 70;
+        ctx.font = fonteRelatorio(800, 72);
+        ctx.fillText(formatBRL(resultado.saldo), W / 2, cy); cy += 54;
     } else {
-        ctx.font = fonteRelatorio(800, 60);
-        ctx.fillText('•', W / 2, cy); cy += 40;
+        ctx.font = fonteRelatorio(800, 46);
+        ctx.fillText('•', W / 2, cy); cy += 34;
     }
 
-    cy += 30;
+    cy += 22;
     ctx.strokeStyle = 'rgba(255,255,255,0.09)'; ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(margem + 56, cy); ctx.lineTo(W - margem - 56, cy); ctx.stroke();
-    cy += 62;
+    cy += 50;
 
     const colEsqX = margem + larguraConteudo * 0.28;
     const colDirX = margem + larguraConteudo * 0.72;
-    ctx.font = fonteRelatorio(700, 25); ctx.fillStyle = '#94a3b8';
+    ctx.font = fonteRelatorio(700, 20); ctx.fillStyle = '#8b95a8';
     ctx.fillText('EU DEVO', colEsqX, cy);
     ctx.fillText('A PESSOA DEVE', colDirX, cy);
-    cy += 56;
-    ctx.font = fonteRelatorio(800, 42);
+    cy += 38;
+    ctx.font = fonteRelatorio(800, 34);
     ctx.fillStyle = '#fb7185'; ctx.fillText(formatBRL(calc.euDevo), colEsqX, cy);
     ctx.fillStyle = '#34d399'; ctx.fillText(formatBRL(calc.meDevem), colDirX, cy);
 
-    y += alturaResultado + 56;
+    y += alturaResultado + 44;
 
-    /* ---------- por categoria: dívidas, parcelamentos, assinaturas ---------- */
+    /* ---------- por categoria: agora é o bloco de destaque visual ---------- */
     if (categorias.length > 0) {
-        ctx.fillStyle = 'rgba(255,255,255,0.03)';
+        ctx.fillStyle = 'rgba(129,140,248,0.07)';
         roundRect(ctx, margem, y, larguraConteudo, alturaCategorias, 32); ctx.fill();
-        ctx.strokeStyle = 'rgba(255,255,255,0.07)'; ctx.lineWidth = 1.5;
+        ctx.strokeStyle = 'rgba(129,140,248,0.22)'; ctx.lineWidth = 2;
         roundRect(ctx, margem, y, larguraConteudo, alturaCategorias, 32); ctx.stroke();
+        // barra de destaque vertical à esquerda, para marcar esta seção como o foco do resumo
+        ctx.fillStyle = '#818cf8';
+        roundRect(ctx, margem, y + 28, 6, alturaCategorias - 56, 3); ctx.fill();
 
-        let qy = y + 58;
-        ctx.textAlign = 'left'; ctx.fillStyle = '#818cf8'; ctx.font = fonteRelatorio(800, 24);
-        ctx.fillText('POR CATEGORIA', margem + 44, qy);
-        qy += 54;
+        let qy = y + 60;
+        ctx.textAlign = 'left'; ctx.fillStyle = '#a5b4fc'; ctx.font = fonteRelatorio(800, 28);
+        ctx.fillText('POR CATEGORIA', margem + 48, qy);
+        qy += 60;
 
         categorias.forEach(cat => {
             const totalCat = cat.euDevo.pendente + cat.euDevo.pago + cat.meDeve.pendente + cat.meDeve.pago;
