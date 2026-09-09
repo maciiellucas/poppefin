@@ -566,7 +566,7 @@ input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin
    (Extensões > Apps Script > Implantar > Nova implantação > App da Web)
    Ela tem o formato: https://script.google.com/macros/s/AKfycb...c
    ===================================================================== */
-const API_URL = "https://script.google.com/macros/s/AKfycbwP2zIgIfvrWBZvpZRSCyx8U_x_yRpQ3VpqC_Ldd0TQQ6lYMa4fd63HKaQuX09bwMrM/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycby521kytgMyD3yuOTmmP4hRhyeLHw2vnKZ9W0GHr-1u645yDKmr4PA9lkeKZOwdX2Ou/exec";
 
 /* =====================================================================
    ESTADO GLOBAL
@@ -1549,25 +1549,32 @@ function fonteRelatorio(peso, tamanho) {
  * está pago e o que ainda está em aberto em cada uma — usado no relatório
  * para diferenciar claramente dívidas, acertos e assinaturas.
  */
+function novoSubgrupoDirecao() {
+    return { pendente: 0, pago: 0, qtd: 0, nomes: [] };
+}
 function calcularDetalhesCategoria(itens) {
     const cats = {
-        AVULSO: { chave: 'AVULSO', label: 'Dívidas avulsas', emoji: '💳', pendente: 0, pago: 0, qtd: 0, nomes: [] },
-        PARCELADO: { chave: 'PARCELADO', label: 'Parcelamentos', emoji: '📦', pendente: 0, pago: 0, qtd: 0, nomes: [] },
-        RECORRENTE: { chave: 'RECORRENTE', label: 'Assinaturas/contas fixas', emoji: '🔁', pendente: 0, pago: 0, qtd: 0, nomes: [] },
+        AVULSO: { chave: 'AVULSO', label: 'Dívidas avulsas', emoji: '💳', qtd: 0, euDevo: novoSubgrupoDirecao(), meDeve: novoSubgrupoDirecao() },
+        PARCELADO: { chave: 'PARCELADO', label: 'Parcelamentos', emoji: '📦', qtd: 0, euDevo: novoSubgrupoDirecao(), meDeve: novoSubgrupoDirecao() },
+        RECORRENTE: { chave: 'RECORRENTE', label: 'Assinaturas/contas fixas', emoji: '🔁', qtd: 0, euDevo: novoSubgrupoDirecao(), meDeve: novoSubgrupoDirecao() },
     };
     itens.forEach(l => {
         const cat = cats[l.CATEGORIA] || cats.AVULSO;
+        const sub = l.TIPO === 'EU_DEVO' ? cat.euDevo : cat.meDeve;
         const v = Number(l.VALOR) || 0;
         const pago = String(l.STATUS).toUpperCase() === 'PAGO';
-        if (pago) cat.pago += v; else cat.pendente += v;
+        if (pago) sub.pago += v; else sub.pendente += v;
+        sub.qtd++;
         cat.qtd++;
-        if (l.DESCRICAO && !cat.nomes.includes(l.DESCRICAO)) cat.nomes.push(l.DESCRICAO);
+        if (l.DESCRICAO && !sub.nomes.includes(l.DESCRICAO)) sub.nomes.push(l.DESCRICAO);
     });
+    const nomesTexto = nomes => nomes.length <= 2 ? nomes.join(', ') : `${nomes.slice(0, 2).join(', ')} +${nomes.length - 2}`;
     return Object.values(cats)
         .filter(c => c.qtd > 0)
         .map(c => ({
             ...c,
-            nomesTexto: c.nomes.length <= 2 ? c.nomes.join(', ') : `${c.nomes.slice(0, 2).join(', ')} +${c.nomes.length - 2}`,
+            euDevo: { ...c.euDevo, nomesTexto: nomesTexto(c.euDevo.nomes) },
+            meDeve: { ...c.meDeve, nomesTexto: nomesTexto(c.meDeve.nomes) },
         }));
 }
 function calcularSaldoLiquido(calc) {
@@ -1607,8 +1614,16 @@ async function gerarRelatorio() {
     const alturaItensFuturos = itensFuturosInfo.reduce((acc, it) => acc + it.altura, 0);
     const categorias = calcularDetalhesCategoria(calc.itens);
     const alturaResultado = 660;
-    const ALTURA_LINHA_CATEGORIA = 114; // rótulo+valor, nomes dos itens, pago/em aberto, e respiro
-    const alturaCategorias = categorias.length > 0 ? (96 + categorias.length * ALTURA_LINHA_CATEGORIA + 24) : 0;
+    const ALTURA_CABECALHO_CATEGORIA = 46; // linha "emoji + nome da categoria" + valor total
+    const ALTURA_BLOCO_DIRECAO = 104;      // "Eu devo"/"A pessoa deve" + nomes dos itens + pago/em aberto
+    const ALTURA_GAP_CATEGORIA = 26;       // respiro entre categorias
+    const alturaCategoria = cat => {
+        const numDirecoes = (cat.euDevo.qtd > 0 ? 1 : 0) + (cat.meDeve.qtd > 0 ? 1 : 0);
+        return ALTURA_CABECALHO_CATEGORIA + numDirecoes * ALTURA_BLOCO_DIRECAO + ALTURA_GAP_CATEGORIA;
+    };
+    const alturaCategorias = categorias.length > 0
+        ? (96 + categorias.reduce((acc, c) => acc + alturaCategoria(c), 0) + 24)
+        : 0;
     const alturaProximo = temProximo ? (232 + (itensFuturosInfo.length > 0 ? 30 + alturaItensFuturos : 0)) : 0;
     const fimConteudo = 350 + alturaResultado + 56
         + (categorias.length > 0 ? alturaCategorias + 56 : 0)
@@ -1695,27 +1710,44 @@ async function gerarRelatorio() {
         qy += 54;
 
         categorias.forEach(cat => {
+            const totalCat = cat.euDevo.pendente + cat.euDevo.pago + cat.meDeve.pendente + cat.meDeve.pago;
             ctx.font = fonteRelatorio(700, 27); ctx.fillStyle = '#e2e8f0';
             ctx.fillText(`${cat.emoji} ${cat.label}`, margem + 44, qy);
 
             ctx.textAlign = 'right'; ctx.font = fonteRelatorio(800, 27); ctx.fillStyle = '#f8fafc';
-            ctx.fillText(formatBRL(cat.pendente + cat.pago), W - margem - 44, qy);
+            ctx.fillText(formatBRL(totalCat), W - margem - 44, qy);
             ctx.textAlign = 'left';
-            qy += 34;
+            qy += ALTURA_CABECALHO_CATEGORIA;
 
-            if (cat.nomesTexto) {
-                ctx.font = fonteRelatorio(600, 21); ctx.fillStyle = '#a1a8b8';
-                const nomesTruncados = truncarTexto(ctx, cat.nomesTexto, larguraConteudo - 88);
-                ctx.fillText(nomesTruncados, margem + 44, qy);
+            [
+                { sub: cat.euDevo, label: '🔴 Eu devo', cor: '#fb7185' },
+                { sub: cat.meDeve, label: '🟢 A pessoa deve', cor: '#34d399' },
+            ].forEach(({ sub, label, cor }) => {
+                if (sub.qtd === 0) return;
+
+                ctx.font = fonteRelatorio(700, 22); ctx.fillStyle = cor;
+                ctx.fillText(label, margem + 60, qy);
+                ctx.textAlign = 'right'; ctx.font = fonteRelatorio(800, 24); ctx.fillStyle = '#f1f5f9';
+                ctx.fillText(formatBRL(sub.pendente + sub.pago), W - margem - 44, qy);
+                ctx.textAlign = 'left';
                 qy += 32;
-            }
 
-            ctx.font = fonteRelatorio(600, 20); ctx.fillStyle = '#64748b';
-            const partes = [];
-            if (cat.pendente > 0) partes.push(`⏳ Em aberto: ${formatBRL(cat.pendente)}`);
-            if (cat.pago > 0) partes.push(`✅ Pago: ${formatBRL(cat.pago)}`);
-            ctx.fillText(partes.join('   ·   '), margem + 44, qy);
-            qy += 48;
+                if (sub.nomesTexto) {
+                    ctx.font = fonteRelatorio(600, 20); ctx.fillStyle = '#a1a8b8';
+                    const nomesTruncados = truncarTexto(ctx, sub.nomesTexto, larguraConteudo - 104);
+                    ctx.fillText(nomesTruncados, margem + 60, qy);
+                    qy += 30;
+                }
+
+                ctx.font = fonteRelatorio(600, 19); ctx.fillStyle = '#64748b';
+                const partes = [];
+                if (sub.pendente > 0) partes.push(`⏳ Em aberto: ${formatBRL(sub.pendente)}`);
+                if (sub.pago > 0) partes.push(`✅ Pago: ${formatBRL(sub.pago)}`);
+                ctx.fillText(partes.join('   ·   '), margem + 60, qy);
+                qy += 42;
+            });
+
+            qy += ALTURA_GAP_CATEGORIA;
         });
         y += alturaCategorias + 56;
         ctx.textAlign = 'center';
