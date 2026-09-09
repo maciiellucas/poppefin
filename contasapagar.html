@@ -243,15 +243,15 @@ input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin
         <!-- Cards totais -->
         <div class="grid grid-cols-3 gap-3 slide-up-d1">
             <div class="glass-card rounded-[22px] p-4 text-center">
-                <p class="text-[9px] font-black text-rose-400 uppercase tracking-widest mb-1">🔴 Eu devo</p>
+                <p class="text-[9px] font-black text-rose-400 uppercase tracking-widest mb-1"><i class="fas fa-arrow-up"></i> Eu devo</p>
                 <p id="valTotalEuDevo" class="text-base md:text-lg font-black text-rose-600 vlr">R$ 0,00</p>
             </div>
             <div class="glass-card rounded-[22px] p-4 text-center">
-                <p class="text-[9px] font-black text-emerald-400 uppercase tracking-widest mb-1">🟢 Me devem</p>
+                <p class="text-[9px] font-black text-emerald-400 uppercase tracking-widest mb-1"><i class="fas fa-arrow-down"></i> Me devem</p>
                 <p id="valTotalMeDevem" class="text-base md:text-lg font-black text-emerald-600 vlr">R$ 0,00</p>
             </div>
             <div class="glass-card rounded-[22px] p-4 text-center">
-                <p class="text-[9px] font-black text-indigo-400 uppercase tracking-widest mb-1">⚖️ C/ acerto</p>
+                <p class="text-[9px] font-black text-indigo-400 uppercase tracking-widest mb-1"><i class="fas fa-scale-balanced"></i> C/ acerto</p>
                 <p id="valPessoasAcerto" class="text-base md:text-lg font-black text-indigo-600">0</p>
             </div>
         </div>
@@ -313,16 +313,16 @@ input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin
             <h3 class="text-sm font-bold text-slate-700 mb-3">Resumo</h3>
             <div class="grid grid-cols-2 gap-3 mb-4">
                 <div>
-                    <p class="text-[9px] font-bold text-rose-400 uppercase tracking-widest mb-1">🔴 Você deve</p>
+                    <p class="text-[9px] font-bold text-rose-400 uppercase tracking-widest mb-1"><i class="fas fa-arrow-up"></i> Você deve</p>
                     <p id="valPessoaEuDevo" class="text-lg font-black text-rose-600 vlr">R$ 0,00</p>
                 </div>
                 <div>
-                    <p class="text-[9px] font-bold text-emerald-400 uppercase tracking-widest mb-1">🟢 Ela deve</p>
+                    <p class="text-[9px] font-bold text-emerald-400 uppercase tracking-widest mb-1"><i class="fas fa-arrow-down"></i> Ela deve</p>
                     <p id="valPessoaMeDeve" class="text-lg font-black text-emerald-600 vlr">R$ 0,00</p>
                 </div>
             </div>
             <div class="bg-indigo-50 rounded-2xl p-4 text-center">
-                <p class="text-[9px] font-black text-indigo-400 uppercase tracking-widest mb-1">⚖️ Acerto do mês</p>
+                <p class="text-[9px] font-black text-indigo-400 uppercase tracking-widest mb-1"><i class="fas fa-scale-balanced"></i> Acerto do mês</p>
                 <p id="valAcertoPessoa" class="text-xl font-black text-indigo-700 vlr">Acertado</p>
             </div>
             <button onclick="gerarRelatorio()" class="btn-primary w-full mt-4"><i class="fas fa-share-nodes mr-2"></i>Gerar resumo p/ WhatsApp</button>
@@ -406,8 +406,8 @@ input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin
             <div>
                 <label class="field-label">Tipo *</label>
                 <div class="type-toggle">
-                    <button type="button" id="btnTipoDevo" onclick="setTipoLancamento('EU_DEVO')" class="type-btn">🔴 Eu devo</button>
-                    <button type="button" id="btnTipoDeve" onclick="setTipoLancamento('ME_DEVE')" class="type-btn">🟢 Me deve</button>
+                    <button type="button" id="btnTipoDevo" onclick="setTipoLancamento('EU_DEVO')" class="type-btn"><i class="fas fa-arrow-up mr-1"></i>Eu devo</button>
+                    <button type="button" id="btnTipoDeve" onclick="setTipoLancamento('ME_DEVE')" class="type-btn"><i class="fas fa-arrow-down mr-1"></i>Me deve</button>
                 </div>
             </div>
             <div class="grid grid-cols-2 gap-3">
@@ -465,7 +465,7 @@ input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin
 
                 <label class="flex items-center gap-2 cursor-pointer">
                     <input type="checkbox" id="flRecorrente" class="w-4 h-4 accent-violet-600 cursor-pointer" onchange="toggleRecorrencia()">
-                    <span class="text-xs font-bold text-slate-700">🔁 Assinatura / conta fixa (recorrente, sem data para terminar)</span>
+                    <span class="text-xs font-bold text-slate-700"><i class="fas fa-rotate text-violet-600"></i> Assinatura / conta fixa (recorrente, sem data para terminar)</span>
                 </label>
                 <div id="wrapRecorrente" class="hidden">
                     <p class="text-[10px] text-slate-400 font-semibold">Este lançamento se repetirá todo mês com o mesmo valor e descrição, automaticamente, até você encerrar a assinatura pela tela da pessoa. O valor acima <b>não</b> é dividido.</p>
@@ -711,7 +711,8 @@ function setLoading(ativo) {
 }
 function toast(msg, tipo) {
     const el = document.getElementById('toastMsg');
-    el.textContent = msg;
+    const icone = tipo === 'erro' ? 'fa-circle-xmark' : 'fa-circle-check';
+    el.innerHTML = `<i class="fas ${icone}"></i> ${escapeHtml(msg)}`;
     el.classList.remove('erro');
     if (tipo === 'erro') el.classList.add('erro');
     el.classList.add('show');
@@ -776,11 +777,11 @@ async function carregarTudo(manual) {
         state.pessoas = (pessoas || []).filter(p => p.ATIVO !== false && p.ATIVO !== 'FALSE' && p.ATIVO !== 'false');
         state.lancamentos = (lancamentos || []).map(normalizarCamposLancamento);
         renderTudo();
-        if (manual) toast('✅ Dados atualizados');
+        if (manual) toast('Dados atualizados');
     } catch (e) {
         console.error(e);
         document.getElementById('erroConexao').style.display = 'block';
-        toast('❌ Não foi possível conectar ao servidor', 'erro');
+        toast('Não foi possível conectar ao servidor', 'erro');
     } finally {
         state.carregando = false;
         setLoading(false);
@@ -985,7 +986,7 @@ function renderPessoaDetail() {
         document.getElementById('listaProxParcelas').innerHTML = futuros.map(l => `
             <div class="flex items-center justify-between text-xs font-semibold text-slate-600 bg-white/50 rounded-xl px-3 py-2">
                 <span>${formatDataCurta(l.VENCIMENTO || l.DATA)} • ${escapeHtml(l.DESCRICAO)}</span>
-                <span class="font-black ${l.TIPO === 'EU_DEVO' ? 'text-rose-500' : 'text-emerald-500'} vlr">${formatBRL(l.VALOR)} ${l.TIPO === 'EU_DEVO' ? '🔴' : '🟢'}</span>
+                <span class="font-black ${l.TIPO === 'EU_DEVO' ? 'text-rose-500' : 'text-emerald-500'} vlr">${formatBRL(l.VALOR)} <i class="fas ${l.TIPO === 'EU_DEVO' ? 'fa-arrow-up' : 'fa-arrow-down'}"></i></span>
             </div>`).join('');
     } else {
         cardParc.style.display = 'none';
@@ -1027,7 +1028,7 @@ function cardLancamento(l) {
             </div>
             <div class="text-right flex-shrink-0">
                 <p class="font-black text-sm ${l.TIPO === 'EU_DEVO' ? 'text-rose-600' : 'text-emerald-600'} vlr">${formatBRL(l.VALOR)}</p>
-                <span class="status-pill ${pago ? 'pago' : 'pendente'} mt-1 inline-flex">${pago ? '✅ Pago' : '⏳ Pendente'}</span>
+                <span class="status-pill ${pago ? 'pago' : 'pendente'} mt-1 inline-flex"><i class="fas ${pago ? 'fa-circle-check' : 'fa-clock'}"></i> ${pago ? 'Pago' : 'Pendente'}</span>
             </div>
         </div>
         <div class="flex items-center gap-2 justify-end mt-3 pt-2 border-t border-slate-100">
@@ -1106,7 +1107,7 @@ function abrirModalPessoa(modo, id) {
 }
 async function salvarPessoa() {
     const nome = document.getElementById('fpNome').value.trim();
-    if (!nome) { toast('❌ Informe o nome', 'erro'); return; }
+    if (!nome) { toast('Informe o nome', 'erro'); return; }
     const dados = {
         NOME: nome,
         APELIDO: document.getElementById('fpApelido').value.trim(),
@@ -1119,19 +1120,19 @@ async function salvarPessoa() {
         if (modoModalPessoa === 'criar') {
             const nova = await apiPost('criarPessoa', { pessoa: dados });
             state.pessoas.push(nova);
-            toast('✅ Pessoa criada');
+            toast('Pessoa criada');
         } else {
             dados.ID = idPessoaEditando;
             await apiPost('editarPessoa', { pessoa: dados });
             const i = state.pessoas.findIndex(x => x.ID === idPessoaEditando);
             if (i > -1) state.pessoas[i] = { ...state.pessoas[i], ...dados };
-            toast('✅ Alteração salva');
+            toast('Alteração salva');
         }
         fecharModal('modalPessoa');
         renderTudo();
     } catch (e) {
         console.error(e);
-        toast('❌ ' + (e.message || 'Não foi possível salvar'), 'erro');
+        toast(e.message || 'Não foi possível salvar', 'erro');
     } finally {
         travarBotao('btnSalvarPessoa', false);
         setLoading(false);
@@ -1156,11 +1157,11 @@ function confirmarExcluirPessoa(id) {
                 await apiPost('excluirPessoa', { id });
                 state.pessoas = state.pessoas.filter(x => x.ID !== id);
                 if (pessoaAtualId === id) mostrarView('pessoas');
-                toast('🗑️ Pessoa excluída');
+                toast('Pessoa excluída');
                 renderTudo();
             } catch (e) {
                 console.error(e);
-                toast('❌ ' + (e.message || 'Não foi possível excluir'), 'erro');
+                toast(e.message || 'Não foi possível excluir', 'erro');
             } finally { setLoading(false); }
         }
     });
@@ -1242,7 +1243,7 @@ function abrirModalLancamento(modo, id, pessoaIdPreSelecionada) {
     document.getElementById('wrapRecorrente').classList.add('hidden');
 
     if (state.pessoas.length === 0) {
-        toast('❌ Cadastre uma pessoa antes de lançar', 'erro');
+        toast('Cadastre uma pessoa antes de lançar', 'erro');
         return;
     }
 
@@ -1286,16 +1287,16 @@ function abrirModalLancamento(modo, id, pessoaIdPreSelecionada) {
 }
 
 function validarLancamentoForm() {
-    if (!document.getElementById('flPessoa').value) { toast('❌ Selecione uma pessoa', 'erro'); return null; }
-    if (!tipoLancamentoSelecionado) { toast('❌ Selecione o tipo (eu devo / me deve)', 'erro'); return null; }
+    if (!document.getElementById('flPessoa').value) { toast('Selecione uma pessoa', 'erro'); return null; }
+    if (!tipoLancamentoSelecionado) { toast('Selecione o tipo (eu devo / me deve)', 'erro'); return null; }
     const valor = parseBRL(document.getElementById('flValor').value);
-    if (!valor || valor <= 0) { toast('❌ Informe um valor válido', 'erro'); return null; }
+    if (!valor || valor <= 0) { toast('Informe um valor válido', 'erro'); return null; }
     const descricao = document.getElementById('flDescricao').value.trim();
-    if (!descricao) { toast('❌ Informe a descrição', 'erro'); return null; }
+    if (!descricao) { toast('Informe a descrição', 'erro'); return null; }
     const data = document.getElementById('flData').value;
-    if (!data) { toast('❌ Informe a data', 'erro'); return null; }
+    if (!data) { toast('Informe a data', 'erro'); return null; }
     const mesReferencia = document.getElementById('flMesReferencia').value;
-    if (!mesReferencia) { toast('❌ Informe o mês de referência', 'erro'); return null; }
+    if (!mesReferencia) { toast('Informe o mês de referência', 'erro'); return null; }
     return {
         PESSOA_ID: document.getElementById('flPessoa').value,
         TIPO: tipoLancamentoSelecionado,
@@ -1335,7 +1336,7 @@ async function salvarLancamento() {
                 if (recorrente) {
                     const salvos = await apiPost('criarLancamentoRecorrente', { lancamento: { ...base, CATEGORIA: 'RECORRENTE' } });
                     aplicarRetorno(salvos);
-                    toast('✅ Assinatura/conta fixa criada');
+                    toast('Assinatura/conta fixa criada');
                 } else if (parcelado) {
                     const n = Math.max(2, parseInt(document.getElementById('flNumParcelas').value, 10) || 2);
                     const valorParcela = +(base.VALOR / n).toFixed(2);
@@ -1361,11 +1362,11 @@ async function salvarLancamento() {
                     }
                     const salvos = await apiPost('criarLancamentosEmLote', { lancamentos: criados });
                     (salvos || criados).map(normalizarCamposLancamento).forEach(l => state.lancamentos.push(l));
-                    toast(`✅ ${n} parcelas criadas`);
+                    toast(`${n} parcelas criadas`);
                 } else {
                     const novo = await apiPost('criarLancamento', { lancamento: base });
                     state.lancamentos.push(normalizarCamposLancamento(novo));
-                    toast('✅ Lançamento criado');
+                    toast('Lançamento criado');
                 }
             } else {
                 base.ID = idLancamentoEditando;
@@ -1377,13 +1378,13 @@ async function salvarLancamento() {
                     const i = state.lancamentos.findIndex(x => mesmoId(x.ID, idLancamentoEditando));
                     if (i > -1) state.lancamentos[i] = normalizarCamposLancamento({ ...state.lancamentos[i], ...base });
                 }
-                toast('✅ Alteração salva');
+                toast('Alteração salva');
             }
             fecharModal('modalLancamento');
             renderTudo();
         } catch (e) {
             console.error(e);
-            toast('❌ ' + (e.message || 'Não foi possível salvar'), 'erro');
+            toast(e.message || 'Não foi possível salvar', 'erro');
         } finally {
             travarBotao('btnSalvarLancamento', false);
             setLoading(false);
@@ -1423,11 +1424,11 @@ function confirmarExcluirLancamento(id) {
             try {
                 await apiPost('excluirLancamento', { id });
                 state.lancamentos = state.lancamentos.filter(x => !mesmoId(x.ID, id));
-                toast('🗑️ Lançamento excluído');
+                toast('Lançamento excluído');
                 renderTudo();
             } catch (e) {
                 console.error(e);
-                toast('❌ ' + (e.message || 'Não foi possível excluir'), 'erro');
+                toast(e.message || 'Não foi possível excluir', 'erro');
             } finally { setLoading(false); }
         }
     });
@@ -1448,11 +1449,11 @@ function confirmarMarcarPago(id) {
                 await apiPost('marcarComoPago', { id, dataPagamento });
                 l.STATUS = 'PAGO';
                 l.DATA_PAGAMENTO = dataPagamento;
-                toast('✅ Pagamento registrado');
+                toast('Pagamento registrado');
                 renderTudo();
             } catch (e) {
                 console.error(e);
-                toast('❌ ' + (e.message || 'Não foi possível registrar o pagamento'), 'erro');
+                toast(e.message || 'Não foi possível registrar o pagamento', 'erro');
             } finally { setLoading(false); }
         }
     });
@@ -1471,11 +1472,11 @@ function confirmarReverterPagamento(id) {
                 await apiPost('reverterPagamento', { id });
                 l.STATUS = 'PENDENTE';
                 l.DATA_PAGAMENTO = '';
-                toast('↩️ Pagamento revertido');
+                toast('Pagamento revertido');
                 renderTudo();
             } catch (e) {
                 console.error(e);
-                toast('❌ ' + (e.message || 'Não foi possível reverter o pagamento'), 'erro');
+                toast(e.message || 'Não foi possível reverter o pagamento', 'erro');
             } finally { setLoading(false); }
         }
     });
@@ -1500,11 +1501,11 @@ function confirmarEncerrarRecorrencia(id) {
                         x.RECORRENCIA_ATIVA = false;
                     }
                 });
-                toast('⏹️ Assinatura encerrada');
+                toast('Assinatura encerrada');
                 renderTudo();
             } catch (e) {
                 console.error(e);
-                toast('❌ ' + (e.message || 'Não foi possível encerrar'), 'erro');
+                toast(e.message || 'Não foi possível encerrar', 'erro');
             } finally { setLoading(false); }
         }
     });
@@ -1523,6 +1524,75 @@ function roundRect(ctx, x, y, w, h, r) {
     ctx.arcTo(x, y + h, x, y, r);
     ctx.arcTo(x, y, x + w, y, r);
     ctx.closePath();
+}
+/**
+ * Ícones vetoriais desenhados diretamente no canvas (sem depender de fonte de
+ * ícones nem de emoji), usados no relatório de imagem. cx/cy = centro do
+ * ícone, tamanho = largura/altura aproximada em px, cor = stroke/fill.
+ */
+function drawIcone(ctx, tipo, cx, cy, tamanho, cor) {
+    ctx.save();
+    ctx.strokeStyle = cor;
+    ctx.fillStyle = cor;
+    ctx.lineWidth = Math.max(1.6, tamanho * 0.13);
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    const r = tamanho / 2;
+    switch (tipo) {
+        case 'seta-cima':
+            ctx.beginPath();
+            ctx.moveTo(cx, cy - r); ctx.lineTo(cx, cy + r * 0.7);
+            ctx.moveTo(cx - r * 0.55, cy - r * 0.35); ctx.lineTo(cx, cy - r); ctx.lineTo(cx + r * 0.55, cy - r * 0.35);
+            ctx.stroke();
+            break;
+        case 'seta-baixo':
+            ctx.beginPath();
+            ctx.moveTo(cx, cy - r * 0.7); ctx.lineTo(cx, cy + r);
+            ctx.moveTo(cx - r * 0.55, cy + r * 0.35); ctx.lineTo(cx, cy + r); ctx.lineTo(cx + r * 0.55, cy + r * 0.35);
+            ctx.stroke();
+            break;
+        case 'relogio': // "em aberto"
+            ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(cx, cy); ctx.lineTo(cx, cy - r * 0.55);
+            ctx.moveTo(cx, cy); ctx.lineTo(cx + r * 0.45, cy + r * 0.15);
+            ctx.stroke();
+            break;
+        case 'check': // "pago"
+            ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(cx - r * 0.45, cy + r * 0.02);
+            ctx.lineTo(cx - r * 0.1, cy + r * 0.4);
+            ctx.lineTo(cx + r * 0.5, cy - r * 0.4);
+            ctx.stroke();
+            break;
+        case 'cartao': // dívidas avulsas
+            roundRect(ctx, cx - r, cy - r * 0.68, r * 2, r * 1.36, r * 0.22); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(cx - r, cy - r * 0.14); ctx.lineTo(cx + r, cy - r * 0.14); ctx.stroke();
+            break;
+        case 'camadas': // parcelamentos
+            [-0.35, 0, 0.35].forEach((dy, i) => {
+                ctx.globalAlpha = i === 1 ? 1 : 0.5;
+                roundRect(ctx, cx - r * 0.8, cy + dy * r - r * 0.22, r * 1.6, r * 0.44, r * 0.12); ctx.stroke();
+            });
+            ctx.globalAlpha = 1;
+            break;
+        case 'rotacao': { // recorrente / assinatura
+            ctx.beginPath(); ctx.arc(cx, cy, r * 0.72, -Math.PI * 0.15, Math.PI * 1.35); ctx.stroke();
+            const ax = cx + Math.cos(Math.PI * 1.35) * r * 0.72, ay = cy + Math.sin(Math.PI * 1.35) * r * 0.72;
+            ctx.beginPath();
+            ctx.moveTo(ax - r * 0.28, ay - r * 0.05); ctx.lineTo(ax, ay); ctx.lineTo(ax + r * 0.05, ay - r * 0.3);
+            ctx.stroke();
+            break;
+        }
+        case 'balanca': // acerto/saldo
+            ctx.beginPath(); ctx.moveTo(cx, cy - r); ctx.lineTo(cx, cy + r * 0.6); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(cx - r * 0.75, cy - r * 0.4); ctx.lineTo(cx + r * 0.75, cy - r * 0.4); ctx.stroke();
+            ctx.beginPath(); ctx.arc(cx - r * 0.75, cy - r * 0.05, r * 0.3, 0, Math.PI, false); ctx.stroke();
+            ctx.beginPath(); ctx.arc(cx + r * 0.75, cy - r * 0.05, r * 0.3, 0, Math.PI, false); ctx.stroke();
+            break;
+    }
+    ctx.restore();
 }
 function truncarTexto(ctx, texto, maxLargura) {
     texto = String(texto);
@@ -1554,9 +1624,9 @@ function novoSubgrupoDirecao() {
 }
 function calcularDetalhesCategoria(itens) {
     const cats = {
-        AVULSO: { chave: 'AVULSO', label: 'Dívidas avulsas', emoji: '💳', qtd: 0, euDevo: novoSubgrupoDirecao(), meDeve: novoSubgrupoDirecao() },
-        PARCELADO: { chave: 'PARCELADO', label: 'Parcelamentos', emoji: '📦', qtd: 0, euDevo: novoSubgrupoDirecao(), meDeve: novoSubgrupoDirecao() },
-        RECORRENTE: { chave: 'RECORRENTE', label: 'Assinaturas/contas fixas', emoji: '🔁', qtd: 0, euDevo: novoSubgrupoDirecao(), meDeve: novoSubgrupoDirecao() },
+        AVULSO: { chave: 'AVULSO', label: 'Dívidas avulsas', qtd: 0, euDevo: novoSubgrupoDirecao(), meDeve: novoSubgrupoDirecao() },
+        PARCELADO: { chave: 'PARCELADO', label: 'Parcelamentos', qtd: 0, euDevo: novoSubgrupoDirecao(), meDeve: novoSubgrupoDirecao() },
+        RECORRENTE: { chave: 'RECORRENTE', label: 'Assinaturas/contas fixas', qtd: 0, euDevo: novoSubgrupoDirecao(), meDeve: novoSubgrupoDirecao() },
     };
     itens.forEach(l => {
         const cat = cats[l.CATEGORIA] || cats.AVULSO;
@@ -1711,8 +1781,11 @@ async function gerarRelatorio() {
 
         categorias.forEach(cat => {
             const totalCat = cat.euDevo.pendente + cat.euDevo.pago + cat.meDeve.pendente + cat.meDeve.pago;
+            const iconeCat = { AVULSO: 'cartao', PARCELADO: 'camadas', RECORRENTE: 'rotacao' }[cat.chave] || 'cartao';
+            const tamIconeCat = 30;
+            drawIcone(ctx, iconeCat, margem + 44 + tamIconeCat / 2, qy - 9, tamIconeCat, '#a5b4fc');
             ctx.font = fonteRelatorio(700, 27); ctx.fillStyle = '#e2e8f0';
-            ctx.fillText(`${cat.emoji} ${cat.label}`, margem + 44, qy);
+            ctx.fillText(cat.label, margem + 44 + tamIconeCat + 14, qy);
 
             ctx.textAlign = 'right'; ctx.font = fonteRelatorio(800, 27); ctx.fillStyle = '#f8fafc';
             ctx.fillText(formatBRL(totalCat), W - margem - 44, qy);
@@ -1720,13 +1793,15 @@ async function gerarRelatorio() {
             qy += ALTURA_CABECALHO_CATEGORIA;
 
             [
-                { sub: cat.euDevo, label: '🔴 Eu devo', cor: '#fb7185' },
-                { sub: cat.meDeve, label: '🟢 A pessoa deve', cor: '#34d399' },
-            ].forEach(({ sub, label, cor }) => {
+                { sub: cat.euDevo, label: 'Eu devo', cor: '#fb7185', icone: 'seta-cima' },
+                { sub: cat.meDeve, label: 'A pessoa deve', cor: '#34d399', icone: 'seta-baixo' },
+            ].forEach(({ sub, label, cor, icone }) => {
                 if (sub.qtd === 0) return;
 
+                const tamIconeDir = 22;
+                drawIcone(ctx, icone, margem + 60 + tamIconeDir / 2, qy - 7, tamIconeDir, cor);
                 ctx.font = fonteRelatorio(700, 22); ctx.fillStyle = cor;
-                ctx.fillText(label, margem + 60, qy);
+                ctx.fillText(label, margem + 60 + tamIconeDir + 10, qy);
                 ctx.textAlign = 'right'; ctx.font = fonteRelatorio(800, 24); ctx.fillStyle = '#f1f5f9';
                 ctx.fillText(formatBRL(sub.pendente + sub.pago), W - margem - 44, qy);
                 ctx.textAlign = 'left';
@@ -1739,11 +1814,22 @@ async function gerarRelatorio() {
                     qy += 30;
                 }
 
-                ctx.font = fonteRelatorio(600, 19); ctx.fillStyle = '#64748b';
-                const partes = [];
-                if (sub.pendente > 0) partes.push(`⏳ Em aberto: ${formatBRL(sub.pendente)}`);
-                if (sub.pago > 0) partes.push(`✅ Pago: ${formatBRL(sub.pago)}`);
-                ctx.fillText(partes.join('   ·   '), margem + 60, qy);
+                ctx.font = fonteRelatorio(600, 19);
+                let px = margem + 60;
+                if (sub.pendente > 0) {
+                    drawIcone(ctx, 'relogio', px + 9, qy - 6, 18, '#64748b');
+                    px += 26;
+                    ctx.fillStyle = '#64748b';
+                    const t1 = `Em aberto: ${formatBRL(sub.pendente)}`;
+                    ctx.fillText(t1, px, qy);
+                    px += ctx.measureText(t1).width + 26;
+                }
+                if (sub.pago > 0) {
+                    drawIcone(ctx, 'check', px + 9, qy - 6, 18, '#64748b');
+                    px += 26;
+                    ctx.fillStyle = '#64748b';
+                    ctx.fillText(`Pago: ${formatBRL(sub.pago)}`, px, qy);
+                }
                 qy += 42;
             });
 
@@ -1792,7 +1878,6 @@ async function gerarRelatorio() {
             itensFuturosInfo.forEach((itemInfo) => {
                 const { l, temParcela } = itemInfo;
                 const cor = l.TIPO === 'EU_DEVO' ? '#fb7185' : '#34d399';
-                const emoji = l.TIPO === 'EU_DEVO' ? '🔴' : '🟢';
 
                 // Data (tom neutro) ... espaço maior ... Descrição (destacada), bem separadas
                 const dataTexto = formatDataCurta(l.VENCIMENTO || l.DATA);
@@ -1805,24 +1890,34 @@ async function gerarRelatorio() {
                 const descTruncada = truncarTexto(ctx, l.DESCRICAO, larguraConteudo * 0.4);
                 ctx.fillText(descTruncada, xDescricao, py);
 
+                const tamIconeValor = 20;
                 ctx.textAlign = 'right'; ctx.font = fonteRelatorio(800, 25); ctx.fillStyle = cor;
-                ctx.fillText(`${formatBRL(l.VALOR)} ${emoji}`, W - margem - 44, py);
+                const xValorDireita = W - margem - 44 - tamIconeValor - 10;
+                ctx.fillText(formatBRL(l.VALOR), xValorDireita, py);
                 ctx.textAlign = 'left';
+                drawIcone(ctx, l.TIPO === 'EU_DEVO' ? 'seta-cima' : 'seta-baixo', W - margem - 44 - tamIconeValor / 2, py - 7, tamIconeValor, cor);
                 py += 44;
 
                 // Chip da parcela/assinatura — visualmente separado da data, numa linha própria
                 if (temParcela || itemInfo.temRecorrente) {
                     const chipTexto = itemInfo.temRecorrente
-                        ? '🔁 ASSINATURA'
+                        ? 'ASSINATURA'
                         : `PARCELA ${String(l.PARCELA_ATUAL).padStart(2, '0')}/${String(l.PARCELA_TOTAL).padStart(2, '0')}`;
                     ctx.font = fonteRelatorio(800, 18);
                     const largChip = ctx.measureText(chipTexto).width;
+                    const tamIconeChip = itemInfo.temRecorrente ? 16 : 0;
+                    const espacoIcone = itemInfo.temRecorrente ? tamIconeChip + 8 : 0;
                     const chipPadX = 14, chipAltura = 32;
                     const chipX = margem + 44, chipY = py - 23;
                     ctx.fillStyle = itemInfo.temRecorrente ? 'rgba(167,139,250,0.18)' : 'rgba(129,140,248,0.16)';
-                    roundRect(ctx, chipX, chipY, largChip + chipPadX * 2, chipAltura, 16); ctx.fill();
+                    roundRect(ctx, chipX, chipY, largChip + espacoIcone + chipPadX * 2, chipAltura, 16); ctx.fill();
                     ctx.fillStyle = itemInfo.temRecorrente ? '#c4b5fd' : '#a5b4fc';
-                    ctx.fillText(chipTexto, chipX + chipPadX, chipY + 22);
+                    let textoX = chipX + chipPadX;
+                    if (itemInfo.temRecorrente) {
+                        drawIcone(ctx, 'rotacao', chipX + chipPadX + tamIconeChip / 2, chipY + chipAltura / 2, tamIconeChip, '#c4b5fd');
+                        textoX += espacoIcone;
+                    }
+                    ctx.fillText(chipTexto, textoX, chipY + 22);
                     py += 42;
                 } else {
                     py += 8;
@@ -1851,7 +1946,7 @@ function salvarImagemRelatorio() {
     link.download = 'resumo-poppefin.png';
     link.href = canvas.toDataURL('image/png');
     link.click();
-    toast('✅ Imagem salva');
+    toast('Imagem salva');
 }
 async function compartilharImagemRelatorio() {
     const canvas = document.getElementById('relatorioCanvas');
