@@ -377,7 +377,7 @@ input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin
             </div>
             <div>
                 <label class="field-label">Telefone</label>
-                <input id="fpTelefone" class="field-input" placeholder="(00) 00000-0000">
+                <input id="fpTelefone" class="field-input" placeholder="(00) 00000-0000" inputmode="numeric" maxlength="15" oninput="mascaraTelefone(this)">
             </div>
             <div>
                 <label class="field-label">Observação</label>
@@ -451,22 +451,48 @@ input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin
                 <textarea id="flObservacao" class="field-input" rows="2" placeholder="Opcional"></textarea>
             </div>
 
-            <!-- Parcelamento (somente ao criar) -->
-            <div id="blocoParcelamento" class="border-t border-slate-100 pt-3">
+            <!-- Parcelamento / Recorrência (somente ao criar) -->
+            <div id="blocoParcelamento" class="border-t border-slate-100 pt-3 space-y-3">
                 <label class="flex items-center gap-2 cursor-pointer">
                     <input type="checkbox" id="flParcelado" class="w-4 h-4 accent-indigo-600 cursor-pointer" onchange="toggleParcelamento()">
                     <span class="text-xs font-bold text-slate-700">Parcelar este lançamento</span>
                 </label>
-                <div id="wrapParcelas" class="mt-3 hidden">
+                <div id="wrapParcelas" class="hidden">
                     <label class="field-label">Número de parcelas</label>
                     <input id="flNumParcelas" type="number" min="2" max="60" value="2" class="field-input">
                     <p class="text-[10px] text-slate-400 font-semibold mt-1.5">O valor informado acima será dividido igualmente. Cada parcela vira um lançamento independente, uma por mês, a partir da data escolhida.</p>
+                </div>
+
+                <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" id="flRecorrente" class="w-4 h-4 accent-violet-600 cursor-pointer" onchange="toggleRecorrencia()">
+                    <span class="text-xs font-bold text-slate-700">🔁 Assinatura / conta fixa (recorrente, sem data para terminar)</span>
+                </label>
+                <div id="wrapRecorrente" class="hidden">
+                    <p class="text-[10px] text-slate-400 font-semibold">Este lançamento se repetirá todo mês com o mesmo valor e descrição, automaticamente, até você encerrar a assinatura pela tela da pessoa. O valor acima <b>não</b> é dividido.</p>
                 </div>
             </div>
         </div>
         <div class="flex gap-3 pt-5">
             <button onclick="fecharModal('modalLancamento')" class="btn-secondary flex-1">Cancelar</button>
             <button onclick="salvarLancamento()" id="btnSalvarLancamento" class="btn-primary flex-1">Salvar</button>
+        </div>
+    </div>
+</div>
+
+<!-- ======================= MODAL: ESCOPO DE EDIÇÃO DE RECORRÊNCIA ======================= -->
+<div id="modalEscopoRecorrencia" class="modal-overlay md-center">
+    <div class="modal-sheet" style="border-radius:28px;">
+        <div class="text-center pt-2">
+            <div class="w-14 h-14 rounded-2xl mx-auto flex items-center justify-center mb-4 bg-violet-50">
+                <i class="fas fa-rotate text-violet-600 text-xl"></i>
+            </div>
+            <h3 id="escopoTitulo" class="text-base font-black text-slate-800 mb-2">Aplicar alteração a quais meses?</h3>
+            <p class="text-xs text-slate-500 font-medium mb-1 leading-relaxed">Esta é uma assinatura/conta fixa recorrente. Meses anteriores nunca são alterados.</p>
+        </div>
+        <div class="flex flex-col gap-2.5 pt-5">
+            <button id="btnEscopoSomenteEste" class="btn-primary w-full text-sm">Somente este mês</button>
+            <button id="btnEscopoEsteEProximos" class="btn-secondary w-full text-sm" style="background:rgba(139,92,246,0.1); color:#7c3aed;">Este mês e os próximos</button>
+            <button onclick="fecharModal('modalEscopoRecorrencia')" class="text-xs font-bold text-slate-400 py-2">Cancelar</button>
         </div>
     </div>
 </div>
@@ -576,6 +602,24 @@ function mascaraMoeda(input) {
     const [int, dec] = v.split('.');
     input.value = int.replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ',' + dec;
 }
+/**
+ * Máscara de telefone brasileiro, aceita fixo (10 dígitos) e celular (11 dígitos):
+ * (00) 0000-0000 ou (00) 00000-0000. Formata progressivamente enquanto digita.
+ */
+function mascaraTelefone(input) {
+    let v = input.value.replace(/\D/g, '').slice(0, 11);
+    if (!v) { input.value = ''; return; }
+    if (v.length <= 2) {
+        v = v.replace(/^(\d{0,2})/, '($1');
+    } else if (v.length <= 6) {
+        v = v.replace(/^(\d{2})(\d{0,4})/, '($1) $2');
+    } else if (v.length <= 10) {
+        v = v.replace(/^(\d{2})(\d{4})(\d{0,4})/, '($1) $2-$3');
+    } else {
+        v = v.replace(/^(\d{2})(\d{5})(\d{0,4})/, '($1) $2-$3');
+    }
+    input.value = v;
+}
 function mesKeyDeData(d) {
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
 }
@@ -647,6 +691,9 @@ function iniciais(nome) {
 }
 function escapeHtml(s) {
     return String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+function paraBooleano(v) {
+    return v === true || v === 'true' || v === 'TRUE' || v === 'VERDADEIRO';
 }
 function mesmoId(a, b) {
     // IDs de pessoa são strings (UUID) e IDs de lançamento agora são números
@@ -960,6 +1007,11 @@ function cardLancamento(l) {
     const tipoClasse = l.TIPO === 'EU_DEVO' ? 'devo' : 'deve';
     const parcelaTag = l.PARCELA_TOTAL && Number(l.PARCELA_TOTAL) > 1
         ? `<span class="parcela-chip"><i class="fas fa-layer-group"></i>${l.PARCELA_ATUAL}/${l.PARCELA_TOTAL}</span>` : '';
+    const ehRecorrente = l.CATEGORIA === 'RECORRENTE';
+    const recorrenciaAtiva = paraBooleano(l.RECORRENCIA_ATIVA);
+    const recorrenciaTag = ehRecorrente
+        ? `<span class="parcela-chip" style="background:rgba(139,92,246,0.12); color:#7c3aed;"><i class="fas fa-rotate"></i>${recorrenciaAtiva ? 'Recorrente' : 'Encerrada'}</span>`
+        : '';
     return `
     <div class="lanc-card ${pago ? 'pago' : ''}">
         <div class="flex items-start gap-3">
@@ -967,7 +1019,7 @@ function cardLancamento(l) {
             <div class="flex-1 min-w-0">
                 <div class="flex items-center gap-2 flex-wrap">
                     <p class="font-bold text-sm text-slate-800">${escapeHtml(l.DESCRICAO)}</p>
-                    ${parcelaTag}
+                    ${parcelaTag}${recorrenciaTag}
                 </div>
                 <p class="text-[11px] text-slate-400 font-semibold mt-0.5">${formatDateBR(l.DATA)}${l.VENCIMENTO ? ' · vence ' + formatDateBR(l.VENCIMENTO) : ''}</p>
                 ${pago && l.DATA_PAGAMENTO ? `<p class="text-[10.5px] text-emerald-500 font-bold mt-0.5"><i class="fas fa-check-circle"></i> Pago em ${formatDateBR(l.DATA_PAGAMENTO)}</p>` : ''}
@@ -981,6 +1033,7 @@ function cardLancamento(l) {
         <div class="flex items-center gap-2 justify-end mt-3 pt-2 border-t border-slate-100">
             ${!pago ? `<button class="icon-btn pay" onclick="confirmarMarcarPago('${l.ID}')" title="Marcar como pago"><i class="fas fa-check"></i></button>` : ''}
             ${pago ? `<button class="icon-btn undo" onclick="confirmarReverterPagamento('${l.ID}')" title="Reverter para pendente"><i class="fas fa-rotate-left"></i></button>` : ''}
+            ${ehRecorrente && recorrenciaAtiva ? `<button class="icon-btn" style="background:rgba(139,92,246,0.1); color:#7c3aed;" onclick="confirmarEncerrarRecorrencia('${l.ID}')" title="Encerrar assinatura"><i class="fas fa-ban"></i></button>` : ''}
             <button class="icon-btn edit" onclick="abrirModalLancamento('editar','${l.ID}')" title="Editar"><i class="fas fa-pen"></i></button>
             <button class="icon-btn del" onclick="confirmarExcluirLancamento('${l.ID}')" title="Excluir"><i class="fas fa-trash"></i></button>
         </div>
@@ -995,6 +1048,20 @@ function fecharModal(id) { document.getElementById(id).style.display = 'none'; }
 document.querySelectorAll('.modal-overlay').forEach(ov => {
     ov.addEventListener('click', e => { if (e.target === ov) fecharModal(ov.id); });
 });
+
+function abrirModalEscopoRecorrencia({ titulo, onEscolher }) {
+    document.getElementById('escopoTitulo').textContent = titulo || 'Aplicar alteração a quais meses?';
+    const btnSomente = document.getElementById('btnEscopoSomenteEste');
+    const btnProximos = document.getElementById('btnEscopoEsteEProximos');
+    const executar = async (escopo) => {
+        [btnSomente, btnProximos].forEach(b => b.disabled = true);
+        try { await onEscolher(escopo); fecharModal('modalEscopoRecorrencia'); }
+        finally { [btnSomente, btnProximos].forEach(b => b.disabled = false); }
+    };
+    btnSomente.onclick = () => executar('somente_este');
+    btnProximos.onclick = () => executar('este_e_proximos');
+    abrirModal('modalEscopoRecorrencia');
+}
 
 function mostrarConfirm({ titulo, descricaoHtml, aviso, textoBotao, icone, corIcone, danger, onConfirm }) {
     document.getElementById('confirmTitulo').textContent = titulo;
@@ -1027,6 +1094,7 @@ function abrirModalPessoa(modo, id) {
         document.getElementById('fpNome').value = p.NOME || '';
         document.getElementById('fpApelido').value = p.APELIDO || '';
         document.getElementById('fpTelefone').value = p.TELEFONE || '';
+        mascaraTelefone(document.getElementById('fpTelefone'));
         document.getElementById('fpObservacao').value = p.OBSERVACAO || '';
     } else {
         document.getElementById('fpNome').value = '';
@@ -1143,7 +1211,20 @@ function sincronizarMesReferencia() {
     if (data) campoMes.value = data.slice(0, 7);
 }
 function toggleParcelamento() {
-    document.getElementById('wrapParcelas').classList.toggle('hidden', !document.getElementById('flParcelado').checked);
+    const ativo = document.getElementById('flParcelado').checked;
+    document.getElementById('wrapParcelas').classList.toggle('hidden', !ativo);
+    if (ativo) {
+        document.getElementById('flRecorrente').checked = false;
+        document.getElementById('wrapRecorrente').classList.add('hidden');
+    }
+}
+function toggleRecorrencia() {
+    const ativo = document.getElementById('flRecorrente').checked;
+    document.getElementById('wrapRecorrente').classList.toggle('hidden', !ativo);
+    if (ativo) {
+        document.getElementById('flParcelado').checked = false;
+        document.getElementById('wrapParcelas').classList.add('hidden');
+    }
 }
 
 function abrirModalLancamento(modo, id, pessoaIdPreSelecionada) {
@@ -1155,6 +1236,8 @@ function abrirModalLancamento(modo, id, pessoaIdPreSelecionada) {
     document.getElementById('blocoParcelamento').style.display = modo === 'criar' ? 'block' : 'none';
     document.getElementById('flParcelado').checked = false;
     document.getElementById('wrapParcelas').classList.add('hidden');
+    document.getElementById('flRecorrente').checked = false;
+    document.getElementById('wrapRecorrente').classList.add('hidden');
 
     if (state.pessoas.length === 0) {
         toast('❌ Cadastre uma pessoa antes de lançar', 'erro');
@@ -1164,7 +1247,9 @@ function abrirModalLancamento(modo, id, pessoaIdPreSelecionada) {
     if (modo === 'editar') {
         const l = state.lancamentos.find(x => mesmoId(x.ID, id));
         if (!l) return;
-        document.getElementById('tituloModalLancamento').innerHTML = '<i class="fas fa-pen text-indigo-600"></i> Editar lançamento';
+        document.getElementById('tituloModalLancamento').innerHTML = l.CATEGORIA === 'RECORRENTE'
+            ? '<i class="fas fa-rotate text-violet-600"></i> Editar assinatura / conta fixa'
+            : '<i class="fas fa-pen text-indigo-600"></i> Editar lançamento';
         document.getElementById('flPessoa').value = l.PESSOA_ID;
         setTipoLancamento(l.TIPO);
         document.getElementById('flValor').value = formatBRL(l.VALOR).replace('R$', '').trim();
@@ -1228,13 +1313,28 @@ async function salvarLancamento() {
     const pessoa = state.pessoas.find(p => p.ID === base.PESSOA_ID);
     base.PESSOA_NOME = pessoa ? pessoa.NOME : '';
 
-    const doExecutar = async () => {
+    const lancamentoEditando = modoModalLancamento === 'editar' ? state.lancamentos.find(x => mesmoId(x.ID, idLancamentoEditando)) : null;
+    const ehRecorrente = !!(lancamentoEditando && lancamentoEditando.CATEGORIA === 'RECORRENTE');
+
+    const aplicarRetorno = (itens) => {
+        (itens || []).map(normalizarCamposLancamento).forEach(l => {
+            const i = state.lancamentos.findIndex(x => mesmoId(x.ID, l.ID));
+            if (i > -1) state.lancamentos[i] = l; else state.lancamentos.push(l);
+        });
+    };
+
+    const doExecutar = async (escopo) => {
         travarBotao('btnSalvarLancamento', true);
         setLoading(true);
         try {
             if (modoModalLancamento === 'criar') {
                 const parcelado = document.getElementById('flParcelado').checked;
-                if (parcelado) {
+                const recorrente = document.getElementById('flRecorrente').checked;
+                if (recorrente) {
+                    const salvos = await apiPost('criarLancamentoRecorrente', { lancamento: { ...base, CATEGORIA: 'RECORRENTE' } });
+                    aplicarRetorno(salvos);
+                    toast('✅ Assinatura/conta fixa criada');
+                } else if (parcelado) {
                     const n = Math.max(2, parseInt(document.getElementById('flNumParcelas').value, 10) || 2);
                     const valorParcela = +(base.VALOR / n).toFixed(2);
                     const grupoId = uid();
@@ -1253,6 +1353,7 @@ async function salvarLancamento() {
                             PARCELA_ATUAL: i + 1,
                             PARCELA_TOTAL: n,
                             DESCRICAO: base.DESCRICAO,
+                            CATEGORIA: 'PARCELADO',
                         };
                         criados.push(item);
                     }
@@ -1266,9 +1367,14 @@ async function salvarLancamento() {
                 }
             } else {
                 base.ID = idLancamentoEditando;
-                await apiPost('editarLancamento', { lancamento: base });
-                const i = state.lancamentos.findIndex(x => mesmoId(x.ID, idLancamentoEditando));
-                if (i > -1) state.lancamentos[i] = normalizarCamposLancamento({ ...state.lancamentos[i], ...base });
+                if (ehRecorrente) {
+                    const atualizados = await apiPost('editarLancamentoRecorrente', { lancamento: base, escopo });
+                    aplicarRetorno(atualizados);
+                } else {
+                    await apiPost('editarLancamento', { lancamento: base });
+                    const i = state.lancamentos.findIndex(x => mesmoId(x.ID, idLancamentoEditando));
+                    if (i > -1) state.lancamentos[i] = normalizarCamposLancamento({ ...state.lancamentos[i], ...base });
+                }
                 toast('✅ Alteração salva');
             }
             fecharModal('modalLancamento');
@@ -1281,7 +1387,12 @@ async function salvarLancamento() {
         }
     };
 
-    if (modoModalLancamento === 'editar') {
+    if (modoModalLancamento === 'editar' && ehRecorrente) {
+        abrirModalEscopoRecorrencia({
+            titulo: 'Salvar alteração da assinatura em quais meses?',
+            onEscolher: (escopo) => doExecutar(escopo),
+        });
+    } else if (modoModalLancamento === 'editar') {
         mostrarConfirm({
             titulo: 'Deseja salvar estas alterações?',
             descricaoHtml: `${escapeHtml(base.PESSOA_NOME)} · ${escapeHtml(base.DESCRICAO)} · <b>${formatBRL(base.VALOR)}</b>`,
@@ -1364,6 +1475,34 @@ function confirmarReverterPagamento(id) {
     });
 }
 
+function confirmarEncerrarRecorrencia(id) {
+    const l = state.lancamentos.find(x => mesmoId(x.ID, id));
+    if (!l || !l.RECORRENCIA_GRUPO_ID) return;
+    mostrarConfirm({
+        titulo: 'Encerrar assinatura/conta fixa?',
+        descricaoHtml: `${escapeHtml(l.PESSOA_NOME)}<br>${escapeHtml(l.DESCRICAO)} · <b>${formatBRL(l.VALOR)}</b>/mês`,
+        aviso: `Os lançamentos já existentes (inclusive de meses anteriores) são mantidos no histórico. A partir de ${mesLabel(l.MES_REFERENCIA)}, nenhum novo mês será gerado automaticamente.`,
+        textoBotao: 'Encerrar assinatura',
+        icone: 'fa-ban',
+        danger: true,
+        onConfirm: async () => {
+            setLoading(true);
+            try {
+                await apiPost('encerrarRecorrencia', { grupoId: l.RECORRENCIA_GRUPO_ID, apartirDoMes: l.MES_REFERENCIA });
+                state.lancamentos.forEach(x => {
+                    if (x.RECORRENCIA_GRUPO_ID === l.RECORRENCIA_GRUPO_ID && String(x.MES_REFERENCIA) >= String(l.MES_REFERENCIA)) {
+                        x.RECORRENCIA_ATIVA = false;
+                    }
+                });
+                toast('⏹️ Assinatura encerrada');
+                renderTudo();
+            } catch (e) {
+                toast('❌ Não foi possível encerrar', 'erro');
+            } finally { setLoading(false); }
+        }
+    });
+}
+
 /* =====================================================================
    GERAÇÃO DE IMAGEM (relatório para WhatsApp) — canvas 1080x1920
    Design: dark, minimalista, resultado líquido como elemento dominante.
@@ -1397,6 +1536,33 @@ function fonteRelatorio(peso, tamanho) {
  *   = 0  → está QUITADO
  * (considera apenas lançamentos pendentes, como o restante do app)
  */
+/**
+ * Divide os lançamentos do mês em três categorias (dívidas avulsas,
+ * parcelamentos e assinaturas/contas fixas), somando separadamente o que
+ * está pago e o que ainda está em aberto em cada uma — usado no relatório
+ * para diferenciar claramente dívidas, acertos e assinaturas.
+ */
+function calcularDetalhesCategoria(itens) {
+    const cats = {
+        AVULSO: { chave: 'AVULSO', label: 'Dívidas avulsas', emoji: '💳', pendente: 0, pago: 0, qtd: 0, nomes: [] },
+        PARCELADO: { chave: 'PARCELADO', label: 'Parcelamentos', emoji: '📦', pendente: 0, pago: 0, qtd: 0, nomes: [] },
+        RECORRENTE: { chave: 'RECORRENTE', label: 'Assinaturas/contas fixas', emoji: '🔁', pendente: 0, pago: 0, qtd: 0, nomes: [] },
+    };
+    itens.forEach(l => {
+        const cat = cats[l.CATEGORIA] || cats.AVULSO;
+        const v = Number(l.VALOR) || 0;
+        const pago = String(l.STATUS).toUpperCase() === 'PAGO';
+        if (pago) cat.pago += v; else cat.pendente += v;
+        cat.qtd++;
+        if (l.DESCRICAO && !cat.nomes.includes(l.DESCRICAO)) cat.nomes.push(l.DESCRICAO);
+    });
+    return Object.values(cats)
+        .filter(c => c.qtd > 0)
+        .map(c => ({
+            ...c,
+            nomesTexto: c.nomes.length <= 2 ? c.nomes.join(', ') : `${c.nomes.slice(0, 2).join(', ')} +${c.nomes.length - 2}`,
+        }));
+}
 function calcularSaldoLiquido(calc) {
     const saldo = +(calc.meDevem - calc.euDevo).toFixed(2);
     if (saldo > 0) return { status: 'RECEBER', saldo, cor: '#34d399' };
@@ -1428,14 +1594,22 @@ async function gerarRelatorio() {
     const temProximo = calcProx.itens.length > 0 || futuros.length > 0;
     const itensFuturosInfo = futuros.map(l => {
         const temParcela = !!(l.PARCELA_TOTAL && Number(l.PARCELA_TOTAL) > 1);
-        return { l, temParcela, altura: temParcela ? 86 : 52 };
+        const temRecorrente = l.CATEGORIA === 'RECORRENTE';
+        return { l, temParcela, temRecorrente, altura: (temParcela || temRecorrente) ? 86 : 52 };
     });
     const alturaItensFuturos = itensFuturosInfo.reduce((acc, it) => acc + it.altura, 0);
+    const categorias = calcularDetalhesCategoria(calc.itens);
     const alturaResultado = 660;
+    const ALTURA_LINHA_CATEGORIA = 114; // rótulo+valor, nomes dos itens, pago/em aberto, e respiro
+    const alturaCategorias = categorias.length > 0 ? (96 + categorias.length * ALTURA_LINHA_CATEGORIA + 24) : 0;
     const alturaProximo = temProximo ? (232 + (itensFuturosInfo.length > 0 ? 30 + alturaItensFuturos : 0)) : 0;
-    const fimConteudo = 350 + alturaResultado + 56 + (temProximo ? alturaProximo + 56 : 0);
+    const fimConteudo = 350 + alturaResultado + 56
+        + (categorias.length > 0 ? alturaCategorias + 56 : 0)
+        + (temProximo ? alturaProximo + 56 : 0);
     const W = 1080;
-    const H = Math.min(1920, Math.max(1400, Math.round(fimConteudo + 230)));
+    // Altura calculada dinamicamente a partir do conteúdo real — sem teto artificial,
+    // para nunca cortar informação nem sobrepor o rodapé (marca d'água + data).
+    const H = Math.max(1400, Math.round(fimConteudo + 230));
 
     const canvas = document.getElementById('relatorioCanvas');
     const ctx = canvas.getContext('2d');
@@ -1501,6 +1675,45 @@ async function gerarRelatorio() {
 
     y += alturaResultado + 56;
 
+    /* ---------- por categoria: dívidas, parcelamentos, assinaturas ---------- */
+    if (categorias.length > 0) {
+        ctx.fillStyle = 'rgba(255,255,255,0.03)';
+        roundRect(ctx, margem, y, larguraConteudo, alturaCategorias, 32); ctx.fill();
+        ctx.strokeStyle = 'rgba(255,255,255,0.07)'; ctx.lineWidth = 1.5;
+        roundRect(ctx, margem, y, larguraConteudo, alturaCategorias, 32); ctx.stroke();
+
+        let qy = y + 58;
+        ctx.textAlign = 'left'; ctx.fillStyle = '#818cf8'; ctx.font = fonteRelatorio(800, 24);
+        ctx.fillText('POR CATEGORIA', margem + 44, qy);
+        qy += 54;
+
+        categorias.forEach(cat => {
+            ctx.font = fonteRelatorio(700, 27); ctx.fillStyle = '#e2e8f0';
+            ctx.fillText(`${cat.emoji} ${cat.label}`, margem + 44, qy);
+
+            ctx.textAlign = 'right'; ctx.font = fonteRelatorio(800, 27); ctx.fillStyle = '#f8fafc';
+            ctx.fillText(formatBRL(cat.pendente + cat.pago), W - margem - 44, qy);
+            ctx.textAlign = 'left';
+            qy += 34;
+
+            if (cat.nomesTexto) {
+                ctx.font = fonteRelatorio(600, 21); ctx.fillStyle = '#a1a8b8';
+                const nomesTruncados = truncarTexto(ctx, cat.nomesTexto, larguraConteudo - 88);
+                ctx.fillText(nomesTruncados, margem + 44, qy);
+                qy += 32;
+            }
+
+            ctx.font = fonteRelatorio(600, 20); ctx.fillStyle = '#64748b';
+            const partes = [];
+            if (cat.pendente > 0) partes.push(`⏳ Em aberto: ${formatBRL(cat.pendente)}`);
+            if (cat.pago > 0) partes.push(`✅ Pago: ${formatBRL(cat.pago)}`);
+            ctx.fillText(partes.join('   ·   '), margem + 44, qy);
+            qy += 48;
+        });
+        y += alturaCategorias + 56;
+        ctx.textAlign = 'center';
+    }
+
     /* ---------- próximo mês (mini resumo) ---------- */
     if (temProximo) {
         ctx.fillStyle = 'rgba(255,255,255,0.03)';
@@ -1537,7 +1750,8 @@ async function gerarRelatorio() {
             ctx.beginPath(); ctx.moveTo(margem + 44, py); ctx.lineTo(W - margem - 44, py); ctx.stroke();
             py += 42;
             ctx.textAlign = 'left';
-            itensFuturosInfo.forEach(({ l, temParcela }) => {
+            itensFuturosInfo.forEach((itemInfo) => {
+                const { l, temParcela } = itemInfo;
                 const cor = l.TIPO === 'EU_DEVO' ? '#fb7185' : '#34d399';
                 const emoji = l.TIPO === 'EU_DEVO' ? '🔴' : '🟢';
 
@@ -1557,17 +1771,19 @@ async function gerarRelatorio() {
                 ctx.textAlign = 'left';
                 py += 44;
 
-                // Chip da parcela — visualmente separado da data, numa linha própria
-                if (temParcela) {
-                    const parcelaTexto = `PARCELA ${String(l.PARCELA_ATUAL).padStart(2, '0')}/${String(l.PARCELA_TOTAL).padStart(2, '0')}`;
+                // Chip da parcela/assinatura — visualmente separado da data, numa linha própria
+                if (temParcela || itemInfo.temRecorrente) {
+                    const chipTexto = itemInfo.temRecorrente
+                        ? '🔁 ASSINATURA'
+                        : `PARCELA ${String(l.PARCELA_ATUAL).padStart(2, '0')}/${String(l.PARCELA_TOTAL).padStart(2, '0')}`;
                     ctx.font = fonteRelatorio(800, 18);
-                    const largChip = ctx.measureText(parcelaTexto).width;
+                    const largChip = ctx.measureText(chipTexto).width;
                     const chipPadX = 14, chipAltura = 32;
                     const chipX = margem + 44, chipY = py - 23;
-                    ctx.fillStyle = 'rgba(129,140,248,0.16)';
+                    ctx.fillStyle = itemInfo.temRecorrente ? 'rgba(167,139,250,0.18)' : 'rgba(129,140,248,0.16)';
                     roundRect(ctx, chipX, chipY, largChip + chipPadX * 2, chipAltura, 16); ctx.fill();
-                    ctx.fillStyle = '#a5b4fc';
-                    ctx.fillText(parcelaTexto, chipX + chipPadX, chipY + 22);
+                    ctx.fillStyle = itemInfo.temRecorrente ? '#c4b5fd' : '#a5b4fc';
+                    ctx.fillText(chipTexto, chipX + chipPadX, chipY + 22);
                     py += 42;
                 } else {
                     py += 8;
