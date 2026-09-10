@@ -905,6 +905,28 @@ function textoAcerto(calc, nomePessoa) {
     if (calc.acerto.quem === 'EU') return `Você paga ${formatBRL(calc.acerto.valor)}`;
     return `${nomePessoa} paga ${formatBRL(calc.acerto.valor)}`;
 }
+/**
+ * Calcula o próximo mês de uma pessoa já projetando assinaturas/contas fixas
+ * ainda ativas que o backend ainda não gravou como lançamento daquele mês
+ * (a geração só roda no próximo carregamento de dados). Sem isso, uma
+ * assinatura recorrente "some" do próximo mês até a planilha ser atualizada.
+ */
+function calcularProximoMesComProjecao(pessoaId, mesKey) {
+    const calcBase = calcularPessoaMes(pessoaId, mesKey);
+    const idsJaContados = new Set(calcBase.itens.map(i => i.ID));
+    const assinaturasProjetadas = assinaturasDoMes(pessoaId, mesKey).filter(a => !idsJaContados.has(a.ID));
+    let euDevo = calcBase.euDevo, meDevem = calcBase.meDevem;
+    assinaturasProjetadas.forEach(a => {
+        const v = Number(a.VALOR) || 0;
+        if (a.TIPO === 'EU_DEVO') euDevo = +(euDevo + v).toFixed(2);
+        else meDevem = +(meDevem + v).toFixed(2);
+    });
+    let acerto;
+    if (euDevo > meDevem) acerto = { quem: 'EU', valor: +(euDevo - meDevem).toFixed(2) };
+    else if (meDevem > euDevo) acerto = { quem: 'PESSOA', valor: +(meDevem - euDevo).toFixed(2) };
+    else acerto = { quem: 'OK', valor: 0 };
+    return { euDevo, meDevem, acerto, itens: [...calcBase.itens, ...assinaturasProjetadas] };
+}
 
 /* =====================================================================
    RENDER: DASHBOARD
@@ -939,20 +961,21 @@ function renderDashboard() {
 }
 function cardPessoaDashboard(p, calc) {
     const acertoCor = calc.acerto.quem === 'EU' ? 'text-rose-600' : calc.acerto.quem === 'PESSOA' ? 'text-emerald-600' : 'text-slate-400';
+    const nomeExibido = escapeHtml(p.APELIDO || p.NOME);
     return `
     <div class="pessoa-card" onclick="abrirPessoa('${p.ID}')">
-        <div class="flex items-center gap-3">
+        <div class="flex items-start gap-3">
             <div class="avatar-circle">${iniciais(p.APELIDO || p.NOME)}</div>
             <div class="flex-1 min-w-0">
-                <p class="font-bold text-sm text-slate-800 truncate">${escapeHtml(p.APELIDO || p.NOME)}</p>
-                <div class="flex items-center gap-3 text-[11px] font-semibold text-slate-400 mt-0.5">
-                    <span>Você deve <b class="text-rose-500 vlr">${formatBRL(calc.euDevo)}</b></span>
-                    <span>${escapeHtml(p.APELIDO || p.NOME)} deve <b class="text-emerald-500 vlr">${formatBRL(calc.meDevem)}</b></span>
+                <p class="font-bold text-sm text-slate-800 truncate">${nomeExibido}</p>
+                <div class="flex flex-col gap-0.5 text-[11px] font-semibold text-slate-400 mt-1">
+                    <span class="truncate">Você deve <b class="text-rose-500 vlr">${formatBRL(calc.euDevo)}</b></span>
+                    <span class="truncate">${nomeExibido} deve <b class="text-emerald-500 vlr">${formatBRL(calc.meDevem)}</b></span>
                 </div>
             </div>
-            <div class="text-right flex-shrink-0">
-                <p class="font-black text-xs ${acertoCor} vlr">${textoAcerto(calc, p.APELIDO || p.NOME)}</p>
-                <i class="fas fa-chevron-right text-slate-300 text-[10px] mt-1"></i>
+            <div class="text-right flex-shrink-0 max-w-[38%] pl-1">
+                <p class="font-black text-xs ${acertoCor} vlr leading-tight break-words">${textoAcerto(calc, nomeExibido)}</p>
+                <i class="fas fa-chevron-right text-slate-300 text-[10px] mt-1.5"></i>
             </div>
         </div>
     </div>`;
@@ -1002,7 +1025,7 @@ function renderPessoaDetail() {
 
     // Próximo mês
     const proxMes = somarMes(state.mesPessoa, 1);
-    const calcProx = calcularPessoaMes(p.ID, proxMes);
+    const calcProx = calcularProximoMesComProjecao(p.ID, proxMes);
     const cardProx = document.getElementById('cardProximoMes');
     if (calcProx.itens.length > 0) {
         cardProx.style.display = 'block';
@@ -1702,18 +1725,9 @@ async function gerarRelatorio() {
 
     const calc = calcularPessoaMes(p.ID, state.mesPessoa);
     const proxMes = somarMes(state.mesPessoa, 1);
-    const calcProxBase = calcularPessoaMes(p.ID, proxMes);
     // Garante que assinaturas/contas fixas ainda ativas entrem no próximo mês mesmo que
     // o backend ainda não tenha gravado a linha daquele mês na planilha.
-    const idsJaContados = new Set(calcProxBase.itens.map(i => i.ID));
-    const assinaturasProjetadas = assinaturasDoMes(p.ID, proxMes).filter(a => !idsJaContados.has(a.ID));
-    let euDevoProx = calcProxBase.euDevo, meDevemProx = calcProxBase.meDevem;
-    assinaturasProjetadas.forEach(a => {
-        const v = Number(a.VALOR) || 0;
-        if (a.TIPO === 'EU_DEVO') euDevoProx = +(euDevoProx + v).toFixed(2);
-        else meDevemProx = +(meDevemProx + v).toFixed(2);
-    });
-    const calcProx = { euDevo: euDevoProx, meDevem: meDevemProx, itens: [...calcProxBase.itens, ...assinaturasProjetadas] };
+    const calcProx = calcularProximoMesComProjecao(p.ID, proxMes);
     const saldoProx = calcularSaldoLiquido(calcProx);
     const hoje = hojeISO();
     // "Próximo mês" mostra só o que realmente pertence a esse mês (inclusive assinaturas
@@ -1734,25 +1748,26 @@ async function gerarRelatorio() {
     });
     const alturaItensFuturos = itensFuturosInfo.reduce((acc, it) => acc + it.altura, 0);
     const categorias = calcularDetalhesCategoria(calc.itens);
-    const alturaResultado = 460; // card "saldo do mês" — compacto, pois "Por categoria" é o destaque visual agora
+    const alturaResultado = 476; // card "saldo do mês" — compacto, pois "Por categoria" é o destaque visual agora
 
     // ---- "Por categoria": cada categoria vira um subcard próprio, com cor distinta ----
-    const PAD_TOPO_SUB = 34;
-    const GAP_HEADER_TO_PRIMEIRO = 74;
+    const PAD_TOPO_SUB = 32;
+    const GAP_HEADER_TO_PRIMEIRO = 52;
     const LINE_LABEL_PARA_PROXIMA = 36;
     const LINE_NOMES_PARA_PROXIMA = 30;
-    const LINE_PAGOABERTO_GAP = 58; // espaço após a linha "em aberto/pago" — também serve de vão pra linha divisória
-    const PAD_BASE_SUB = 24;
+    const GAP_ENTRE_DIRECOES = 40; // vão entre "Eu devo" e "A pessoa deve" no mesmo subcard — contém a linha divisória
+    const GAP_FINAL_DIRECAO = 0;   // sem respiro extra após a última linha — quem fecha o card é o PAD_BASE_SUB
+    const PAD_BASE_SUB = 32;
     const GAP_ENTRE_SUBCARDS = 26;
     const TOPO_CONTAINER_CATEGORIAS = 122; // até o início do 1º subcard (título "POR CATEGORIA" + respiro)
     const BASE_CONTAINER_CATEGORIAS = 36;
     const PAD_ESQ_SUB = 44; // margem interna esquerda do subcard (ícone/texto)
     const PAD_DIR_SUB = 44; // margem interna direita do subcard (valores) — simétrica à esquerda
 
-    const alturaBlocoDirecao = sub => LINE_LABEL_PARA_PROXIMA + (sub.nomesTexto ? LINE_NOMES_PARA_PROXIMA : 0) + LINE_PAGOABERTO_GAP;
+    const alturaBlocoDirecao = (sub, ehUltima) => LINE_LABEL_PARA_PROXIMA + (sub.nomesTexto ? LINE_NOMES_PARA_PROXIMA : 0) + (ehUltima ? GAP_FINAL_DIRECAO : GAP_ENTRE_DIRECOES);
     const alturaSubcard = cat => {
         const direcoes = [cat.euDevo, cat.meDeve].filter(s => s.qtd > 0);
-        return PAD_TOPO_SUB + GAP_HEADER_TO_PRIMEIRO + direcoes.reduce((acc, s) => acc + alturaBlocoDirecao(s), 0) + PAD_BASE_SUB;
+        return PAD_TOPO_SUB + GAP_HEADER_TO_PRIMEIRO + direcoes.reduce((acc, s, i) => acc + alturaBlocoDirecao(s, i === direcoes.length - 1), 0) + PAD_BASE_SUB;
     };
     const alturaCategorias = categorias.length > 0
         ? (TOPO_CONTAINER_CATEGORIAS
@@ -1799,9 +1814,9 @@ async function gerarRelatorio() {
     ctx.strokeStyle = 'rgba(255,255,255,0.08)'; ctx.lineWidth = 1.5;
     roundRect(ctx, margem, y, larguraConteudo, alturaResultado, 36); ctx.stroke();
 
-    let cy = y + 70;
-    ctx.fillStyle = '#8b95a8'; ctx.font = fonteRelatorio(700, 22);
-    ctx.fillText('SALDO DO MÊS', W / 2, cy); cy += 46;
+    let cy = y + 76;
+    ctx.fillStyle = '#8b95a8'; ctx.font = fonteRelatorio(800, 28);
+    ctx.fillText('SALDO DO MÊS', W / 2, cy); cy += 56;
 
     const rotuloResultado = resultado.status === 'QUITADO' ? 'ESTÁ QUITADO'
         : resultado.status === 'PAGAR' ? 'TENHO QUE PAGAR' : 'TENHO QUE RECEBER';
@@ -1903,30 +1918,16 @@ async function gerarRelatorio() {
                     sy += LINE_NOMES_PARA_PROXIMA;
                 }
 
-                ctx.font = fonteRelatorio(600, 18);
-                let px = xSub + PAD_ESQ_SUB;
-                if (sub.pendente > 0) {
-                    drawIcone(ctx, 'relogio', px + 8, sy - 6, 16, '#8790a3');
-                    px += 24;
-                    ctx.fillStyle = '#8790a3';
-                    const t1 = `Em aberto: ${formatBRL(sub.pendente)}`;
-                    ctx.fillText(t1, px, sy);
-                    px += ctx.measureText(t1).width + 24;
-                }
-                if (sub.pago > 0) {
-                    drawIcone(ctx, 'check', px + 8, sy - 6, 16, '#8790a3');
-                    px += 24;
-                    ctx.fillStyle = '#8790a3';
-                    ctx.fillText(`Pago: ${formatBRL(sub.pago)}`, px, sy);
-                }
-                sy += LINE_PAGOABERTO_GAP;
+                const ehUltimaDirecao = idxDir === direcoes.length - 1;
+                const gapFechoAtual = ehUltimaDirecao ? GAP_FINAL_DIRECAO : GAP_ENTRE_DIRECOES;
+                sy += gapFechoAtual;
 
                 // linha sutil separando "Eu devo" de "A pessoa deve", exatamente no meio do vão entre os blocos
-                if (idxDir < direcoes.length - 1) {
+                if (!ehUltimaDirecao) {
                     ctx.strokeStyle = 'rgba(255,255,255,0.10)'; ctx.lineWidth = 1;
                     ctx.beginPath();
-                    ctx.moveTo(xSub + PAD_ESQ_SUB, sy - LINE_PAGOABERTO_GAP / 2);
-                    ctx.lineTo(xSub + larguraSub - PAD_DIR_SUB, sy - LINE_PAGOABERTO_GAP / 2);
+                    ctx.moveTo(xSub + PAD_ESQ_SUB, sy - gapFechoAtual / 2);
+                    ctx.lineTo(xSub + larguraSub - PAD_DIR_SUB, sy - gapFechoAtual / 2);
                     ctx.stroke();
                 }
             });
