@@ -688,12 +688,18 @@ function assinaturasDoMes(pessoaId, mesKey) {
         .map(ultimo => {
             const jaExiste = state.lancamentos.find(l => l.RECORRENCIA_GRUPO_ID === ultimo.RECORRENCIA_GRUPO_ID && l.MES_REFERENCIA === mesKey);
             if (jaExiste) return jaExiste;
+            // Ainda não existe a linha real desse mês na planilha (a sincronização roda no
+            // próximo carregamento) — usa um ID sintético, exclusivo dessa projeção, pra
+            // nunca ser confundido com o lançamento real de outro mês do mesmo grupo (evita
+            // que um clique em "editar/pagar/excluir" acabe alterando o mês errado).
             return {
                 ...ultimo,
+                ID: `${ultimo.ID}__proj__${mesKey}`,
                 MES_REFERENCIA: mesKey,
                 DATA: ajustarDiaParaMes(ultimo.DATA, mesKey),
                 VENCIMENTO: ultimo.VENCIMENTO ? ajustarDiaParaMes(ultimo.VENCIMENTO, mesKey) : '',
                 STATUS: 'PENDENTE',
+                _projetado: true,
             };
         });
 }
@@ -887,7 +893,15 @@ function lancamentosDoMes(pessoaId, mesKey) {
     return state.lancamentos.filter(l => l.PESSOA_ID === pessoaId && l.MES_REFERENCIA === mesKey);
 }
 function calcularPessoaMes(pessoaId, mesKey) {
-    const itens = lancamentosDoMes(pessoaId, mesKey);
+    const reais = lancamentosDoMes(pessoaId, mesKey);
+    const idsReais = new Set(reais.map(i => i.ID));
+    // Garante que toda assinatura/conta fixa ainda ativa (seja "eu devo" ou "a pessoa
+    // deve") apareça automaticamente em QUALQUER mês — atual ou futuro — mesmo que o
+    // backend ainda não tenha gravado a linha daquele mês na planilha (a sincronização
+    // roda no próximo carregamento de dados). Sem isso, a recorrente "some" até alguém
+    // clicar em Atualizar.
+    const projetadas = assinaturasDoMes(pessoaId, mesKey).filter(a => !idsReais.has(a.ID));
+    const itens = [...reais, ...projetadas];
     let euDevo = 0, meDevem = 0;
     itens.forEach(l => {
         if (String(l.STATUS).toUpperCase() === 'PAGO') return; // pagos não contam no pendente
@@ -904,28 +918,6 @@ function textoAcerto(calc, nomePessoa) {
     if (calc.acerto.quem === 'OK') return 'Acertado';
     if (calc.acerto.quem === 'EU') return `Você paga ${formatBRL(calc.acerto.valor)}`;
     return `${nomePessoa} paga ${formatBRL(calc.acerto.valor)}`;
-}
-/**
- * Calcula o próximo mês de uma pessoa já projetando assinaturas/contas fixas
- * ainda ativas que o backend ainda não gravou como lançamento daquele mês
- * (a geração só roda no próximo carregamento de dados). Sem isso, uma
- * assinatura recorrente "some" do próximo mês até a planilha ser atualizada.
- */
-function calcularProximoMesComProjecao(pessoaId, mesKey) {
-    const calcBase = calcularPessoaMes(pessoaId, mesKey);
-    const idsJaContados = new Set(calcBase.itens.map(i => i.ID));
-    const assinaturasProjetadas = assinaturasDoMes(pessoaId, mesKey).filter(a => !idsJaContados.has(a.ID));
-    let euDevo = calcBase.euDevo, meDevem = calcBase.meDevem;
-    assinaturasProjetadas.forEach(a => {
-        const v = Number(a.VALOR) || 0;
-        if (a.TIPO === 'EU_DEVO') euDevo = +(euDevo + v).toFixed(2);
-        else meDevem = +(meDevem + v).toFixed(2);
-    });
-    let acerto;
-    if (euDevo > meDevem) acerto = { quem: 'EU', valor: +(euDevo - meDevem).toFixed(2) };
-    else if (meDevem > euDevo) acerto = { quem: 'PESSOA', valor: +(meDevem - euDevo).toFixed(2) };
-    else acerto = { quem: 'OK', valor: 0 };
-    return { euDevo, meDevem, acerto, itens: [...calcBase.itens, ...assinaturasProjetadas] };
 }
 
 /* =====================================================================
@@ -1025,7 +1017,7 @@ function renderPessoaDetail() {
 
     // Próximo mês
     const proxMes = somarMes(state.mesPessoa, 1);
-    const calcProx = calcularProximoMesComProjecao(p.ID, proxMes);
+    const calcProx = calcularPessoaMes(p.ID, proxMes);
     const cardProx = document.getElementById('cardProximoMes');
     if (calcProx.itens.length > 0) {
         cardProx.style.display = 'block';
@@ -1077,6 +1069,30 @@ function cardLancamento(l) {
     const recorrenciaTag = ehRecorrente
         ? `<span class="parcela-chip" style="background:rgba(139,92,246,0.12); color:#7c3aed;"><i class="fas fa-rotate"></i>${recorrenciaAtiva ? 'Recorrente' : 'Encerrada'}</span>`
         : '';
+    // Itens projetados (assinatura/conta fixa ainda ativa cuja linha desse mês o backend
+    // ainda não gravou na planilha) não têm um ID real ainda — não dá pra marcar como
+    // pago/editar/excluir/encerrar até a sincronização criar a linha de verdade.
+    if (l._projetado) {
+        return `
+    <div class="lanc-card" style="opacity:0.72; border-style:dashed;">
+        <div class="flex items-start gap-3">
+            <div class="tipo-dot ${tipoClasse}"><i class="fas ${tipoIcon}"></i></div>
+            <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 flex-wrap">
+                    <p class="font-bold text-sm text-slate-800">${escapeHtml(l.DESCRICAO)}</p>
+                    ${recorrenciaTag}
+                    <span class="parcela-chip" style="background:rgba(148,163,184,0.18); color:#64748b;"><i class="fas fa-clock-rotate-left"></i>Previsto</span>
+                </div>
+                <p class="text-[11px] text-slate-400 font-semibold mt-0.5">${formatDateBR(l.DATA)}${l.VENCIMENTO ? ' · vence ' + formatDateBR(l.VENCIMENTO) : ''}</p>
+                <p class="text-[10.5px] text-slate-400 mt-0.5 italic">Gerado automaticamente — some do editável até você atualizar os dados</p>
+            </div>
+            <div class="text-right flex-shrink-0">
+                <p class="font-black text-sm ${l.TIPO === 'EU_DEVO' ? 'text-rose-600' : 'text-emerald-600'} vlr">${formatBRL(l.VALOR)}</p>
+                <span class="status-pill pendente mt-1 inline-flex"><i class="fas fa-clock"></i> Previsto</span>
+            </div>
+        </div>
+    </div>`;
+    }
     return `
     <div class="lanc-card ${pago ? 'pago' : ''}">
         <div class="flex items-start gap-3">
@@ -1684,7 +1700,7 @@ function fonteRelatorio(peso, tamanho) {
  * para diferenciar claramente dívidas, acertos e assinaturas.
  */
 function novoSubgrupoDirecao() {
-    return { pendente: 0, pago: 0, qtd: 0, nomes: [] };
+    return { pendente: 0, pago: 0, qtd: 0, itens: [] };
 }
 function calcularDetalhesCategoria(itens) {
     const cats = {
@@ -1700,16 +1716,11 @@ function calcularDetalhesCategoria(itens) {
         if (pago) sub.pago += v; else sub.pendente += v;
         sub.qtd++;
         cat.qtd++;
-        if (l.DESCRICAO && !sub.nomes.includes(l.DESCRICAO)) sub.nomes.push(l.DESCRICAO);
+        // Guarda cada lançamento individualmente (não só o nome) — é isso que permite
+        // o subcard listar item a item e crescer de altura conforme a quantidade real.
+        sub.itens.push({ descricao: l.DESCRICAO || '(sem descrição)', valor: v, pago });
     });
-    const nomesTexto = nomes => nomes.length <= 2 ? nomes.join(', ') : `${nomes.slice(0, 2).join(', ')} +${nomes.length - 2}`;
-    return Object.values(cats)
-        .filter(c => c.qtd > 0)
-        .map(c => ({
-            ...c,
-            euDevo: { ...c.euDevo, nomesTexto: nomesTexto(c.euDevo.nomes) },
-            meDeve: { ...c.meDeve, nomesTexto: nomesTexto(c.meDeve.nomes) },
-        }));
+    return Object.values(cats).filter(c => c.qtd > 0);
 }
 function calcularSaldoLiquido(calc) {
     const saldo = +(calc.meDevem - calc.euDevo).toFixed(2);
@@ -1725,9 +1736,9 @@ async function gerarRelatorio() {
 
     const calc = calcularPessoaMes(p.ID, state.mesPessoa);
     const proxMes = somarMes(state.mesPessoa, 1);
-    // Garante que assinaturas/contas fixas ainda ativas entrem no próximo mês mesmo que
+    // calcularPessoaMes já projeta assinaturas/contas fixas ainda ativas mesmo que
     // o backend ainda não tenha gravado a linha daquele mês na planilha.
-    const calcProx = calcularProximoMesComProjecao(p.ID, proxMes);
+    const calcProx = calcularPessoaMes(p.ID, proxMes);
     const saldoProx = calcularSaldoLiquido(calcProx);
     const hoje = hojeISO();
     // "Próximo mês" mostra só o que realmente pertence a esse mês (inclusive assinaturas
@@ -1753,8 +1764,8 @@ async function gerarRelatorio() {
     // ---- "Por categoria": cada categoria vira um subcard próprio, com cor distinta ----
     const PAD_TOPO_SUB = 32;
     const GAP_HEADER_TO_PRIMEIRO = 52;
-    const LINE_LABEL_PARA_PROXIMA = 36;
-    const LINE_NOMES_PARA_PROXIMA = 30;
+    const LINE_LABEL_DIRECAO = 30; // legenda "Eu devo"/"A pessoa deve" — só rótulo, sem valor (evita repetir o valor)
+    const LINE_ITEM = 30; // altura de cada linha de lançamento individual (descrição ligada ao valor por pontilhado)
     const GAP_ENTRE_DIRECOES = 40; // vão entre "Eu devo" e "A pessoa deve" no mesmo subcard — contém a linha divisória
     const GAP_FINAL_DIRECAO = 0;   // sem respiro extra após a última linha — quem fecha o card é o PAD_BASE_SUB
     const PAD_BASE_SUB = 32;
@@ -1764,7 +1775,10 @@ async function gerarRelatorio() {
     const PAD_ESQ_SUB = 44; // margem interna esquerda do subcard (ícone/texto)
     const PAD_DIR_SUB = 44; // margem interna direita do subcard (valores) — simétrica à esquerda
 
-    const alturaBlocoDirecao = (sub, ehUltima) => LINE_LABEL_PARA_PROXIMA + (sub.nomesTexto ? LINE_NOMES_PARA_PROXIMA : 0) + (ehUltima ? GAP_FINAL_DIRECAO : GAP_ENTRE_DIRECOES);
+    // A altura do bloco é proporcional à quantidade real de lançamentos dentro dele
+    // (1 linha por item, sem nenhuma linha extra de subtotal repetindo valor) — é isso
+    // que faz o subcard crescer só conforme mais itens são adicionados.
+    const alturaBlocoDirecao = (sub, ehUltima) => LINE_LABEL_DIRECAO + sub.itens.length * LINE_ITEM + (ehUltima ? GAP_FINAL_DIRECAO : GAP_ENTRE_DIRECOES);
     const alturaSubcard = cat => {
         const direcoes = [cat.euDevo, cat.meDeve].filter(s => s.qtd > 0);
         return PAD_TOPO_SUB + GAP_HEADER_TO_PRIMEIRO + direcoes.reduce((acc, s, i) => acc + alturaBlocoDirecao(s, i === direcoes.length - 1), 0) + PAD_BASE_SUB;
@@ -1902,21 +1916,51 @@ async function gerarRelatorio() {
             ].filter(d => d.sub.qtd > 0);
 
             direcoes.forEach(({ sub, label, cor, icone }, idxDir) => {
-                const tamIconeDir = 20;
-                drawIcone(ctx, icone, xSub + PAD_ESQ_SUB + tamIconeDir / 2, sy - 7, tamIconeDir, cor);
-                ctx.font = fonteRelatorio(700, 21); ctx.fillStyle = cor;
-                ctx.fillText(label, xSub + PAD_ESQ_SUB + tamIconeDir + 10, sy);
-                ctx.textAlign = 'right'; ctx.font = fonteRelatorio(800, 23); ctx.fillStyle = '#f1f5f9';
-                ctx.fillText(formatBRL(sub.pendente + sub.pago), xSub + larguraSub - PAD_DIR_SUB, sy);
-                ctx.textAlign = 'left';
-                sy += LINE_LABEL_PARA_PROXIMA;
+                // Legenda da direção: só o rótulo (ícone + texto), sem valor ao lado —
+                // o valor de cada lançamento já aparece uma única vez, na própria linha
+                // dele logo abaixo, então não faz sentido repetir um subtotal aqui.
+                const tamIconeDir = 18;
+                drawIcone(ctx, icone, xSub + PAD_ESQ_SUB + tamIconeDir / 2, sy - 6, tamIconeDir, cor);
+                ctx.font = fonteRelatorio(700, 18); ctx.fillStyle = cor; ctx.textAlign = 'left';
+                ctx.fillText(label, xSub + PAD_ESQ_SUB + tamIconeDir + 8, sy);
+                sy += LINE_LABEL_DIRECAO;
 
-                if (sub.nomesTexto) {
-                    ctx.font = fonteRelatorio(600, 19); ctx.fillStyle = '#9aa3b5';
-                    const nomesTruncados = truncarTexto(ctx, sub.nomesTexto, larguraSub - PAD_ESQ_SUB - PAD_DIR_SUB - 4);
-                    ctx.fillText(nomesTruncados, xSub + PAD_ESQ_SUB, sy);
-                    sy += LINE_NOMES_PARA_PROXIMA;
-                }
+                // Cada lançamento numa linha só: descrição à esquerda, valor à direita,
+                // ligados por um pontilhado (como um recibo) — mesmo padrão pra todos,
+                // e o valor aparece exatamente uma vez.
+                sub.itens.forEach(item => {
+                    const corTexto = item.pago ? '#5b6472' : '#c7cedb';
+                    const corDesc = item.pago ? '#5b6472' : '#9aa3b5';
+
+                    ctx.font = fonteRelatorio(600, 18); ctx.fillStyle = corDesc; ctx.textAlign = 'left';
+                    const descMaxLargura = (larguraSub - PAD_ESQ_SUB - PAD_DIR_SUB) * 0.52;
+                    const desc = truncarTexto(ctx, item.descricao, descMaxLargura);
+                    ctx.fillText(desc, xSub + PAD_ESQ_SUB, sy);
+                    const descLargura = ctx.measureText(desc).width;
+
+                    const valorTexto = formatBRL(item.valor) + (item.pago ? ' ✓' : '');
+                    ctx.font = fonteRelatorio(700, 18); ctx.fillStyle = corTexto; ctx.textAlign = 'right';
+                    ctx.fillText(valorTexto, xSub + larguraSub - PAD_DIR_SUB, sy);
+                    const valorLargura = ctx.measureText(valorTexto).width;
+                    ctx.textAlign = 'left';
+
+                    // pontilhado preenchendo o vão entre o fim da descrição e o início do valor
+                    const pontoIni = xSub + PAD_ESQ_SUB + descLargura + 10;
+                    const pontoFim = xSub + larguraSub - PAD_DIR_SUB - valorLargura - 10;
+                    if (pontoFim > pontoIni) {
+                        ctx.save();
+                        ctx.strokeStyle = 'rgba(255,255,255,0.16)';
+                        ctx.lineWidth = 1.4;
+                        ctx.setLineDash([1.6, 4]);
+                        ctx.lineCap = 'round';
+                        ctx.beginPath();
+                        ctx.moveTo(pontoIni, sy - 5);
+                        ctx.lineTo(pontoFim, sy - 5);
+                        ctx.stroke();
+                        ctx.restore();
+                    }
+                    sy += LINE_ITEM;
+                });
 
                 const ehUltimaDirecao = idxDir === direcoes.length - 1;
                 const gapFechoAtual = ehUltimaDirecao ? GAP_FINAL_DIRECAO : GAP_ENTRE_DIRECOES;
