@@ -351,6 +351,75 @@
         }
         .scrollbar-hide::-webkit-scrollbar { display: none; }
         .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* =============================================
+           GRÁFICO DE RENDIMENTOS
+           ============================================= */
+        .btn-rendimentos {
+            background: linear-gradient(135deg, #10b981, #059669);
+            box-shadow: 0 4px 14px rgba(16,185,129,0.25);
+        }
+        .btn-rendimentos:active { transform: scale(0.98); }
+
+        #modalRendimentos {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.65);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            z-index: 210;
+            align-items: flex-end;
+            justify-content: center;
+            overflow: hidden;
+        }
+        #rendSheet {
+            background: white;
+            width: 100%;
+            max-width: 720px;
+            height: 92vh;
+            max-height: 92vh;
+            border-radius: 28px 28px 0 0;
+            animation: slideUp 0.3s ease-out;
+            display: flex;
+            flex-direction: column;
+            box-sizing: border-box;
+            overflow: hidden;
+        }
+        @media (min-width: 768px) {
+            #modalRendimentos { align-items: center; }
+            #rendSheet { border-radius: 28px; height: 88vh; max-height: 820px; }
+        }
+
+        .rend-chart-container { position: relative; height: 240px; width: 100%; }
+        @media (min-width: 768px) {
+            .rend-chart-container { height: 340px; }
+        }
+
+        .rend-filtro-conta-btn {
+            background: rgba(16,185,129,0.08);
+            border: 1px solid rgba(16,185,129,0.25);
+            color: #047857;
+        }
+
+        .rend-tabela-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        .rend-tabela-wrap table { width: 100%; border-collapse: collapse; }
+        .rend-tabela-wrap th {
+            font-size: 9px; text-transform: uppercase; letter-spacing: 0.05em;
+            font-weight: 800; color: #94a3b8; text-align: left; padding: 8px 10px;
+            border-bottom: 1.5px solid #f1f5f9; position: sticky; top: 0; background: white;
+        }
+        .rend-tabela-wrap td {
+            font-size: 13px; font-weight: 600; color: #334155; padding: 10px 10px;
+            border-bottom: 1px solid #f8fafc;
+        }
+        .rend-tabela-wrap td.valor { text-align: right; color: #059669; font-weight: 800; }
+        .rend-tabela-wrap tr:last-child td { border-bottom: none; }
+
+        .rend-empty {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            padding: 40px 20px; color: #94a3b8; text-align: center; gap: 10px;
+        }
     </style>
 </head>
 <body class="text-slate-800">
@@ -420,6 +489,132 @@
                 </div>
             </div>
         </div>
+    </div>
+
+    <!-- Modal Gráfico de Rendimentos -->
+    <div id="modalRendimentos">
+        <div id="rendSheet">
+            <!-- Header -->
+            <div class="px-5 md:px-6 pt-3 pb-3 border-b border-slate-100 flex-shrink-0">
+                <div class="modal-handle md:hidden"></div>
+                <div class="flex items-center justify-between">
+                    <h3 class="text-base md:text-lg font-bold text-slate-800 flex items-center gap-2">
+                        <i class="fas fa-chart-bar text-emerald-600"></i> Gráfico de Rendimentos
+                    </h3>
+                    <button onclick="fecharGraficoRendimentos()" class="w-8 h-8 flex items-center justify-center rounded-xl bg-slate-100 text-slate-400 active:scale-95 flex-shrink-0">
+                        <i class="fas fa-times text-xs"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Corpo (rolável) -->
+            <div class="px-5 md:px-6 py-4 space-y-4 overflow-y-auto flex-1">
+
+                <!-- Filtro de Período (chips scrolláveis) -->
+                <div>
+                    <label class="text-[9px] font-bold text-slate-400 uppercase mb-1.5 ml-1 block">Período</label>
+                    <div class="filtros-scroll" id="rendFiltrosPeriodo">
+                        <button class="filtro-chip" data-periodo="MES_ATUAL" onclick="rendDefinirPeriodo('MES_ATUAL')">Mês atual</button>
+                        <button class="filtro-chip" data-periodo="MES_ANTERIOR" onclick="rendDefinirPeriodo('MES_ANTERIOR')">Mês anterior</button>
+                        <button class="filtro-chip" data-periodo="ULT_3M" onclick="rendDefinirPeriodo('ULT_3M')">Últimos 3 meses</button>
+                        <button class="filtro-chip ativo" data-periodo="ULT_6M" onclick="rendDefinirPeriodo('ULT_6M')">Últimos 6 meses</button>
+                        <button class="filtro-chip" data-periodo="ULT_12M" onclick="rendDefinirPeriodo('ULT_12M')">Últimos 12 meses</button>
+                        <button class="filtro-chip" data-periodo="ESTE_ANO" onclick="rendDefinirPeriodo('ESTE_ANO')">Este ano</button>
+                        <button class="filtro-chip" data-periodo="CUSTOM" onclick="rendDefinirPeriodo('CUSTOM')">Personalizado</button>
+                    </div>
+                    <!-- Datas personalizadas -->
+                    <div id="rendCustomDatas" class="hidden mt-3 flex flex-col sm:flex-row gap-2">
+                        <div class="flex-1">
+                            <label class="text-[9px] font-bold text-slate-400 uppercase ml-1">Data Inicial</label>
+                            <input type="date" id="rendDataIni" max="9999-12-31"
+                                class="w-full bg-slate-50 border border-slate-200 p-2.5 rounded-xl font-bold text-sm outline-none focus:border-emerald-500 transition-all mt-1">
+                        </div>
+                        <div class="flex-1">
+                            <label class="text-[9px] font-bold text-slate-400 uppercase ml-1">Data Final</label>
+                            <input type="date" id="rendDataFim" max="9999-12-31"
+                                class="w-full bg-slate-50 border border-slate-200 p-2.5 rounded-xl font-bold text-sm outline-none focus:border-emerald-500 transition-all mt-1">
+                        </div>
+                        <button onclick="rendAplicarPersonalizado()"
+                            class="sm:self-end py-2.5 px-4 font-bold text-white bg-emerald-600 rounded-xl active:scale-95 transition-all text-sm whitespace-nowrap">
+                            Aplicar
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Filtro de Conta/Investimento -->
+                <div>
+                    <label class="text-[9px] font-bold text-slate-400 uppercase mb-1.5 ml-1 block">Conta / Investimento</label>
+                    <button id="rendBtnFiltroConta" onclick="rendToggleDropdownContas(event)"
+                        class="rend-filtro-conta-btn p-2.5 rounded-xl outline-none text-sm font-semibold text-left flex items-center justify-between gap-1 w-full sm:w-auto sm:min-w-[240px]">
+                        <span id="rendLabelFiltroConta" class="truncate"><i class="fas fa-wallet mr-1.5 opacity-60"></i>Todas as Contas</span>
+                        <i class="fas fa-chevron-down text-[10px] flex-shrink-0 opacity-60"></i>
+                    </button>
+                </div>
+
+                <!-- Resumo do total -->
+                <div class="glass-card rounded-2xl p-4 flex items-center justify-between flex-wrap gap-2">
+                    <div>
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Total de Rendimentos no Período</p>
+                        <h3 id="rendTotalPeriodo" class="text-xl md:text-2xl font-black text-emerald-600">R$ 0,00</h3>
+                    </div>
+                    <span id="rendQtdMeses" class="text-[10px] font-semibold text-slate-400 bg-slate-50 px-2.5 py-1 rounded-full">0 meses</span>
+                </div>
+
+                <!-- VISÃO MENSAL -->
+                <div id="rendVisaoMensal">
+                    <div class="rend-chart-container">
+                        <canvas id="rendChartCanvas"></canvas>
+                    </div>
+                    <p class="text-[10px] text-slate-400 text-center mt-2 font-medium">
+                        <i class="fas fa-hand-pointer mr-1"></i>Toque em um mês para ver o detalhamento diário
+                    </p>
+                    <div id="rendVazioMensal" class="rend-empty hidden">
+                        <i class="fas fa-chart-bar text-3xl opacity-30"></i>
+                        <p class="text-sm font-semibold">Nenhum rendimento encontrado no período selecionado.</p>
+                    </div>
+                </div>
+
+                <!-- VISÃO DIÁRIA (detalhamento do mês) -->
+                <div id="rendVisaoDiaria" class="hidden">
+                    <button onclick="rendVoltarMensal()" class="flex items-center gap-1.5 text-xs font-bold text-emerald-700 mb-3 active:scale-95 transition-all">
+                        <i class="fas fa-arrow-left text-[10px]"></i> Voltar à visão mensal
+                    </button>
+                    <div class="glass-card rounded-2xl p-4 mb-3 flex items-center justify-between flex-wrap gap-2">
+                        <h4 id="rendMesTitulo" class="text-sm font-bold text-slate-700"></h4>
+                        <div class="text-right">
+                            <p class="text-[9px] font-bold text-slate-400 uppercase">Total do Mês</p>
+                            <p id="rendMesTotal" class="text-base font-black text-emerald-600">R$ 0,00</p>
+                        </div>
+                    </div>
+                    <div class="rend-tabela-wrap glass-card rounded-2xl" style="max-height: 320px;">
+                        <table>
+                            <thead>
+                                <tr><th>Data</th><th style="text-align:right;">Rendimento</th></tr>
+                            </thead>
+                            <tbody id="rendTabelaDias"></tbody>
+                        </table>
+                    </div>
+                    <div id="rendVazioDiario" class="rend-empty hidden">
+                        <i class="fas fa-calendar-day text-3xl opacity-30"></i>
+                        <p class="text-sm font-semibold">Nenhum lançamento de rendimento neste mês.</p>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Dropdown Contas do Gráfico de Rendimentos (flutuante no body) -->
+    <div id="rendDropdownContas" style="display:none; position:fixed; z-index:9999; min-width:220px; max-width:300px;"
+        class="bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden">
+        <div class="p-2 border-b border-slate-100">
+            <label class="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-slate-50 cursor-pointer">
+                <input type="checkbox" id="rendCheckTodas" checked onchange="rendToggleTodasContas(this)"
+                    class="w-3.5 h-3.5 accent-emerald-600 cursor-pointer">
+                <span class="text-xs font-bold text-slate-700">Todas as Contas</span>
+            </label>
+        </div>
+        <div id="rendListaCheckContas" class="p-2 space-y-0.5 max-h-52 overflow-y-auto"></div>
     </div>
 
     <div class="max-w-6xl mx-auto p-4 md:p-8 space-y-5">
@@ -501,9 +696,15 @@
                     <button class="btn-info" onclick="document.getElementById('modalInfo').style.display='flex'" title="Como os rendimentos são calculados">i</button>
                 </div>
                 <h2 id="totalRendimentos" class="text-2xl md:text-3xl font-black text-emerald-600 relative z-10">R$ 0,00</h2>
-                <div class="flex items-center gap-1 mt-2 relative z-10">
-                    <i class="fas fa-chart-line text-emerald-400 text-[10px]"></i>
-                    <span class="text-[10px] text-slate-400 font-semibold" id="pctRendimento">0% do saldo</span>
+                <div class="flex items-center justify-between mt-2 relative z-10">
+                    <div class="flex items-center gap-1">
+                        <i class="fas fa-chart-line text-emerald-400 text-[10px]"></i>
+                        <span class="text-[10px] text-slate-400 font-semibold" id="pctRendimento">0% do saldo</span>
+                    </div>
+                    <button onclick="abrirGraficoRendimentos()"
+                        class="text-[10px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-100 px-2.5 py-1 rounded-full active:scale-95 transition-all flex items-center gap-1">
+                        <i class="fas fa-chart-bar text-[9px]"></i> Ver gráfico
+                    </button>
                 </div>
                 <!-- pctCdiCard removido -->
             </div>
@@ -794,6 +995,22 @@
                         </div>
                     </div>
                     <i class="fas fa-chevron-right text-indigo-300 text-xs"></i>
+                </button>
+            </div>
+            <!-- Botão Gráfico de Rendimentos -->
+            <div class="mt-3">
+                <button onclick="abrirGraficoRendimentos()" id="btnVerRendimentos"
+                    class="btn-rendimentos w-full flex items-center justify-between px-4 py-3 text-white rounded-2xl active:scale-[0.98] transition-all mb-3">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 bg-white/15 rounded-xl flex items-center justify-center">
+                            <i class="fas fa-chart-bar text-white text-sm"></i>
+                        </div>
+                        <div class="text-left">
+                            <p class="text-xs font-bold leading-tight">Ver Rendimentos</p>
+                            <p class="text-[10px] text-emerald-100 font-medium">Evolução mensal e diária</p>
+                        </div>
+                    </div>
+                    <i class="fas fa-chevron-right text-emerald-200 text-xs"></i>
                 </button>
             </div>
             <!-- Botão de gerenciamento visível -->
@@ -3325,6 +3542,364 @@
             document.getElementById(prefixo + 'Rendimento').textContent = fmt(rendimento);
             document.getElementById(prefixo + 'ValorFinal').textContent = fmt(saldoFinal);
             document.getElementById('result' + TI).classList.remove('hidden');
+        }
+
+        // =============================================
+        // GRÁFICO DE RENDIMENTOS (novo recurso — não altera nada acima)
+        // =============================================
+        const MESES_ABREV = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+
+        let rendFiltroPeriodo = 'ULT_6M';
+        let rendContasSelecionadas = null; // null = todas
+        let rendChartInstance = null;
+        let rendDadosMensaisCache = [];
+        let rendMesAtivoIdx = null;
+
+        function abrirGraficoRendimentos() {
+            document.getElementById('modalRendimentos').style.display = 'flex';
+            rendPopularContas();
+            document.getElementById('rendVisaoDiaria').classList.add('hidden');
+            document.getElementById('rendVisaoMensal').classList.remove('hidden');
+            renderGraficoRendimentos();
+        }
+
+        function fecharGraficoRendimentos() {
+            document.getElementById('modalRendimentos').style.display = 'none';
+        }
+
+        document.getElementById('modalRendimentos').addEventListener('click', function (e) {
+            if (e.target === this) fecharGraficoRendimentos();
+        });
+
+        function rendDefinirPeriodo(tipo) {
+            rendFiltroPeriodo = tipo;
+            document.querySelectorAll('#rendFiltrosPeriodo .filtro-chip').forEach(btn => {
+                btn.classList.toggle('ativo', btn.dataset.periodo === tipo);
+            });
+            const customWrap = document.getElementById('rendCustomDatas');
+            if (tipo === 'CUSTOM') {
+                customWrap.classList.remove('hidden');
+                // Não recalcula ainda — espera o usuário definir as datas e clicar em "Aplicar".
+                return;
+            }
+            customWrap.classList.add('hidden');
+            renderGraficoRendimentos();
+        }
+
+        function rendAplicarPersonalizado() {
+            const ini = document.getElementById('rendDataIni').value;
+            const fim = document.getElementById('rendDataFim').value;
+            if (!ini || !fim) return mostrarToast('Informe as duas datas');
+            if (ini > fim) return mostrarToast('Data inicial deve ser antes da final');
+            renderGraficoRendimentos();
+        }
+
+        function rendCalcularRangeData(tipo) {
+            const hoje = new Date();
+            hoje.setHours(23, 59, 59, 999);
+            let ini, fim = hoje;
+
+            switch (tipo) {
+                case 'MES_ATUAL':
+                    ini = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+                    break;
+                case 'MES_ANTERIOR': {
+                    let m = hoje.getMonth() - 1, y = hoje.getFullYear();
+                    if (m < 0) { m = 11; y -= 1; }
+                    ini = new Date(y, m, 1);
+                    fim = new Date(y, m + 1, 0, 23, 59, 59, 999);
+                    break;
+                }
+                case 'ULT_3M':
+                    ini = new Date(hoje.getFullYear(), hoje.getMonth() - 2, 1);
+                    break;
+                case 'ULT_12M':
+                    ini = new Date(hoje.getFullYear(), hoje.getMonth() - 11, 1);
+                    break;
+                case 'ESTE_ANO':
+                    ini = new Date(hoje.getFullYear(), 0, 1);
+                    break;
+                case 'CUSTOM': {
+                    const iniVal = document.getElementById('rendDataIni').value;
+                    const fimVal = document.getElementById('rendDataFim').value;
+                    if (!iniVal || !fimVal) return null;
+                    ini = new Date(iniVal + 'T00:00:00');
+                    fim = new Date(fimVal + 'T23:59:59.999');
+                    break;
+                }
+                case 'ULT_6M':
+                default:
+                    ini = new Date(hoje.getFullYear(), hoje.getMonth() - 5, 1);
+                    break;
+            }
+            return { ini, fim };
+        }
+
+        function rendAgruparPorMes(ini, fim, dadosFiltrados) {
+            // Monta a linha do tempo contínua de meses entre ini e fim, para que a
+            // evolução do gráfico não tenha "buracos" quando um mês não tiver lançamentos.
+            const meses = [];
+            const cursor = new Date(ini.getFullYear(), ini.getMonth(), 1);
+            const limite = new Date(fim.getFullYear(), fim.getMonth(), 1);
+            while (cursor <= limite) {
+                meses.push({
+                    ano: cursor.getFullYear(),
+                    mes: cursor.getMonth() + 1,
+                    label: `${MESES_ABREV[cursor.getMonth()]}/${String(cursor.getFullYear()).slice(2)}`,
+                    total: 0,
+                    dias: {}
+                });
+                cursor.setMonth(cursor.getMonth() + 1);
+            }
+            const idxPorChave = {};
+            meses.forEach((m, i) => { idxPorChave[`${m.ano}-${m.mes}`] = i; });
+
+            dadosFiltrados.forEach(d => {
+                const vR = parseFloat(d['Valor Rendimento']) || 0;
+                if (!vR) return; // só considera lançamentos reais com rendimento
+                const dt = new Date(d['Data']);
+                const chave = `${dt.getFullYear()}-${dt.getMonth() + 1}`;
+                const idx = idxPorChave[chave];
+                if (idx === undefined) return; // fora do range (segurança)
+                meses[idx].total += vR;
+                const diaKey = d['Data'].split('T')[0];
+                meses[idx].dias[diaKey] = (meses[idx].dias[diaKey] || 0) + vR;
+            });
+
+            return meses;
+        }
+
+        function renderGraficoRendimentos() {
+            const range = rendCalcularRangeData(rendFiltroPeriodo);
+            if (!range) return; // personalizado ainda sem datas — aguarda "Aplicar"
+            const { ini, fim } = range;
+
+            const dadosFiltrados = dadosRaw.filter(d => {
+                if (!matchConta(d, rendContasSelecionadas)) return false;
+                const dt = new Date(d['Data']);
+                return dt >= ini && dt <= fim;
+            });
+
+            const meses = rendAgruparPorMes(ini, fim, dadosFiltrados);
+            rendDadosMensaisCache = meses;
+
+            const totalPeriodo = meses.reduce((s, m) => s + m.total, 0);
+            document.getElementById('rendTotalPeriodo').textContent = fmt(totalPeriodo);
+            document.getElementById('rendQtdMeses').textContent = `${meses.length} ${meses.length === 1 ? 'mês' : 'meses'}`;
+
+            const temDados = meses.some(m => Object.keys(m.dias).length > 0);
+            document.getElementById('rendVazioMensal').classList.toggle('hidden', temDados || meses.length === 0);
+
+            // Volta sempre para a visão mensal quando o filtro muda.
+            document.getElementById('rendVisaoDiaria').classList.add('hidden');
+            document.getElementById('rendVisaoMensal').classList.remove('hidden');
+
+            rendRenderChart(meses);
+        }
+
+        function rendRenderChart(meses) {
+            const canvas = document.getElementById('rendChartCanvas');
+            if (!canvas) return;
+
+            const labels = meses.map(m => m.label);
+            const valores = meses.map(m => Number(m.total.toFixed(2)));
+            let acumulado = 0;
+            const evolucao = valores.map(v => Number((acumulado += v).toFixed(2)));
+
+            if (rendChartInstance) {
+                rendChartInstance.destroy();
+            }
+
+            rendChartInstance = new Chart(canvas, {
+                data: {
+                    labels,
+                    datasets: [
+                        {
+                            type: 'bar',
+                            label: 'Rendimentos do mês',
+                            data: valores,
+                            backgroundColor: 'rgba(16,185,129,0.75)',
+                            borderRadius: 8,
+                            maxBarThickness: 46,
+                            order: 2
+                        },
+                        {
+                            type: 'line',
+                            label: 'Evolução acumulada',
+                            data: evolucao,
+                            borderColor: '#6366f1',
+                            backgroundColor: 'rgba(99,102,241,0.08)',
+                            borderWidth: 2,
+                            tension: 0.3,
+                            pointRadius: 3,
+                            pointBackgroundColor: '#6366f1',
+                            yAxisID: 'y1',
+                            order: 1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    onClick: (evt, elements) => {
+                        if (elements && elements.length) {
+                            rendAbrirDetalheMes(elements[0].index);
+                        }
+                    },
+                    onHover: (evt, elements) => {
+                        evt.native.target.style.cursor = elements.length ? 'pointer' : 'default';
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'bottom',
+                            labels: { boxWidth: 10, font: { size: 10, weight: '700' }, color: '#64748b' }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: (ctx) => `${ctx.dataset.label}: ${fmt(ctx.parsed.y)}`
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            ticks: { font: { size: 10, weight: '700' }, color: '#94a3b8' },
+                            grid: { display: false }
+                        },
+                        y: {
+                            ticks: {
+                                font: { size: 10 }, color: '#94a3b8',
+                                callback: (v) => 'R$ ' + Number(v).toLocaleString('pt-br')
+                            },
+                            grid: { color: 'rgba(0,0,0,0.04)' }
+                        },
+                        y1: {
+                            position: 'right',
+                            ticks: {
+                                font: { size: 10 }, color: '#94a3b8',
+                                callback: (v) => 'R$ ' + Number(v).toLocaleString('pt-br')
+                            },
+                            grid: { display: false }
+                        }
+                    }
+                }
+            });
+        }
+
+        function rendAbrirDetalheMes(idx) {
+            const mes = rendDadosMensaisCache[idx];
+            if (!mes) return;
+            rendMesAtivoIdx = idx;
+
+            document.getElementById('rendVisaoMensal').classList.add('hidden');
+            document.getElementById('rendVisaoDiaria').classList.remove('hidden');
+            document.getElementById('rendMesTitulo').textContent = `${MESES_ABREV[mes.mes - 1]}/${mes.ano}`;
+            document.getElementById('rendMesTotal').textContent = fmt(mes.total);
+
+            const dias = Object.keys(mes.dias).sort();
+            const corpo = document.getElementById('rendTabelaDias');
+            corpo.innerHTML = '';
+
+            document.getElementById('rendVazioDiario').classList.toggle('hidden', dias.length > 0);
+
+            dias.forEach(diaISO => {
+                const [y, m, d] = diaISO.split('-');
+                const valor = mes.dias[diaISO];
+                corpo.innerHTML += `<tr><td>${d}/${m}</td><td class="valor">${fmt(valor)}</td></tr>`;
+            });
+        }
+
+        function rendVoltarMensal() {
+            document.getElementById('rendVisaoDiaria').classList.add('hidden');
+            document.getElementById('rendVisaoMensal').classList.remove('hidden');
+        }
+
+        // ---- Filtro de Conta/Investimento (dropdown independente do dashboard) ----
+        function rendPopularContas() {
+            const lista = document.getElementById('rendListaCheckContas');
+            const contasOrdenadas = [...contasRaw].sort((a, b) =>
+                `${a.banco}${a.descricao}`.localeCompare(`${b.banco}${b.descricao}`, 'pt-br')
+            );
+            lista.innerHTML = '';
+            contasOrdenadas.forEach(c => {
+                const id = String(c.id);
+                const nome = mapaNomesContas[id] || `${c.banco} - ${c.descricao}`;
+                lista.innerHTML += `
+                <label class="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-slate-50 cursor-pointer">
+                    <input type="checkbox" class="check-conta-rend w-3.5 h-3.5 accent-emerald-600 cursor-pointer" value="${id}" checked
+                        onchange="rendOnCheckContaChange()">
+                    <span class="text-xs font-semibold text-slate-700 leading-tight">${nome}</span>
+                </label>`;
+            });
+            document.getElementById('rendCheckTodas').checked = true;
+            rendAtualizarLabelConta();
+        }
+
+        function rendToggleDropdownContas(e) {
+            e.stopPropagation();
+            const dd = document.getElementById('rendDropdownContas');
+            const btn = document.getElementById('rendBtnFiltroConta');
+            const rect = btn.getBoundingClientRect();
+            const isHidden = dd.style.display === 'none';
+
+            if (isHidden) {
+                dd.style.display = 'block';
+                dd.style.width = Math.max(rect.width, 220) + 'px';
+                dd.style.left = rect.left + 'px';
+                const spaceBelow = window.innerHeight - rect.bottom;
+                const ddH = dd.offsetHeight || 220;
+                if (spaceBelow < ddH + 8 && rect.top > ddH + 8) {
+                    dd.style.top = (rect.top - ddH - 4) + 'px';
+                } else {
+                    dd.style.top = (rect.bottom + 4) + 'px';
+                }
+            } else {
+                dd.style.display = 'none';
+            }
+        }
+
+        document.addEventListener('click', (e) => {
+            const dd = document.getElementById('rendDropdownContas');
+            const btn = document.getElementById('rendBtnFiltroConta');
+            if (dd && btn && !dd.contains(e.target) && !btn.contains(e.target)) {
+                dd.style.display = 'none';
+            }
+        });
+
+        function rendToggleTodasContas(cb) {
+            document.querySelectorAll('.check-conta-rend').forEach(c => { c.checked = cb.checked; });
+            rendAtualizarLabelConta();
+            renderGraficoRendimentos();
+        }
+
+        function rendOnCheckContaChange() {
+            const checks = document.querySelectorAll('.check-conta-rend');
+            const todas = [...checks].every(c => c.checked);
+            const nenhuma = [...checks].every(c => !c.checked);
+            document.getElementById('rendCheckTodas').checked = todas;
+            if (nenhuma) {
+                checks.forEach(c => c.checked = true);
+                document.getElementById('rendCheckTodas').checked = true;
+            }
+            rendAtualizarLabelConta();
+            renderGraficoRendimentos();
+        }
+
+        function rendAtualizarLabelConta() {
+            const checks = document.querySelectorAll('.check-conta-rend');
+            const selecionadas = [...checks].filter(c => c.checked);
+            const label = document.getElementById('rendLabelFiltroConta');
+            const icone = '<i class="fas fa-wallet mr-1.5 opacity-60"></i>';
+            if (selecionadas.length === 0 || selecionadas.length === checks.length) {
+                rendContasSelecionadas = null;
+                label.innerHTML = icone + 'Todas as Contas';
+            } else if (selecionadas.length === 1) {
+                rendContasSelecionadas = selecionadas.map(c => c.value);
+                label.innerHTML = icone + (mapaNomesContas[selecionadas[0].value] || selecionadas[0].value);
+            } else {
+                rendContasSelecionadas = selecionadas.map(c => c.value);
+                label.innerHTML = icone + `${selecionadas.length} contas selecionadas`;
+            }
         }
     </script>
     <!-- Dropdown Contas (flutuante no body para evitar z-index de backdrop-filter) -->
