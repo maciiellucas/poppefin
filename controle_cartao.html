@@ -1,0 +1,2400 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>PoppeFin | Controle de Cartão</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800;900&display=swap');
+* { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
+body {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  min-height: 100vh;
+  padding-bottom: 90px;
+}
+@media (min-width: 1024px) { body { padding-bottom: 24px; } }
+.glass-card {
+  background: rgba(255,255,255,0.72);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255,255,255,0.35);
+  box-shadow: 0 25px 50px -12px rgba(0,0,0,0.08);
+}
+.card-saldo { background: linear-gradient(135deg, rgba(255,255,255,0.92), rgba(255,255,255,0.65)); }
+.chart-container { position: relative; height: 220px; width: 100%; }
+@media (max-width: 768px) { .chart-container { height: 190px; } }
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Loading bar */
+.loading-bar { position: fixed; top:0; left:0; right:0; height:3px; background: linear-gradient(90deg,#6366f1,#8b5cf6,#6366f1); background-size:200% 100%; animation: loading-shimmer 1.5s infinite; z-index:999; transform: scaleX(0); transform-origin:left; transition: transform .3s; }
+.loading-bar.ativo { transform: scaleX(1); }
+@keyframes loading-shimmer { 0%{background-position:200% 0;} 100%{background-position:-200% 0;} }
+
+/* Toast */
+.toast { position: fixed; bottom: 96px; left:50%; transform:translateX(-50%) translateY(20px); background: rgba(30,41,59,0.95); color:#fff; padding:10px 20px; border-radius:50px; font-size:12px; font-weight:700; white-space:nowrap; max-width:88vw; overflow:hidden; text-overflow:ellipsis; opacity:0; transition:all .3s; z-index:400; pointer-events:none; }
+.toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+.toast.erro { background: rgba(225,29,72,0.96); }
+.toast.sucesso { background: rgba(5,150,105,0.96); }
+
+/* Animations */
+@keyframes slideUp { from{opacity:0; transform:translateY(18px);} to{opacity:1; transform:translateY(0);} }
+.slide-up { animation: slideUp .45s ease-out forwards; }
+.slide-up-d1 { animation: slideUp .45s ease-out .08s both; }
+.slide-up-d2 { animation: slideUp .45s ease-out .16s both; }
+.slide-up-d3 { animation: slideUp .45s ease-out .24s both; }
+@keyframes pulse-dot { 0%,100%{opacity:1;} 50%{opacity:.4;} }
+@keyframes spin { to { transform: rotate(360deg); } }
+.spin { animation: spin 1s linear infinite; }
+
+/* Modais bottom-sheet */
+.modal-overlay { display:none; position:fixed; inset:0; background:rgba(15,23,42,0.62); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); z-index:200; align-items:flex-end; justify-content:center; }
+.modal-overlay.center { align-items:center; padding: 16px; }
+.modal-overlay.show { display:flex; }
+.modal-sheet { background:#fff; border-radius:28px 28px 0 0; padding:8px 20px 28px; width:100%; max-width:560px; max-height:92vh; overflow-y:auto; animation: slideUp .3s ease-out; }
+@media (min-width:640px) { .modal-sheet { border-radius:28px; margin-bottom: 20px; } }
+.modal-handle { width:40px; height:4px; background:#e2e8f0; border-radius:4px; margin:12px auto 16px; }
+.modal-sheet.wide { max-width: 760px; }
+
+/* Inputs */
+.inp { width:100%; background:#f8fafc; border:1.5px solid #e2e8f0; padding:11px 13px; border-radius:14px; font-weight:600; font-size:13.5px; outline:none; transition:all .2s; color:#1e293b; }
+.inp:focus { border-color:#6366f1; background:#fff; box-shadow:0 0 0 3px rgba(99,102,241,0.12); }
+.lbl { font-size:10px; font-weight:800; color:#94a3b8; text-transform:uppercase; letter-spacing:.04em; margin: 0 0 4px 2px; display:block; }
+.btn-primario { background: linear-gradient(135deg,#6366f1,#8b5cf6); color:#fff; font-weight:800; padding:13px; border-radius:16px; box-shadow:0 8px 20px rgba(99,102,241,0.3); transition:all .2s; }
+.btn-primario:active { transform: scale(.97); }
+.btn-secundario { background:#f1f5f9; color:#475569; font-weight:800; padding:13px; border-radius:16px; transition:all .2s; }
+.btn-secundario:active { transform: scale(.97); }
+.btn-perigo { background:#fef2f2; color:#e11d48; font-weight:800; padding:13px; border-radius:16px; transition:all .2s; }
+.btn-perigo:active { transform: scale(.97); }
+.btn-chip { padding:7px 14px; border-radius:50px; font-size:11.5px; font-weight:800; background:#fff; border:1.5px solid #e2e8f0; color:#64748b; transition:all .18s; white-space:nowrap; }
+.btn-chip.ativo { background:#6366f1; color:#fff; border-color:#6366f1; box-shadow:0 4px 10px rgba(99,102,241,.25); }
+
+/* Sidebar / Nav */
+.nav-item { display:flex; align-items:center; gap:12px; padding:11px 14px; border-radius:14px; font-weight:700; font-size:13.5px; color:#64748b; transition:all .18s; cursor:pointer; }
+.nav-item:hover { background:rgba(99,102,241,0.07); color:#6366f1; }
+.nav-item.ativo { background: linear-gradient(135deg,#6366f1,#8b5cf6); color:#fff; box-shadow:0 6px 16px rgba(99,102,241,.28); }
+.nav-item .fa-fw { width: 18px; }
+
+.bottom-nav { position:fixed; bottom:0; left:0; right:0; background:rgba(255,255,255,0.94); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-top:1px solid rgba(255,255,255,0.5); box-shadow:0 -8px 32px rgba(0,0,0,0.08); z-index:60; padding:6px 4px calc(6px + env(safe-area-inset-bottom)); }
+.bn-item { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; padding:6px 2px; border-radius:12px; color:#94a3b8; font-size:9.5px; font-weight:800; transition:all .15s; }
+.bn-item.ativo { color:#6366f1; }
+.bn-item i { font-size:16px; }
+.fab-mais { width:52px; height:52px; border-radius:18px; background:linear-gradient(135deg,#6366f1,#8b5cf6); color:#fff; display:flex; align-items:center; justify-content:center; box-shadow:0 10px 24px rgba(99,102,241,.4); font-size:20px; margin-top:-24px; }
+.fab-mais:active { transform: scale(.94); }
+
+/* Cartao visual (credit-card tile) */
+.cartao-tile { border-radius:22px; padding:18px 20px; color:#fff; position:relative; overflow:hidden; min-height:150px; display:flex; flex-direction:column; justify-content:space-between; box-shadow:0 16px 32px -10px rgba(0,0,0,0.28); }
+.cartao-tile::before { content:''; position:absolute; top:-40px; right:-40px; width:160px; height:160px; border-radius:50%; background:rgba(255,255,255,0.12); }
+.cartao-tile::after { content:''; position:absolute; bottom:-60px; left:-30px; width:140px; height:140px; border-radius:50%; background:rgba(255,255,255,0.08); }
+.progress-track { width:100%; background:rgba(148,163,184,0.2); border-radius:50px; height:8px; overflow:hidden; }
+.progress-track.claro { background: rgba(255,255,255,0.25); }
+.progress-bar { height:100%; border-radius:50px; transition:width 1s ease; }
+
+/* Item de lista (usado no lugar de tabelas) */
+.item-row { display:flex; align-items:center; gap:12px; padding:13px 14px; background:rgba(255,255,255,0.55); border:1px solid rgba(255,255,255,0.6); border-radius:16px; margin-bottom:8px; transition: all .18s; }
+.item-row:active { transform: scale(.99); }
+
+/* Badges de status */
+.badge { font-size:10px; font-weight:800; padding:4px 10px; border-radius:50px; white-space:nowrap; display:inline-flex; align-items:center; gap:4px; }
+.badge.aberta { background:rgba(99,102,241,.12); color:#4f46e5; }
+.badge.fechada { background:rgba(245,158,11,.14); color:#b45309; }
+.badge.paga { background:rgba(16,185,129,.14); color:#059669; }
+.badge.parcial { background:rgba(59,130,246,.14); color:#2563eb; }
+.badge.pendente { background:rgba(148,163,184,.18); color:#475569; }
+.badge.recebido { background:rgba(16,185,129,.14); color:#059669; }
+.badge.cancelado { background:rgba(225,29,72,.12); color:#e11d48; }
+.badge.reajuste { background:rgba(139,92,246,.14); color:#7c3aed; }
+
+/* Skeleton */
+.skel { background: linear-gradient(90deg,#e2e8f0 25%,#f1f5f9 37%,#e2e8f0 63%); background-size:400% 100%; animation: skel-shine 1.4s ease infinite; border-radius:12px; }
+@keyframes skel-shine { 0%{background-position:100% 50%;} 100%{background-position:0 50%;} }
+
+/* Estado vazio */
+.estado-vazio { text-align:center; padding: 40px 16px; }
+
+/* Views */
+.view { display:none; }
+.view.ativa { display:block; }
+
+/* Sidebar container desktop */
+.app-shell { display:flex; }
+.sidebar-desktop { display:none; }
+@media (min-width:1024px) {
+  .sidebar-desktop { display:flex; }
+  .main-area { margin-left: 248px; }
+}
+.sidebar-desktop { position:fixed; top:0; left:0; bottom:0; width:248px; flex-direction:column; padding:22px 16px; background:rgba(255,255,255,0.6); backdrop-filter: blur(20px); border-right:1px solid rgba(255,255,255,0.4); z-index:40; overflow-y:auto; }
+
+.btn-info { width:19px; height:19px; border-radius:50%; background:rgba(99,102,241,.12); color:#6366f1; font-size:9.5px; font-weight:900; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; border:1.5px solid rgba(99,102,241,.2); flex-shrink:0; }
+
+/* Filtros scroll horizontal */
+.filtros-scroll { display:flex; gap:8px; overflow-x:auto; padding-bottom:4px; scrollbar-width:none; -ms-overflow-style:none; }
+.filtros-scroll::-webkit-scrollbar { display:none; }
+
+/* Navegação de volta ao dashboard */
+.nav-voltar { background:rgba(99,102,241,.09); color:#4f46e5; text-decoration:none; margin-bottom:12px; }
+.nav-voltar:hover { background:rgba(99,102,241,.16); color:#4338ca; }
+.btn-voltar-mobile { display:inline-flex; align-items:center; gap:8px; min-height:40px; padding:9px 16px; border-radius:50px; background:#fff; border:1.5px solid #e2e8f0; color:#4f46e5; font-size:12px; font-weight:800; text-decoration:none; box-shadow:0 1px 2px rgba(0,0,0,.04); transition:all .18s; }
+.btn-voltar-mobile:active { transform:scale(.97); }
+</style>
+</head>
+<body class="text-slate-800">
+
+<div id="loadingBar" class="loading-bar"></div>
+<div id="toastMsg" class="toast"></div>
+
+<!-- ============ SIDEBAR DESKTOP ============ -->
+<div class="sidebar-desktop">
+  <div class="flex items-center gap-2 px-2 mb-6">
+    <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white shadow-lg">
+      <i class="fas fa-credit-card text-sm"></i>
+    </div>
+    <div>
+      <h1 class="text-base font-extrabold tracking-tight leading-none">Poppe<span class="text-indigo-600">Fin</span></h1>
+      <p class="text-[10px] text-slate-400 font-bold leading-none mt-1">Controle de Cartão</p>
+    </div>
+  </div>
+  <a href="dashboard.html" class="nav-item nav-voltar w-full" title="Voltar ao Início">
+    <i class="fas fa-arrow-left fa-fw"></i> Voltar ao Início
+  </a>
+  <nav class="flex flex-col gap-1 flex-1" id="navDesktop"></nav>
+  <div class="px-2 pt-3 border-t border-slate-200/70">
+    <button onclick="abrirConfigApi()" class="nav-item w-full"><i class="fas fa-plug fa-fw"></i> Conexão API</button>
+  </div>
+</div>
+
+<div class="main-area">
+<div class="max-w-6xl mx-auto p-4 md:p-8 space-y-5">
+
+  <!-- Header mobile/desktop -->
+  <div class="slide-up flex items-center justify-between lg:hidden">
+    <div class="flex items-center gap-2">
+      <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white shadow-lg">
+        <i class="fas fa-credit-card text-sm"></i>
+      </div>
+      <div>
+        <h1 class="text-lg font-extrabold tracking-tight leading-none">Poppe<span class="text-indigo-600">Fin</span></h1>
+        <p class="text-[10px] text-slate-400 font-bold leading-none mt-1" id="viewTituloMobile">Dashboard</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-2">
+      <button onclick="carregarTudo(true)" class="w-10 h-10 bg-white/70 rounded-xl flex items-center justify-center shadow-sm active:scale-95">
+        <i class="fas fa-sync-alt text-indigo-500 text-sm" id="iconSync"></i>
+      </button>
+      <button onclick="abrirConfigApi()" class="w-10 h-10 bg-white/70 rounded-xl flex items-center justify-center shadow-sm active:scale-95">
+        <i class="fas fa-plug text-slate-400 text-sm"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- Voltar ao Início (mobile/tablet) -->
+  <div class="slide-up lg:hidden">
+    <a href="dashboard.html" class="btn-voltar-mobile"><i class="fas fa-arrow-left text-[11px]"></i> Voltar ao Início</a>
+  </div>
+
+  <!-- Título desktop -->
+  <div class="hidden lg:flex items-center justify-between slide-up">
+    <div>
+      <h2 class="text-2xl font-extrabold tracking-tight" id="viewTituloDesktop">Dashboard</h2>
+      <p class="text-slate-500 text-xs font-medium" id="viewSubtituloDesktop">Visão geral do controle de cartão</p>
+    </div>
+    <div class="flex items-center gap-2">
+      <span class="updated-badge text-[10px] text-slate-400 font-semibold" id="lastUpdated"></span>
+      <button onclick="carregarTudo(true)" class="w-10 h-10 bg-white/70 rounded-xl flex items-center justify-center shadow-sm active:scale-95 border border-slate-100">
+        <i class="fas fa-sync-alt text-indigo-500 text-sm" id="iconSyncDesktop"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- Filtro rápido de mês (barra global) -->
+  <div class="glass-card rounded-2xl p-3 slide-up flex items-center gap-3 flex-wrap" id="barraMes">
+    <div class="flex items-center gap-2">
+      <button onclick="mudarMes(-1)" class="w-8 h-8 rounded-xl bg-white/80 border border-slate-100 flex items-center justify-center shadow-sm active:scale-95"><i class="fas fa-chevron-left text-xs text-slate-500"></i></button>
+      <div class="text-center min-w-[92px]">
+        <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Mês de referência</p>
+        <p class="text-sm font-black text-slate-800" id="labelMesAtual">--/----</p>
+      </div>
+      <button onclick="mudarMes(1)" class="w-8 h-8 rounded-xl bg-white/80 border border-slate-100 flex items-center justify-center shadow-sm active:scale-95"><i class="fas fa-chevron-right text-xs text-slate-500"></i></button>
+    </div>
+    <button onclick="irParaMesAtual()" class="btn-chip">Hoje</button>
+    <div class="flex-1"></div>
+    <button onclick="abrirFiltrosAvancados()" class="btn-chip flex items-center gap-1.5"><i class="fas fa-sliders-h"></i> Filtros<span id="filtroAtivoQtd" class="hidden ml-1 bg-indigo-600 text-white rounded-full w-4 h-4 items-center justify-center text-[9px]"></span></button>
+  </div>
+
+  <!-- ======================= VIEWS ======================= -->
+  <div id="viewDashboard" class="view space-y-5"></div>
+  <div id="viewCartoes" class="view space-y-5"></div>
+  <div id="viewLancamentos" class="view space-y-5"></div>
+  <div id="viewFaturas" class="view space-y-5"></div>
+  <div id="viewReembolsos" class="view space-y-5"></div>
+  <div id="viewAntecipacoes" class="view space-y-5"></div>
+  <div id="viewPagamentos" class="view space-y-5"></div>
+  <div id="viewCategorias" class="view space-y-5"></div>
+  <div id="viewEstimativas" class="view space-y-5"></div>
+  <div id="viewAlertas" class="view space-y-5"></div>
+  <div id="viewComparacao" class="view space-y-5"></div>
+  <div id="viewCompromissos" class="view space-y-5"></div>
+
+</div>
+</div>
+
+<!-- ============ BOTTOM NAV MOBILE ============ -->
+<div class="bottom-nav lg:hidden">
+  <div class="grid grid-cols-5 items-center max-w-md mx-auto">
+    <button class="bn-item" data-view="dashboard" onclick="mudarView('dashboard')"><i class="fas fa-chart-pie"></i>Início</button>
+    <button class="bn-item" data-view="cartoes" onclick="mudarView('cartoes')"><i class="fas fa-credit-card"></i>Cartões</button>
+    <button class="fab-mais" onclick="abrirMenuAdicionar()"><i class="fas fa-plus"></i></button>
+    <button class="bn-item" data-view="faturas" onclick="mudarView('faturas')"><i class="fas fa-file-invoice-dollar"></i>Faturas</button>
+    <button class="bn-item" data-mais="1" onclick="abrirMenuMais()"><i class="fas fa-ellipsis-h"></i>Mais</button>
+  </div>
+</div>
+
+<!-- ============ MODAL: MAIS (navegação mobile extra) ============ -->
+<div id="modalMais" class="modal-overlay">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <h3 class="text-base font-bold text-slate-800 mb-4">Mais opções</h3>
+    <div class="grid grid-cols-3 gap-3" id="gridMais"></div>
+    <button onclick="fecharModal('modalMais')" class="btn-secundario w-full mt-5">Fechar</button>
+  </div>
+</div>
+
+<!-- ============ MODAL: ADICIONAR (FAB) ============ -->
+<div id="modalAdicionar" class="modal-overlay">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <h3 class="text-base font-bold text-slate-800 mb-4">O que deseja adicionar?</h3>
+    <div class="grid grid-cols-3 gap-3" id="gridAdicionar"></div>
+    <button onclick="fecharModal('modalAdicionar')" class="btn-secundario w-full mt-5">Cancelar</button>
+  </div>
+</div>
+
+<!-- ============ MODAL: CONFIG API ============ -->
+<div id="modalConfigApi" class="modal-overlay center">
+  <div class="glass-card p-6 rounded-[28px] w-full max-w-sm shadow-2xl">
+    <div class="flex items-center gap-2 mb-4">
+      <i class="fas fa-plug text-indigo-600"></i>
+      <h3 class="text-base font-bold text-slate-800">Conexão com a API</h3>
+    </div>
+    <label class="lbl">URL do Web App (Apps Script)</label>
+    <textarea id="inputApiUrl" class="inp mb-4" rows="3" style="font-size:11px;"></textarea>
+    <div class="flex gap-3 mb-3">
+      <button onclick="fecharModal('modalConfigApi')" class="btn-secundario flex-1">Cancelar</button>
+      <button onclick="salvarApiUrl()" class="btn-primario flex-1">Salvar</button>
+    </div>
+    <button onclick="fecharModal('modalConfigApi'); rodarDiagnostico()" class="btn-chip w-full !py-2.5 justify-center"><i class="fas fa-stethoscope mr-1"></i>Diagnóstico da planilha</button>
+    <button onclick="rodarReparoDatas()" class="btn-chip w-full !py-2.5 justify-center mt-2"><i class="fas fa-wrench mr-1"></i>Corrigir datas/meses corrompidos</button>
+  </div>
+</div>
+
+<!-- ============ MODAL: DIAGNÓSTICO DA PLANILHA ============ -->
+<div id="modalDiagnostico" class="modal-overlay">
+  <div class="modal-sheet wide">
+    <div class="modal-handle"></div>
+    <h3 class="text-lg font-bold text-slate-800 mb-1 flex items-center gap-2"><i class="fas fa-stethoscope text-indigo-600"></i>Diagnóstico da planilha</h3>
+    <p class="text-xs text-slate-400 font-semibold mb-4">Compara as colunas que o app espera com as que existem em cada aba da sua planilha.</p>
+    <div id="conteudoDiagnostico" class="space-y-2 max-h-[60vh] overflow-y-auto"></div>
+    <button onclick="fecharModal('modalDiagnostico')" class="btn-secundario w-full mt-4">Fechar</button>
+  </div>
+</div>
+
+<!-- ============ MODAL: FILTROS AVANÇADOS ============ -->
+<div id="modalFiltros" class="modal-overlay">
+  <div class="modal-sheet wide">
+    <div class="modal-handle"></div>
+    <h3 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2"><i class="fas fa-sliders-h text-indigo-600"></i> Filtros</h3>
+    <div class="grid grid-cols-2 gap-3">
+      <div><label class="lbl">Cartão</label><select id="fCartao" class="inp"><option value="">Todos</option></select></div>
+      <div><label class="lbl">Pessoa</label><select id="fPessoa" class="inp"><option value="">Todas</option></select></div>
+      <div><label class="lbl">Categoria</label><select id="fCategoria" class="inp"><option value="">Todas</option></select></div>
+      <div><label class="lbl">Tag</label><select id="fTag" class="inp"><option value="">Todas</option></select></div>
+      <div><label class="lbl">Status</label><select id="fStatus" class="inp"><option value="">Todos</option><option value="Aberto">Aberto</option><option value="Antecipado">Antecipado</option><option value="Cancelado">Cancelado</option></select></div>
+      <div><label class="lbl">Tipo</label><select id="fTipo" class="inp"><option value="">Todos</option><option value="Compra">Compra</option><option value="Estorno">Estorno</option></select></div>
+      <div><label class="lbl">Valor mínimo</label><input type="number" step="0.01" id="fValorMin" class="inp" placeholder="0,00"></div>
+      <div><label class="lbl">Valor máximo</label><input type="number" step="0.01" id="fValorMax" class="inp" placeholder="0,00"></div>
+    </div>
+    <div class="flex gap-3 pt-5">
+      <button onclick="limparFiltros()" class="btn-secundario flex-1">Limpar</button>
+      <button onclick="aplicarFiltrosAvancados()" class="btn-primario flex-1">Aplicar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODAL: LANÇAMENTOS RELACIONADOS (drill-down de gráfico/compromisso) ============ -->
+<div id="modalLancRelacionados" class="modal-overlay">
+  <div class="modal-sheet wide">
+    <div class="modal-handle"></div>
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="text-base font-bold text-slate-800" id="tituloLancRelacionados">Lançamentos</h3>
+      <span class="text-sm font-black text-indigo-600" id="totalLancRelacionados"></span>
+    </div>
+    <div id="listaLancRelacionados" class="space-y-2 max-h-[60vh] overflow-y-auto"></div>
+    <button onclick="fecharModal('modalLancRelacionados')" class="btn-secundario w-full mt-4">Fechar</button>
+  </div>
+</div>
+
+<!-- ============ MODAL: FORM CARTÃO ============ -->
+<div id="modalCartao" class="modal-overlay">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <h3 class="text-lg font-bold text-slate-800 mb-4" id="tituloModalCartao">Novo Cartão</h3>
+    <input type="hidden" id="cartaoId">
+    <div class="space-y-3">
+      <div><label class="lbl">Nome do cartão *</label><input class="inp" id="cartaoNome" placeholder="Ex: Nubank Ultravioleta"></div>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="lbl">Banco</label><input class="inp" id="cartaoBanco" placeholder="Nubank"></div>
+        <div><label class="lbl">Bandeira</label><input class="inp" id="cartaoBandeira" placeholder="Mastercard"></div>
+      </div>
+      <div><label class="lbl">Limite (R$)</label><input class="inp" type="number" step="0.01" id="cartaoLimite" placeholder="0,00"></div>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="lbl">Dia de fechamento</label><input class="inp" type="number" min="1" max="31" id="cartaoFechamento" placeholder="1-31"></div>
+        <div><label class="lbl">Dia de vencimento</label><input class="inp" type="number" min="1" max="31" id="cartaoVencimento" placeholder="1-31"></div>
+      </div>
+      <div><label class="lbl">Cor</label><input class="inp" type="color" id="cartaoCor" value="#6366f1" style="height:44px; padding:4px;"></div>
+      <div><label class="lbl">Observação</label><textarea class="inp" id="cartaoObs" rows="2"></textarea></div>
+      <label class="flex items-center gap-2 mt-1"><input type="checkbox" id="cartaoAtivo" checked class="w-4 h-4 accent-indigo-600"><span class="text-xs font-bold text-slate-600">Cartão ativo</span></label>
+    </div>
+    <div class="flex gap-3 pt-5">
+      <button onclick="fecharModal('modalCartao')" class="btn-secundario flex-1">Cancelar</button>
+      <button onclick="salvarCartao()" class="btn-primario flex-1">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODAL: FORM LANÇAMENTO ============ -->
+<div id="modalLancamento" class="modal-overlay">
+  <div class="modal-sheet wide">
+    <div class="modal-handle"></div>
+    <h3 class="text-lg font-bold text-slate-800 mb-4" id="tituloModalLancamento">Novo Lançamento</h3>
+    <input type="hidden" id="lancamentoId">
+    <div class="grid grid-cols-2 gap-3">
+      <div class="col-span-2"><label class="lbl">Descrição *</label><input class="inp" id="lancDescricao" placeholder="Ex: Supermercado"></div>
+      <div><label class="lbl">Cartão *</label><select class="inp" id="lancCartao"></select></div>
+      <div><label class="lbl">Pessoa</label><select class="inp" id="lancPessoa"></select></div>
+      <div><label class="lbl">Data da compra</label><input class="inp" type="date" id="lancData"></div>
+      <div><label class="lbl">Valor (R$) *</label><input class="inp" type="number" step="0.01" id="lancValor" placeholder="0,00"></div>
+      <div><label class="lbl">Tipo</label><select class="inp" id="lancTipo"><option value="Compra">Compra</option><option value="Estorno">Estorno</option></select></div>
+      <div><label class="lbl">Categoria</label><select class="inp" id="lancCategoria"><option value="">—</option></select></div>
+      <div class="col-span-2"><label class="lbl">Tags (separe por vírgula)</label><input class="inp" id="lancTags" placeholder="viagem, presente"></div>
+      <div class="col-span-2 flex items-center gap-3 bg-slate-50 rounded-xl p-3">
+        <label class="flex items-center gap-2"><input type="checkbox" id="lancParcelado" class="w-4 h-4 accent-indigo-600" onchange="toggleParcelado()"><span class="text-xs font-bold text-slate-600">Compra parcelada</span></label>
+        <div id="wrapParcelas" class="hidden flex-1">
+          <input class="inp" type="number" min="2" id="lancTotalParcelas" placeholder="Nº de parcelas">
+        </div>
+      </div>
+      <div class="col-span-2"><label class="lbl">Observação</label><textarea class="inp" id="lancObs" rows="2"></textarea></div>
+    </div>
+    <div class="flex gap-3 pt-5">
+      <button onclick="fecharModal('modalLancamento')" class="btn-secundario flex-1">Cancelar</button>
+      <button onclick="salvarLancamento()" class="btn-primario flex-1">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODAL: DETALHE FATURA ============ -->
+<div id="modalFatura" class="modal-overlay">
+  <div class="modal-sheet wide">
+    <div class="modal-handle"></div>
+    <div class="flex items-center justify-between mb-1">
+      <h3 class="text-lg font-bold text-slate-800" id="tituloModalFatura">Fatura</h3>
+      <span class="badge" id="statusModalFatura">—</span>
+    </div>
+    <p class="text-xs text-slate-400 font-semibold mb-4" id="subtituloModalFatura">—</p>
+    <div class="grid grid-cols-2 gap-3 mb-4" id="resumoModalFatura"></div>
+    <div class="flex gap-2 mb-4 flex-wrap">
+      <button onclick="abrirReajuste()" class="btn-chip"><i class="fas fa-balance-scale-left mr-1"></i>Novo reajuste</button>
+      <button onclick="abrirPagamento()" class="btn-chip"><i class="fas fa-hand-holding-usd mr-1"></i>Registrar pagamento</button>
+      <button onclick="excluirFaturaClick()" class="btn-chip !text-rose-500 !border-rose-200"><i class="fas fa-trash mr-1"></i>Excluir fatura</button>
+    </div>
+    <div id="listaModalFatura" class="space-y-2 max-h-[42vh] overflow-y-auto"></div>
+    <button onclick="fecharModal('modalFatura')" class="btn-secundario w-full mt-4">Fechar</button>
+  </div>
+</div>
+
+<!-- ============ MODAL: FORM REAJUSTE ============ -->
+<div id="modalReajuste" class="modal-overlay center">
+  <div class="glass-card p-6 rounded-[28px] w-full max-w-sm shadow-2xl">
+    <h3 class="text-base font-bold text-slate-800 mb-4 flex items-center gap-2"><i class="fas fa-balance-scale-left text-violet-600"></i>Reajuste de fatura</h3>
+    <input type="hidden" id="reajusteFaturaId">
+    <div class="space-y-3">
+      <div><label class="lbl">Tipo</label>
+        <select class="inp" id="reajusteTipo"><option value="Acréscimo">Acréscimo</option><option value="Desconto">Desconto</option><option value="Ajuste">Ajuste</option></select>
+      </div>
+      <div><label class="lbl">Valor (R$)</label><input class="inp" type="number" step="0.01" id="reajusteValor"></div>
+      <div><label class="lbl">Motivo</label><input class="inp" id="reajusteMotivo" placeholder="Ex: Juros de atraso"></div>
+    </div>
+    <div class="flex gap-3 pt-5">
+      <button onclick="fecharModal('modalReajuste')" class="btn-secundario flex-1">Cancelar</button>
+      <button onclick="salvarReajuste()" class="btn-primario flex-1">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODAL: FORM PAGAMENTO ============ -->
+<div id="modalPagamento" class="modal-overlay center">
+  <div class="glass-card p-6 rounded-[28px] w-full max-w-sm shadow-2xl">
+    <h3 class="text-base font-bold text-slate-800 mb-4 flex items-center gap-2"><i class="fas fa-hand-holding-usd text-emerald-600"></i>Registrar pagamento</h3>
+    <input type="hidden" id="pagamentoFaturaId"><input type="hidden" id="pagamentoCartaoId">
+    <div class="space-y-3">
+      <div><label class="lbl">Valor (R$)</label><input class="inp" type="number" step="0.01" id="pagamentoValor"></div>
+      <div><label class="lbl">Data do pagamento</label><input class="inp" type="date" id="pagamentoData"></div>
+      <div><label class="lbl">Tipo</label><select class="inp" id="pagamentoTipo"><option value="Total">Total</option><option value="Parcial">Parcial</option><option value="Estorno">Estorno</option></select></div>
+      <div><label class="lbl">Conta de origem</label><input class="inp" id="pagamentoConta" placeholder="Ex: Conta Corrente"></div>
+      <div><label class="lbl">Observação</label><input class="inp" id="pagamentoObs"></div>
+    </div>
+    <div class="flex gap-3 pt-5">
+      <button onclick="fecharModal('modalPagamento')" class="btn-secundario flex-1">Cancelar</button>
+      <button onclick="salvarPagamento()" class="btn-primario flex-1">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODAL: FORM REEMBOLSO ============ -->
+<div id="modalReembolso" class="modal-overlay">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <h3 class="text-lg font-bold text-slate-800 mb-4" id="tituloModalReembolso">Novo Reembolso</h3>
+    <input type="hidden" id="reembolsoId">
+    <div class="space-y-3">
+      <div><label class="lbl">Lançamento relacionado</label><select class="inp" id="reembolsoLancamento"><option value="">—</option></select></div>
+      <div><label class="lbl">Fatura</label><select class="inp" id="reembolsoFatura"><option value="">—</option></select></div>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="lbl">Data solicitação</label><input class="inp" type="date" id="reembolsoDataSol"></div>
+        <div><label class="lbl">Data recebimento</label><input class="inp" type="date" id="reembolsoDataReceb"></div>
+      </div>
+      <div><label class="lbl">Valor (R$)</label><input class="inp" type="number" step="0.01" id="reembolsoValor"></div>
+      <div><label class="lbl">Motivo</label><input class="inp" id="reembolsoMotivo"></div>
+      <div><label class="lbl">Status</label><select class="inp" id="reembolsoStatus"><option value="Pendente">Pendente</option><option value="Recebido">Recebido</option></select></div>
+      <div><label class="lbl">Observação</label><textarea class="inp" id="reembolsoObs" rows="2"></textarea></div>
+    </div>
+    <div class="flex gap-3 pt-5">
+      <button onclick="fecharModal('modalReembolso')" class="btn-secundario flex-1">Cancelar</button>
+      <button onclick="salvarReembolso()" class="btn-primario flex-1">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODAL: FORM ANTECIPAÇÃO ============ -->
+<div id="modalAntecipacao" class="modal-overlay">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <h3 class="text-lg font-bold text-slate-800 mb-4">Nova Antecipação</h3>
+    <div class="space-y-3">
+      <div><label class="lbl">Lançamento (compra parcelada)</label><select class="inp" id="antecipacaoLancamento" onchange="preencherAntecipacao()"><option value="">—</option></select></div>
+      <div><label class="lbl">Cartão</label><select class="inp" id="antecipacaoCartao"></select></div>
+      <div><label class="lbl">Parcelas antecipadas</label><input class="inp" type="number" min="1" id="antecipacaoParcelas"></div>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="lbl">Valor original (R$)</label><input class="inp" type="number" step="0.01" id="antecipacaoValorOriginal"></div>
+        <div><label class="lbl">Desconto (R$)</label><input class="inp" type="number" step="0.01" id="antecipacaoDesconto"></div>
+      </div>
+      <div><label class="lbl">Valor pago (R$)</label><input class="inp" type="number" step="0.01" id="antecipacaoValorPago"></div>
+      <div><label class="lbl">Observação</label><textarea class="inp" id="antecipacaoObs" rows="2"></textarea></div>
+    </div>
+    <div class="flex gap-3 pt-5">
+      <button onclick="fecharModal('modalAntecipacao')" class="btn-secundario flex-1">Cancelar</button>
+      <button onclick="salvarAntecipacao()" class="btn-primario flex-1">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODAL: FORM ESTIMATIVA ============ -->
+<div id="modalEstimativa" class="modal-overlay">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <h3 class="text-lg font-bold text-slate-800 mb-4" id="tituloModalEstimativa">Nova Estimativa</h3>
+    <input type="hidden" id="estimativaId">
+    <div class="space-y-3">
+      <div><label class="lbl">Mês (MM/AAAA)</label><input class="inp" id="estimativaMes" placeholder="09/2026"></div>
+      <div><label class="lbl">Cartão (opcional)</label><select class="inp" id="estimativaCartao"><option value="">Geral</option></select></div>
+      <div><label class="lbl">Categoria (opcional)</label><select class="inp" id="estimativaCategoria"><option value="">Geral</option></select></div>
+      <div><label class="lbl">Pessoa (opcional)</label><select class="inp" id="estimativaPessoa"><option value="">Geral</option></select></div>
+      <div><label class="lbl">Valor estimado (R$)</label><input class="inp" type="number" step="0.01" id="estimativaValor"></div>
+      <div><label class="lbl">Observação</label><textarea class="inp" id="estimativaObs" rows="2"></textarea></div>
+    </div>
+    <div class="flex gap-3 pt-5">
+      <button onclick="fecharModal('modalEstimativa')" class="btn-secundario flex-1">Cancelar</button>
+      <button onclick="salvarEstimativa()" class="btn-primario flex-1">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODAL: FORM ALERTA ============ -->
+<div id="modalAlerta" class="modal-overlay">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <h3 class="text-lg font-bold text-slate-800 mb-4">Novo Alerta</h3>
+    <div class="space-y-3">
+      <div><label class="lbl">Tipo</label>
+        <select class="inp" id="alertaTipo">
+          <option value="Vencimento">Fatura próxima do vencimento</option>
+          <option value="Fechamento">Fechamento próximo</option>
+          <option value="Limite">Limite atingindo percentual</option>
+          <option value="LimiteExcedido">Limite excedido</option>
+          <option value="Estimativa">Estimativa próxima do limite</option>
+          <option value="EstimativaExcedida">Estimativa ultrapassada</option>
+        </select>
+      </div>
+      <div><label class="lbl">Cartão (opcional)</label><select class="inp" id="alertaCartao"><option value="">Todos</option></select></div>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="lbl">Percentual (%)</label><input class="inp" type="number" id="alertaPercentual"></div>
+        <div><label class="lbl">Dias de antecedência</label><input class="inp" type="number" id="alertaDias"></div>
+      </div>
+      <div><label class="lbl">Mensagem</label><input class="inp" id="alertaMensagem"></div>
+    </div>
+    <div class="flex gap-3 pt-5">
+      <button onclick="fecharModal('modalAlerta')" class="btn-secundario flex-1">Cancelar</button>
+      <button onclick="salvarAlerta()" class="btn-primario flex-1">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODAL: FORM CATEGORIA ============ -->
+<div id="modalCategoria" class="modal-overlay center">
+  <div class="glass-card p-6 rounded-[28px] w-full max-w-sm shadow-2xl">
+    <h3 class="text-base font-bold text-slate-800 mb-4" id="tituloModalCategoria">Nova Categoria</h3>
+    <input type="hidden" id="categoriaId">
+    <div class="space-y-3">
+      <div><label class="lbl">Nome *</label><input class="inp" id="categoriaNome" placeholder="Ex: Alimentação"></div>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="lbl">Cor</label><input class="inp" type="color" id="categoriaCor" value="#6366f1" style="height:44px; padding:4px;"></div>
+        <div><label class="lbl">Ícone (fa-*)</label><input class="inp" id="categoriaIcone" placeholder="fa-utensils"></div>
+      </div>
+      <label class="flex items-center gap-2 mt-1"><input type="checkbox" id="categoriaAtiva" checked class="w-4 h-4 accent-indigo-600"><span class="text-xs font-bold text-slate-600">Categoria ativa</span></label>
+    </div>
+    <div class="flex gap-3 pt-5">
+      <button onclick="fecharModal('modalCategoria')" class="btn-secundario flex-1">Cancelar</button>
+      <button onclick="salvarCategoria()" class="btn-primario flex-1">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODAL: FORM TAG ============ -->
+<div id="modalTag" class="modal-overlay center">
+  <div class="glass-card p-6 rounded-[28px] w-full max-w-sm shadow-2xl">
+    <h3 class="text-base font-bold text-slate-800 mb-4" id="tituloModalTag">Nova Tag</h3>
+    <input type="hidden" id="tagId"><input type="hidden" id="tagNomeOriginal">
+    <div class="space-y-3">
+      <div><label class="lbl">Nome *</label><input class="inp" id="tagNome" placeholder="Ex: viagem"></div>
+      <div><label class="lbl">Cor</label><input class="inp" type="color" id="tagCor" value="#6366f1" style="height:44px; padding:4px;"></div>
+      <label class="flex items-center gap-2 mt-1"><input type="checkbox" id="tagAtiva" checked class="w-4 h-4 accent-indigo-600"><span class="text-xs font-bold text-slate-600">Tag ativa</span></label>
+    </div>
+    <div class="flex gap-3 pt-5">
+      <button onclick="fecharModal('modalTag')" class="btn-secundario flex-1">Cancelar</button>
+      <button onclick="salvarTag()" class="btn-primario flex-1">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODAL: FORM PESSOA ============ -->
+<div id="modalPessoa" class="modal-overlay center">
+  <div class="glass-card p-6 rounded-[28px] w-full max-w-sm shadow-2xl">
+    <h3 class="text-base font-bold text-slate-800 mb-4" id="tituloModalPessoa">Nova Pessoa</h3>
+    <input type="hidden" id="pessoaId">
+    <div class="space-y-3">
+      <div><label class="lbl">Nome *</label><input class="inp" id="pessoaNome" placeholder="Ex: Maciel"></div>
+      <label class="flex items-center gap-2 mt-1"><input type="checkbox" id="pessoaAtiva" checked class="w-4 h-4 accent-indigo-600"><span class="text-xs font-bold text-slate-600">Pessoa ativa</span></label>
+    </div>
+    <div class="flex gap-3 pt-5">
+      <button onclick="fecharModal('modalPessoa')" class="btn-secundario flex-1">Cancelar</button>
+      <button onclick="salvarPessoa()" class="btn-primario flex-1">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODAL: CONFIRMAÇÃO GENÉRICA ============ -->
+<div id="modalConfirmar" class="modal-overlay center">
+  <div class="glass-card p-6 rounded-[28px] w-full max-w-sm shadow-2xl text-center">
+    <div class="w-14 h-14 bg-rose-100 rounded-full flex items-center justify-center mx-auto mb-4">
+      <i class="fas fa-exclamation-triangle text-rose-500 text-xl"></i>
+    </div>
+    <h3 class="text-base font-bold text-slate-800 mb-1" id="tituloConfirmar">Confirmar ação?</h3>
+    <p class="text-slate-400 text-xs mb-5" id="textoConfirmar">Esta ação não pode ser desfeita.</p>
+    <div class="flex gap-3">
+      <button onclick="fecharModal('modalConfirmar')" class="btn-secundario flex-1">Cancelar</button>
+      <button onclick="executarConfirmacao()" class="btn-perigo flex-1" id="btnConfirmarAcao">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* =====================================================
+   CONFIGURAÇÕES
+   ===================================================== */
+const CONFIG = {
+  apiUrlPadrao: 'https://script.google.com/macros/s/AKfycbx4yU1u6iexcZErjRa_VE4pXFWopIRYlDUqm4R1wqRN_tMwRf9IYsOMrAQ8diHOlGQKxw/exec',
+  coresCategoriaPadrao: ['#6366f1','#8b5cf6','#ec4899','#f59e0b','#10b981','#06b6d4','#f43f5e','#84cc16'],
+  coresCartaoPadrao: ['#6366f1','#8b5cf6','#0ea5e9','#10b981','#f59e0b','#ef4444','#334155','#d946ef']
+};
+
+function getApiUrl() {
+  return localStorage.getItem('cc_apiUrl') || CONFIG.apiUrlPadrao;
+}
+
+const NAV_ITENS = [
+  { id:'dashboard',    label:'Dashboard',            icone:'fa-chart-pie',            sub:'Visão geral do controle de cartão' },
+  { id:'cartoes',      label:'Cartões',              icone:'fa-credit-card',          sub:'Seus cartões e limites' },
+  { id:'lancamentos',  label:'Lançamentos',          icone:'fa-receipt',              sub:'Compras, estornos e parcelamentos' },
+  { id:'faturas',      label:'Faturas',              icone:'fa-file-invoice-dollar',  sub:'Fatura atual, futuras e anteriores' },
+  { id:'reembolsos',   label:'Reembolsos',           icone:'fa-undo',                 sub:'Valores a receber' },
+  { id:'antecipacoes', label:'Antecipações',         icone:'fa-forward',              sub:'Parcelas antecipadas' },
+  { id:'pagamentos',   label:'Pagamentos',           icone:'fa-hand-holding-usd',     sub:'Pagamentos de fatura registrados' },
+  { id:'categorias',   label:'Cadastros',            icone:'fa-tags',                 sub:'Categorias, tags e pessoas' },
+  { id:'estimativas',  label:'Estimativas',          icone:'fa-bullseye',             sub:'Metas de gasto por mês' },
+  { id:'alertas',      label:'Alertas',              icone:'fa-bell',                 sub:'Avisos de limite e vencimento' },
+  { id:'comparacao',   label:'Comparação de Meses',  icone:'fa-balance-scale',        sub:'Mês atual x mês anterior' },
+  { id:'compromissos', label:'Compromissos Futuros', icone:'fa-calendar-alt',         sub:'O que está por vir' }
+];
+// Telas que têm botão próprio na barra inferior mobile; todas as outras aparecem no menu "Mais".
+const NAV_PRINCIPAIS = ['dashboard','cartoes','faturas'];
+
+/* =====================================================
+   CAMADA DE API
+   ===================================================== */
+async function api(action, data = {}, params = {}) {
+  mostrarLoading(true);
+  try {
+    const resp = await fetch(getApiUrl(), {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action, data, params })
+    });
+    if (!resp.ok) throw new Error('Falha na comunicação com a API (HTTP ' + resp.status + ')');
+    const json = await resp.json();
+    if (!json.success) throw new Error(json.error || 'Erro desconhecido na API');
+    return json;
+  } catch (err) {
+    console.error('Erro API:', action, err);
+    toast(err.message || 'Erro ao comunicar com a API', 'erro');
+    throw err;
+  } finally {
+    mostrarLoading(false);
+  }
+}
+
+/* =====================================================
+   ESTADO DA APLICAÇÃO
+   ===================================================== */
+const STATE = {
+  view: 'dashboard',
+  mesAtual: mesFormatado(new Date()),
+  cartoes: [], pessoas: [], categorias: [], tags: [],
+  lancamentos: [], faturas: [], reembolsos: [], antecipacoes: [],
+  reajustes: [], pagamentos: [], estimativas: [], alertas: [],
+  dashboard: null,
+  filtros: { ID_Cartao:'', ID_Pessoa:'', ID_Categoria:'', Tag:'', Status:'', Tipo:'', valorMin:'', valorMax:'' },
+  confirmarCallback: null
+};
+
+/* =====================================================
+   UTILITÁRIOS
+   ===================================================== */
+function mesFormatado(d) {
+  return String(d.getMonth()+1).padStart(2,'0') + '/' + d.getFullYear();
+}
+// new Date().toISOString() usa UTC — no fuso do Brasil (UTC-3), à noite isso
+// pode devolver o dia seguinte. hojeISO() usa a data LOCAL do navegador,
+// evitando lançamentos criados com a data errada por padrão.
+function hojeISO() {
+  const d = new Date();
+  const off = d.getTimezoneOffset();
+  return new Date(d.getTime() - off*60000).toISOString().slice(0,10);
+}
+function fmt(v) {
+  v = Number(v || 0);
+  return v.toLocaleString('pt-BR', { style:'currency', currency:'BRL' });
+}
+function fmtPct(v) { return (Number(v)||0).toFixed(1).replace('.', ',') + '%'; }
+function escHtml(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function corPorId(idx, paleta) { return paleta[idx % paleta.length]; }
+function idParaCor(cartao) { return (cartao && cartao.Cor) ? cartao.Cor : corPorId(0, CONFIG.coresCartaoPadrao); }
+function nomeCartao(id) { const c = STATE.cartoes.find(x=>x.ID_Cartao===id); return c ? c.Nome_Cartao : (id||'—'); }
+function nomePessoa(id) { const p = STATE.pessoas.find(x=>x.ID_Pessoa===id); return p ? (p.Nome || p.Nome_Pessoa || id) : (id||'—'); }
+function nomeCategoria(id) { const c = STATE.categorias.find(x=>x.ID_Categoria===id); return c ? (c.Nome || c.Nome_Categoria || id) : (id||'Sem categoria'); }
+function corCategoria(id) { const c = STATE.categorias.find(x=>x.ID_Categoria===id); return (c && c.Cor) ? c.Cor : '#94a3b8'; }
+function statusFaturaClasse(s) {
+  const m = { 'Aberta':'aberta','Fechada':'fechada','Paga':'paga','Parcialmente Paga':'parcial' };
+  return m[s] || 'pendente';
+}
+function parseMesAno(mes) { const [m,a] = String(mes||'').split('/'); return { m:Number(m), a:Number(a) }; }
+function somarMeses(mesStr, delta) {
+  let { m, a } = parseMesAno(mesStr);
+  m += delta;
+  while (m > 12) { m -= 12; a++; }
+  while (m < 1) { m += 12; a--; }
+  return String(m).padStart(2,'0') + '/' + a;
+}
+function mesCompararIndice(mesStr) { const {m,a} = parseMesAno(mesStr); return a*12+m; }
+
+function mostrarLoading(ativo) {
+  document.getElementById('loadingBar').classList.toggle('ativo', ativo);
+  const icons = [document.getElementById('iconSync'), document.getElementById('iconSyncDesktop')];
+  icons.forEach(ic => { if (ic) ic.classList.toggle('spin', ativo); });
+}
+
+let toastTimer = null;
+function toast(msg, tipo, duracaoMs) {
+  const el = document.getElementById('toastMsg');
+  el.textContent = msg;
+  el.className = 'toast show' + (tipo ? ' ' + tipo : '');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), duracaoMs || 3200);
+}
+
+// Se o backend sinalizar que algum campo não encontrou coluna correspondente
+// na planilha (nome de coluna diferente do esperado), o valor foi perdido
+// silenciosamente na gravação — avisamos explicitamente em vez de deixar
+// os dados parecerem "desconectados" sem explicação.
+function avisarColunasFaltando(registro) {
+  if (registro && registro._avisoColunasFaltando && registro._avisoColunasFaltando.length) {
+    const lista = registro._avisoColunasFaltando.join(', ');
+    console.warn('Colunas não encontradas na planilha para este registro:', lista);
+    toast('Atenção: a planilha não tem a(s) coluna(s) ' + lista + ' — esses dados não foram salvos. Use "Diagnóstico da Planilha" nas configurações.', 'erro', 7000);
+  }
+}
+
+function abrirModal(id) { document.getElementById(id).classList.add('show'); }
+function fecharModal(id) { document.getElementById(id).classList.remove('show'); }
+
+function confirmarAcao(titulo, texto, callback, labelBtn) {
+  document.getElementById('tituloConfirmar').textContent = titulo;
+  document.getElementById('textoConfirmar').textContent = texto;
+  document.getElementById('btnConfirmarAcao').textContent = labelBtn || 'Confirmar';
+  STATE.confirmarCallback = callback;
+  abrirModal('modalConfirmar');
+}
+function executarConfirmacao() {
+  const cb = STATE.confirmarCallback;
+  fecharModal('modalConfirmar');
+  if (cb) cb();
+}
+</script>
+
+<script>
+/* =====================================================
+   NAVEGAÇÃO
+   ===================================================== */
+function montarNavDesktop() {
+  const nav = document.getElementById('navDesktop');
+  nav.innerHTML = NAV_ITENS.map(item => `
+    <div class="nav-item" data-view="${item.id}" onclick="mudarView('${item.id}')">
+      <i class="fas ${item.icone} fa-fw"></i> ${item.label}
+    </div>`).join('');
+}
+
+function mudarView(viewId) {
+  STATE.view = viewId;
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('ativa'));
+  document.getElementById('view' + viewId.charAt(0).toUpperCase() + viewId.slice(1)).classList.add('ativa');
+
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('ativo', n.dataset.view === viewId));
+  document.querySelectorAll('.bn-item').forEach(n => n.classList.toggle('ativo', n.dataset.view === viewId));
+  document.querySelectorAll('.bn-item[data-mais]').forEach(n => n.classList.toggle('ativo', !NAV_PRINCIPAIS.includes(viewId)));
+
+  const item = NAV_ITENS.find(i => i.id === viewId);
+  document.getElementById('viewTituloMobile').textContent = item.label;
+  document.getElementById('viewTituloDesktop').textContent = item.label;
+  document.getElementById('viewSubtituloDesktop').textContent = item.sub;
+
+  // Barra de mês só faz sentido em views mensais
+  const mostraMes = ['dashboard','lancamentos','faturas','estimativas','compromissos'].includes(viewId);
+  document.getElementById('barraMes').style.display = mostraMes ? 'flex' : 'none';
+
+  fecharModal('modalMais'); fecharModal('modalAdicionar');
+  renderView(viewId);
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+function renderView(viewId) {
+  const map = {
+    dashboard: renderDashboard, cartoes: renderCartoes, lancamentos: renderLancamentos,
+    faturas: renderFaturas, reembolsos: renderReembolsos, antecipacoes: renderAntecipacoes,
+    pagamentos: renderPagamentos, categorias: renderCategorias, estimativas: renderEstimativas,
+    alertas: renderAlertas, comparacao: renderComparacao, compromissos: renderCompromissos
+  };
+  if (map[viewId]) map[viewId]();
+}
+
+function montarMenusRapidos() {
+  const extras = NAV_ITENS.filter(i => !NAV_PRINCIPAIS.includes(i.id));
+  document.getElementById('gridMais').innerHTML = extras.map(item => `
+    <button onclick="mudarView('${item.id}')" class="flex flex-col items-center gap-2 p-3 rounded-2xl bg-slate-50 active:scale-95 transition-all">
+      <div class="w-10 h-10 rounded-xl bg-white shadow-sm flex items-center justify-center text-indigo-600"><i class="fas ${item.icone}"></i></div>
+      <span class="text-[10px] font-bold text-slate-600 text-center leading-tight">${item.label}</span>
+    </button>`).join('');
+
+  const acoes = [
+    { label:'Lançamento', icone:'fa-receipt', fn:'abrirModalLancamento' },
+    { label:'Cartão', icone:'fa-credit-card', fn:'abrirModalCartao' },
+    { label:'Reembolso', icone:'fa-undo', fn:'abrirModalReembolso' },
+    { label:'Antecipação', icone:'fa-forward', fn:'abrirModalAntecipacao' },
+    { label:'Estimativa', icone:'fa-bullseye', fn:'abrirModalEstimativa' },
+    { label:'Alerta', icone:'fa-bell', fn:'abrirModalAlerta' }
+  ];
+  document.getElementById('gridAdicionar').innerHTML = acoes.map(a => `
+    <button onclick="fecharModal('modalAdicionar'); ${a.fn}()" class="flex flex-col items-center gap-2 p-3 rounded-2xl bg-slate-50 active:scale-95 transition-all">
+      <div class="w-10 h-10 rounded-xl bg-white shadow-sm flex items-center justify-center text-indigo-600"><i class="fas ${a.icone}"></i></div>
+      <span class="text-[10px] font-bold text-slate-600 text-center leading-tight">${a.label}</span>
+    </button>`).join('');
+}
+function abrirMenuMais() { abrirModal('modalMais'); }
+function abrirMenuAdicionar() { abrirModal('modalAdicionar'); }
+
+function abrirConfigApi() {
+  document.getElementById('inputApiUrl').value = getApiUrl();
+  abrirModal('modalConfigApi');
+}
+function salvarApiUrl() {
+  const url = document.getElementById('inputApiUrl').value.trim();
+  if (!url) return toast('Informe uma URL válida', 'erro');
+  localStorage.setItem('cc_apiUrl', url);
+  fecharModal('modalConfigApi');
+  toast('Conexão atualizada', 'sucesso');
+  carregarTudo(true);
+}
+
+function mudarMes(delta) {
+  STATE.mesAtual = somarMeses(STATE.mesAtual, delta);
+  atualizarLabelMes();
+  renderView(STATE.view);
+}
+function irParaMesAtual() {
+  STATE.mesAtual = mesFormatado(new Date());
+  atualizarLabelMes();
+  renderView(STATE.view);
+}
+function atualizarLabelMes() {
+  document.getElementById('labelMesAtual').textContent = STATE.mesAtual;
+}
+
+/* Filtros avançados */
+function abrirFiltrosAvancados() {
+  preencherSelectsFiltros();
+  const f = STATE.filtros;
+  document.getElementById('fCartao').value = f.ID_Cartao;
+  document.getElementById('fPessoa').value = f.ID_Pessoa;
+  document.getElementById('fCategoria').value = f.ID_Categoria;
+  document.getElementById('fTag').value = f.Tag;
+  document.getElementById('fStatus').value = f.Status;
+  document.getElementById('fTipo').value = f.Tipo;
+  document.getElementById('fValorMin').value = f.valorMin;
+  document.getElementById('fValorMax').value = f.valorMax;
+  abrirModal('modalFiltros');
+}
+function preencherSelectsFiltros() {
+  document.getElementById('fCartao').innerHTML = '<option value="">Todos</option>' + STATE.cartoes.map(c=>`<option value="${c.ID_Cartao}">${escHtml(c.Nome_Cartao)}</option>`).join('');
+  document.getElementById('fPessoa').innerHTML = '<option value="">Todas</option>' + STATE.pessoas.map(p=>`<option value="${p.ID_Pessoa}">${escHtml(p.Nome||p.Nome_Pessoa||p.ID_Pessoa)}</option>`).join('');
+  document.getElementById('fCategoria').innerHTML = '<option value="">Todas</option>' + STATE.categorias.map(c=>`<option value="${c.ID_Categoria}">${escHtml(c.Nome||c.Nome_Categoria||c.ID_Categoria)}</option>`).join('');
+  document.getElementById('fTag').innerHTML = '<option value="">Todas</option>' + STATE.tags.map(t=>`<option value="${escHtml(t.Nome||t.Nome_Tag||t.ID_Tag)}">${escHtml(t.Nome||t.Nome_Tag||t.ID_Tag)}</option>`).join('');
+}
+function aplicarFiltrosAvancados() {
+  STATE.filtros = {
+    ID_Cartao: document.getElementById('fCartao').value,
+    ID_Pessoa: document.getElementById('fPessoa').value,
+    ID_Categoria: document.getElementById('fCategoria').value,
+    Tag: document.getElementById('fTag').value,
+    Status: document.getElementById('fStatus').value,
+    Tipo: document.getElementById('fTipo').value,
+    valorMin: document.getElementById('fValorMin').value,
+    valorMax: document.getElementById('fValorMax').value
+  };
+  const qtd = Object.values(STATE.filtros).filter(v => v !== '').length;
+  const badge = document.getElementById('filtroAtivoQtd');
+  if (qtd > 0) { badge.textContent = qtd; badge.classList.remove('hidden'); badge.classList.add('inline-flex'); }
+  else { badge.classList.add('hidden'); }
+  fecharModal('modalFiltros');
+  renderView(STATE.view);
+}
+function limparFiltros() {
+  STATE.filtros = { ID_Cartao:'', ID_Pessoa:'', ID_Categoria:'', Tag:'', Status:'', Tipo:'', valorMin:'', valorMax:'' };
+  document.getElementById('filtroAtivoQtd').classList.add('hidden');
+  fecharModal('modalFiltros');
+  renderView(STATE.view);
+}
+function filtrosAtivosLocal(lista) {
+  const f = STATE.filtros;
+  return lista.filter(l => {
+    if (f.ID_Cartao && l.ID_Cartao !== f.ID_Cartao) return false;
+    if (f.ID_Pessoa && l.ID_Pessoa !== f.ID_Pessoa) return false;
+    if (f.ID_Categoria && l.ID_Categoria !== f.ID_Categoria) return false;
+    if (f.Status && l.Status !== f.Status) return false;
+    if (f.Tipo && l.Tipo !== f.Tipo) return false;
+    if (f.Tag && !String(l.Tags||'').split(',').map(t=>t.trim()).includes(f.Tag)) return false;
+    if (f.valorMin && Number(l.Valor||0) < Number(f.valorMin)) return false;
+    if (f.valorMax && Number(l.Valor||0) > Number(f.valorMax)) return false;
+    return true;
+  });
+}
+</script>
+
+<script>
+/* =====================================================
+   CARREGAMENTO DE DADOS
+   ===================================================== */
+async function carregarTudo(mostrarToastOk) {
+  try {
+    const [cartoesR, pessoasR, categoriasR, tagsR, lancR, faturasR, estR, altR, reembR, antR, pagR, reaR] = await Promise.all([
+      api('listarCartoes'),
+      api('listarPessoas'),
+      api('listarCategorias'),
+      api('listarTags'),
+      api('listarLancamentos'),
+      api('listarFaturas'),
+      api('listarEstimativas'),
+      api('listarAlertas'),
+      api('listarReembolsos'),
+      api('listarAntecipacoes'),
+      api('listarPagamentos'),
+      api('listarReajustes')
+    ]);
+
+    STATE.cartoes = cartoesR.data || [];
+    STATE.pessoas = pessoasR.data || [];
+    STATE.categorias = categoriasR.data || [];
+    STATE.tags = tagsR.data || [];
+    STATE.lancamentos = lancR.data || [];
+    STATE.faturas = faturasR.data || [];
+    STATE.estimativas = estR.data || [];
+    STATE.alertas = altR.data || [];
+    STATE.reembolsos = reembR.data || [];
+    STATE.antecipacoes = antR.data || [];
+    STATE.pagamentos = pagR.data || [];
+    STATE.reajustes = reaR.data || [];
+
+    document.getElementById('lastUpdated').textContent = 'Atualizado às ' + new Date().toLocaleTimeString('pt-BR');
+    if (mostrarToastOk) toast('Dados atualizados', 'sucesso');
+  } catch (e) {
+    console.error(e);
+  }
+  renderView(STATE.view);
+}
+
+async function atualizarDashboard() {
+  const r = await api('dashboard', {}, { Mes: STATE.mesAtual });
+  STATE.dashboard = r.data;
+  return r.data;
+}
+
+/* =====================================================
+   SINCRONIZAÇÃO PÓS-MUTAÇÃO
+   Sempre que um lançamento, pagamento, reembolso, antecipação, reajuste
+   ou cartão é criado/editado/excluído, os totais de Cartões e Faturas
+   (limite utilizado, disponível, valor da fatura etc.) precisam ser
+   recarregados do servidor e a TELA ATUALMENTE VISÍVEL precisa ser
+   redesenhada — mesmo que a ação tenha sido disparada por um modal
+   aberto a partir de outra view (ex: o botão "+" flutuante). Sem isso,
+   o dado fica correto na planilha mas a interface mostra valores antigos.
+   ===================================================== */
+async function aposMutacao(mesFaturaAlvo) {
+  if (mesFaturaAlvo) {
+    STATE.mesAtual = mesFaturaAlvo;
+    atualizarLabelMes();
+  }
+  try {
+    const [cartoesR, faturasR] = await Promise.all([
+      api('listarCartoes'),
+      api('listarFaturas')
+    ]);
+    STATE.cartoes = cartoesR.data || [];
+    STATE.faturas = faturasR.data || [];
+  } catch (e) { /* erro já reportado via toast pelo api() */ }
+  renderView(STATE.view);
+}
+
+/* =====================================================
+   REPARO DE DATAS/MESES CORROMPIDOS
+   Corrige, na planilha, células de Mes_Fatura / Mes_Referencia /
+   Data_Compra / Data_Fechamento / Data_Vencimento que o Google Sheets
+   converteu para Data (causando faturas com "00:00:00" no rótulo do mês
+   ou, em casos extremos, datas absurdas como 01/02/1909) e recalcula
+   todas as faturas depois.
+   ===================================================== */
+async function rodarReparoDatas() {
+  fecharModal('modalConfigApi');
+  toast('Corrigindo dados corrompidos…', '', 4000);
+  let r;
+  try {
+    r = await api('repararDatas');
+  } catch (e) {
+    toast('Não foi possível corrigir os dados. Tente novamente.', 'erro', 6000);
+    return;
+  }
+  const total = (r.data || []).reduce((s, item) => s + (item.linhasCorrigidas || 0), 0);
+  toast(
+    total > 0
+      ? `Corrigido! ${total} célula(s) estavam com data/mês corrompido. Recarregando…`
+      : 'Nenhuma célula corrompida encontrada. Tudo certo por aqui.',
+    'sucesso',
+    6000
+  );
+  await carregarTudo();
+}
+
+/* =====================================================
+   DIAGNÓSTICO DA PLANILHA
+   ===================================================== */
+async function rodarDiagnostico() {
+  abrirModal('modalDiagnostico');
+  document.getElementById('conteudoDiagnostico').innerHTML = Array(4).fill('<div class="skel h-16 rounded-2xl"></div>').join('');
+  let r;
+  try { r = await api('diagnostico'); } catch(e) { document.getElementById('conteudoDiagnostico').innerHTML = estadoErro('Não foi possível rodar o diagnóstico.'); return; }
+  const abas = r.data || [];
+  document.getElementById('conteudoDiagnostico').innerHTML = abas.map(a => {
+    const ok = a.existe && a.colunasFaltando.length === 0;
+    return `
+      <div class="glass-card rounded-2xl p-4" style="border-left:4px solid ${ok?'#10b981':'#f43f5e'};">
+        <div class="flex items-center justify-between mb-1">
+          <span class="text-sm font-black text-slate-800">${escHtml(a.aba)}</span>
+          ${!a.existe
+            ? '<span class="badge cancelado">Aba não encontrada</span>'
+            : ok ? '<span class="badge recebido">OK</span>' : `<span class="badge cancelado">${a.colunasFaltando.length} coluna(s) faltando</span>`}
+        </div>
+        ${a.existe ? `<p class="text-[10px] text-slate-400 mb-1">${a.linhas} linha(s) de dados</p>` : ''}
+        ${a.colunasFaltando && a.colunasFaltando.length ? `<p class="text-[11px] text-rose-600 font-semibold">Faltando: ${a.colunasFaltando.map(escHtml).join(', ')}</p>` : ''}
+        ${a.colunasExtras && a.colunasExtras.length ? `<p class="text-[11px] text-amber-600 font-semibold">Colunas extras/não usadas: ${a.colunasExtras.map(escHtml).join(', ')}</p>` : ''}
+      </div>`;
+  }).join('');
+}
+</script>
+
+<script>
+/* =====================================================
+   DASHBOARD
+   ===================================================== */
+let chartCartaoRef, chartPessoaRef, chartCategoriaRef, chartMesesRef, chartLimiteRef;
+
+async function renderDashboard() {
+  atualizarLabelMes();
+  const el = document.getElementById('viewDashboard');
+  el.innerHTML = skeletonDashboard();
+
+  let d;
+  try { d = await atualizarDashboard(); } catch(e) { el.innerHTML = estadoErro('Não foi possível carregar o dashboard.'); return; }
+  if (!d) { el.innerHTML = estadoErro('Não foi possível carregar o dashboard.'); return; }
+
+  const faturaAtual = d.faturas.find(f => f.Mes_Referencia === STATE.mesAtual);
+  const proxMes = somarMeses(STATE.mesAtual, 1);
+  const faturaProxima = STATE.faturas.find(f => f.Mes_Referencia === proxMes);
+
+  const totalLimite = d.cartoes.reduce((s,c)=>s+Number(c.Limite||0),0);
+  const totalUtilizado = d.cartoes.reduce((s,c)=>s+Number(c.limiteUtilizado||0),0);
+  const totalDisponivel = totalLimite - totalUtilizado;
+  const pctLimite = totalLimite>0 ? (totalUtilizado/totalLimite*100) : 0;
+
+  const totalPago = faturaAtual ? Number(faturaAtual.Valor_Pago||0) : 0;
+  const totalRestante = faturaAtual ? Number(faturaAtual.Valor_Restante||0) : Number(d.resumo.totalLancamentos||0);
+
+  const estimativaMes = STATE.estimativas.filter(e => e.Mes === STATE.mesAtual);
+  const estGeral = estimativaMes.find(e => !e.ID_Cartao && !e.ID_Categoria && !e.ID_Pessoa) || estimativaMes[0];
+  const pctEstimativa = estGeral ? Number(estGeral.Percentual_Utilizado||0) : null;
+
+  const parcelamentosFuturos = STATE.lancamentos.filter(l => l.Parcelado==='SIM' && mesCompararIndice(l.Mes_Fatura) > mesCompararIndice(STATE.mesAtual)).length;
+
+  el.innerHTML = `
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 slide-up">
+      ${cardResumo('Limite Total', fmt(totalLimite), 'fa-layer-group', 'indigo')}
+      ${cardResumo('Limite Utilizado', fmt(totalUtilizado), 'fa-chart-line', 'rose')}
+      ${cardResumo('Limite Disponível', fmt(totalDisponivel), 'fa-wallet', 'emerald')}
+      ${cardResumo('Utilização', fmtPct(pctLimite), 'fa-percentage', pctLimite>90?'rose':(pctLimite>70?'amber':'emerald'))}
+    </div>
+
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 slide-up-d1">
+      ${cardResumo('Fatura Atual', faturaAtual? fmt(faturaAtual.Valor_Total) : fmt(d.resumo.totalLancamentos), 'fa-file-invoice-dollar', 'violet', faturaAtual?faturaAtual.Status:'Em aberto')}
+      ${cardResumo('Próxima Fatura', faturaProxima? fmt(faturaProxima.Valor_Total) : '—', 'fa-calendar-plus', 'sky')}
+      ${cardResumo('Total Pago no Mês', fmt(totalPago), 'fa-check-circle', 'emerald')}
+      ${cardResumo('Total Restante', fmt(totalRestante), 'fa-hourglass-half', 'amber')}
+    </div>
+
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 slide-up-d1">
+      ${cardResumo('Total Gasto no Mês', fmt(d.resumo.totalLancamentos), 'fa-shopping-cart', 'indigo')}
+      ${cardResumo('Qtd. Compras', String(d.resumo.quantidadeCompras), 'fa-receipt', 'slate')}
+      ${cardResumo('Estimativa do Mês', estGeral? fmt(estGeral.Valor_Estimado) : 'Não definida', 'fa-bullseye', 'violet')}
+      ${cardResumo('% Estimativa Utilizada', pctEstimativa!==null? fmtPct(pctEstimativa) : '—', 'fa-tachometer-alt', pctEstimativa>100?'rose':'emerald')}
+    </div>
+
+    <div class="glass-card p-4 rounded-[24px] slide-up-d1 flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <i class="fas fa-layer-group text-indigo-500"></i>
+        <span class="text-xs font-bold text-slate-600">Parcelamentos futuros comprometidos</span>
+      </div>
+      <span class="text-sm font-black text-slate-800">${parcelamentosFuturos} parcela(s)</span>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 slide-up-d2">
+      <div class="glass-card p-5 rounded-[28px]">
+        <h3 class="text-sm font-bold text-slate-700 mb-3">Utilização do Limite por Cartão</h3>
+        <div class="space-y-3" id="barrasLimite"></div>
+      </div>
+      <div class="glass-card p-5 rounded-[28px]">
+        <h3 class="text-sm font-bold text-slate-700 mb-3">Gastos por Cartão</h3>
+        <div class="chart-container"><canvas id="chartCartao"></canvas></div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 slide-up-d2">
+      <div class="glass-card p-5 rounded-[28px]">
+        <h3 class="text-sm font-bold text-slate-700 mb-3">Gastos por Pessoa</h3>
+        <div class="chart-container"><canvas id="chartPessoa"></canvas></div>
+      </div>
+      <div class="glass-card p-5 rounded-[28px]">
+        <h3 class="text-sm font-bold text-slate-700 mb-3">Gastos por Categoria</h3>
+        <div class="chart-container"><canvas id="chartCategoria"></canvas></div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 slide-up-d3">
+      <div class="glass-card p-5 rounded-[28px]">
+        <h3 class="text-sm font-bold text-slate-700 mb-3">Evolução da Fatura (últimos meses)</h3>
+        <div class="chart-container"><canvas id="chartMeses"></canvas></div>
+      </div>
+      <div class="glass-card p-5 rounded-[28px]">
+        <h3 class="text-sm font-bold text-slate-700 mb-3">Alertas</h3>
+        <div id="alertasResumoDash" class="space-y-2 max-h-[220px] overflow-y-auto"></div>
+      </div>
+    </div>
+  `;
+
+  renderBarrasLimite(d.cartoes);
+  renderChartsDashboard(d);
+  renderAlertasResumo();
+}
+
+function cardResumo(label, valor, icone, cor, badgeTexto) {
+  const cores = { indigo:'#6366f1', rose:'#f43f5e', emerald:'#10b981', amber:'#f59e0b', violet:'#8b5cf6', sky:'#0ea5e9', slate:'#64748b' };
+  const c = cores[cor] || cores.indigo;
+  return `
+    <div class="glass-card card-saldo p-4 rounded-[22px] relative overflow-hidden">
+      <div class="absolute top-0 right-0 w-16 h-16 rounded-full -translate-y-6 translate-x-6" style="background:${c}18;"></div>
+      <div class="flex items-center gap-1.5 relative z-10 mb-1">
+        <i class="fas ${icone} text-[11px]" style="color:${c}"></i>
+        <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">${label}</p>
+      </div>
+      <h2 class="text-base md:text-xl font-black relative z-10" style="color:${c}">${valor}</h2>
+      ${badgeTexto ? `<span class="badge ${statusFaturaClasse(badgeTexto)} mt-2 relative z-10">${badgeTexto}</span>` : ''}
+    </div>`;
+}
+
+function renderBarrasLimite(cartoes) {
+  const wrap = document.getElementById('barrasLimite');
+  if (!cartoes.length) { wrap.innerHTML = '<p class="text-xs text-slate-400">Nenhum cartão cadastrado.</p>'; return; }
+  wrap.innerHTML = cartoes.map(c => {
+    const pct = Math.min(100, Number(c.percentualUtilizado||0));
+    const cor = pct>90?'#f43f5e':(pct>70?'#f59e0b':'#10b981');
+    return `
+      <div>
+        <div class="flex items-center justify-between mb-1">
+          <span class="text-xs font-bold text-slate-600">${escHtml(c.Nome_Cartao)}</span>
+          <span class="text-[10px] font-bold text-slate-400">${fmtPct(pct)}</span>
+        </div>
+        <div class="progress-track"><div class="progress-bar" style="width:${pct}%; background:${cor};"></div></div>
+      </div>`;
+  }).join('');
+}
+
+function renderChartsDashboard(d) {
+  const paletaCat = STATE.categorias.map((c,i)=>c.Cor || corPorId(i, CONFIG.coresCategoriaPadrao));
+  const paletaCartao = STATE.cartoes.map((c,i)=>c.Cor || corPorId(i, CONFIG.coresCartaoPadrao));
+  const tooltipMoeda = { callbacks: { label: (ctx) => (ctx.dataset.label ? ctx.dataset.label+': ' : (ctx.label? ctx.label+': ':'')) + fmt(ctx.parsed.y !== undefined ? ctx.parsed.y : ctx.parsed) } };
+  const eixoYMoeda = { beginAtZero:true, ticks:{ font:{size:9}, callback:(v)=>fmt(v) } };
+
+  // Gastos por cartão
+  const porCartaoEntries = Object.entries(d.graficos.porCartao || {});
+  if (chartCartaoRef) chartCartaoRef.destroy();
+  chartCartaoRef = new Chart(document.getElementById('chartCartao'), {
+    type: 'doughnut',
+    data: { labels: porCartaoEntries.map(([id])=>nomeCartao(id)), datasets: [{ data: porCartaoEntries.map(([,v])=>v), backgroundColor: porCartaoEntries.map(([id])=>{ const c=STATE.cartoes.find(x=>x.ID_Cartao===id); return c? idParaCor(c) : '#94a3b8'; }), borderWidth:0 }] },
+    options: { plugins:{ legend:{ position:'bottom', labels:{ boxWidth:8, font:{size:10} } }, tooltip: tooltipMoeda }, cutout:'62%',
+      onClick: (evt, els) => { if (els.length) abrirDrillDown('ID_Cartao', porCartaoEntries[els[0].index][0], nomeCartao(porCartaoEntries[els[0].index][0])); } }
+  });
+
+  // Gastos por pessoa
+  const porPessoaEntries = Object.entries(d.graficos.porPessoa || {});
+  if (chartPessoaRef) chartPessoaRef.destroy();
+  chartPessoaRef = new Chart(document.getElementById('chartPessoa'), {
+    type: 'doughnut',
+    data: { labels: porPessoaEntries.map(([id])=>nomePessoa(id)), datasets: [{ data: porPessoaEntries.map(([,v])=>v), backgroundColor: ['#6366f1','#ec4899','#10b981','#f59e0b','#0ea5e9'], borderWidth:0 }] },
+    options: { plugins:{ legend:{ position:'bottom', labels:{ boxWidth:8, font:{size:10} } }, tooltip: tooltipMoeda }, cutout:'62%',
+      onClick: (evt, els) => { if (els.length) abrirDrillDown('ID_Pessoa', porPessoaEntries[els[0].index][0], nomePessoa(porPessoaEntries[els[0].index][0])); } }
+  });
+
+  // Gastos por categoria
+  const porCategoriaEntries = Object.entries(d.graficos.porCategoria || {});
+  if (chartCategoriaRef) chartCategoriaRef.destroy();
+  chartCategoriaRef = new Chart(document.getElementById('chartCategoria'), {
+    type: 'bar',
+    data: { labels: porCategoriaEntries.map(([id])=>nomeCategoria(id)), datasets: [{ data: porCategoriaEntries.map(([,v])=>v), backgroundColor: porCategoriaEntries.map(([id])=>corCategoria(id)), borderRadius:8, maxBarThickness:34 }] },
+    options: { plugins:{ legend:{ display:false }, tooltip: tooltipMoeda }, scales:{ y:eixoYMoeda, x:{ ticks:{ font:{size:9} } } },
+      onClick: (evt, els) => { if (els.length) abrirDrillDown('ID_Categoria', porCategoriaEntries[els[0].index][0], nomeCategoria(porCategoriaEntries[els[0].index][0])); } }
+  });
+
+  // Evolução por mês (últimos 6 meses incluindo atual)
+  const meses = []; for (let i=5;i>=0;i--) meses.push(somarMeses(STATE.mesAtual, -i));
+  const totaisMes = meses.map(m => { const f = STATE.faturas.find(x=>x.Mes_Referencia===m); return f ? Number(f.Valor_Total||0) : STATE.lancamentos.filter(l=>l.Mes_Fatura===m).reduce((s,l)=>s+Number(l.Valor||0),0); });
+  if (chartMesesRef) chartMesesRef.destroy();
+  chartMesesRef = new Chart(document.getElementById('chartMeses'), {
+    type: 'line',
+    data: { labels: meses, datasets: [{ data: totaisMes, borderColor:'#6366f1', backgroundColor:'rgba(99,102,241,0.12)', fill:true, tension:.35, pointBackgroundColor:'#6366f1', pointRadius:4 }] },
+    options: { plugins:{ legend:{ display:false }, tooltip: tooltipMoeda }, scales:{ y:eixoYMoeda, x:{ ticks:{ font:{size:9} } } } }
+  });
+}
+
+function renderAlertasResumo() {
+  const wrap = document.getElementById('alertasResumoDash');
+  const ativos = STATE.alertas.filter(a => a.Ativo === 'SIM');
+  if (!ativos.length) { wrap.innerHTML = '<p class="text-xs text-slate-400 text-center py-6">Nenhum alerta ativo.</p>'; return; }
+  wrap.innerHTML = ativos.map(a => `
+    <div class="item-row">
+      <div class="w-9 h-9 rounded-xl bg-amber-50 flex items-center justify-center flex-shrink-0"><i class="fas fa-bell text-amber-500 text-xs"></i></div>
+      <div class="flex-1 min-w-0">
+        <p class="text-xs font-bold text-slate-700 truncate">${escHtml(a.Tipo)}${a.ID_Cartao? ' · '+escHtml(nomeCartao(a.ID_Cartao)) : ''}</p>
+        <p class="text-[10px] text-slate-400 truncate">${escHtml(a.Mensagem || '—')}</p>
+      </div>
+    </div>`).join('');
+}
+
+function abrirDrillDown(campo, valor, titulo) {
+  const lista = STATE.lancamentos.filter(l => l.Mes_Fatura===STATE.mesAtual && l[campo]===valor);
+  document.getElementById('tituloLancRelacionados').textContent = titulo;
+  document.getElementById('totalLancRelacionados').textContent = fmt(lista.reduce((s,l)=>s+Number(l.Valor||0),0));
+  document.getElementById('listaLancRelacionados').innerHTML = lista.length ? lista.map(itemLancamentoHtml).join('') : estadoVazioMini('Nenhum lançamento encontrado.');
+  abrirModal('modalLancRelacionados');
+}
+
+function itemLancamentoHtml(l) {
+  return `
+    <div class="item-row cursor-pointer" onclick="abrirModalLancamento('${l.ID_Lancamento}')">
+      <div class="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style="background:${idParaCor(STATE.cartoes.find(c=>c.ID_Cartao===l.ID_Cartao))}22;">
+        <i class="fas ${l.Tipo==='Estorno'?'fa-undo':'fa-shopping-bag'} text-xs" style="color:${idParaCor(STATE.cartoes.find(c=>c.ID_Cartao===l.ID_Cartao))}"></i>
+      </div>
+      <div class="flex-1 min-w-0">
+        <p class="text-xs font-bold text-slate-700 truncate">${escHtml(l.Descricao)}</p>
+        <p class="text-[10px] text-slate-400 truncate">${escHtml(nomeCartao(l.ID_Cartao))} · ${l.Parcelado==='SIM' ? 'Parcela '+l.Parcela_Atual+'/'+l.Total_Parcelas : 'À vista'} · ${escHtml(formatarDataExibicao(l.Data_Compra))}</p>
+      </div>
+      <span class="text-xs font-black ${l.Tipo==='Estorno'?'text-emerald-600':'text-slate-800'} flex-shrink-0">${l.Tipo==='Estorno'?'+':''}${fmt(l.Valor)}</span>
+    </div>`;
+}
+function formatarDataExibicao(v) { if (!v) return '—'; const s=String(v); return s.includes(' ') ? s.split(' ')[0] : s; }
+// Mesma ideia, mas para rótulos de mês (MM/aaaa): se algum dado antigo
+// ainda vier corrompido como "01/09/2026 00:00:00" (data completa em vez
+// de mês/ano), reconstrói o rótulo limpo em vez de exibir o valor cru.
+function formatarMesExibicao(v) {
+  if (!v) return '—';
+  const s = String(v).trim();
+  if (/^\d{1,2}\/\d{4}$/.test(s)) {
+    const [m, a] = s.split('/');
+    return String(m).padStart(2, '0') + '/' + a;
+  }
+  const partes = s.split(' ')[0].split('/');
+  if (partes.length === 3) {
+    return String(partes[1]).padStart(2, '0') + '/' + partes[2];
+  }
+  return s;
+}
+
+function skeletonDashboard() {
+  return `<div class="grid grid-cols-2 lg:grid-cols-4 gap-3">${Array(4).fill('<div class="skel h-24 rounded-[22px]"></div>').join('')}</div>
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">${Array(2).fill('<div class="skel h-64 rounded-[28px]"></div>').join('')}</div>`;
+}
+function estadoErro(msg) {
+  return `<div class="glass-card rounded-[24px] estado-vazio"><i class="fas fa-triangle-exclamation text-rose-400 text-2xl mb-2"></i><p class="text-sm font-bold text-slate-600">${escHtml(msg)}</p><button onclick="carregarTudo(true)" class="btn-chip mt-3">Tentar novamente</button></div>`;
+}
+function estadoVazioMini(msg) {
+  return `<div class="text-center py-8"><i class="fas fa-inbox text-slate-300 text-2xl mb-2"></i><p class="text-xs text-slate-400 font-semibold">${escHtml(msg)}</p></div>`;
+}
+</script>
+
+<script>
+/* =====================================================
+   CARTÕES
+   ===================================================== */
+async function renderCartoes() {
+  const el = document.getElementById('viewCartoes');
+  el.innerHTML = `<div class="grid grid-cols-1 md:grid-cols-2 gap-4">${Array(2).fill('<div class="skel h-40 rounded-[22px]"></div>').join('')}</div>`;
+  try {
+    const r = await api('listarCartoes');
+    STATE.cartoes = r.data || [];
+  } catch(e) { el.innerHTML = estadoErro('Não foi possível carregar os cartões.'); return; }
+
+  el.innerHTML = `
+    <div class="flex items-center justify-between slide-up">
+      <p class="text-xs font-semibold text-slate-500">${STATE.cartoes.length} cartão(ões) cadastrado(s)</p>
+      <button onclick="abrirModalCartao()" class="btn-primario !py-2.5 !px-4 text-xs flex items-center gap-2"><i class="fas fa-plus"></i>Novo cartão</button>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 slide-up-d1" id="gridCartoes"></div>
+  `;
+
+  const grid = document.getElementById('gridCartoes');
+  if (!STATE.cartoes.length) { grid.innerHTML = estadoVazioMini('Nenhum cartão cadastrado ainda.'); return; }
+
+  grid.innerHTML = STATE.cartoes.map(c => {
+    const cor = idParaCor(c);
+    const pct = Math.min(100, Number(c.percentualUtilizado||0));
+    const inativo = c.Ativo !== 'SIM';
+    return `
+    <div class="cartao-tile" style="background: linear-gradient(135deg, ${cor}, ${sombrear(cor,-28)}); ${inativo?'opacity:.55;':''}">
+      <div class="relative z-10 flex items-start justify-between">
+        <div>
+          <p class="text-[10px] font-bold uppercase tracking-widest opacity-80">${escHtml(c.Banco || 'Cartão')}</p>
+          <h3 class="text-lg font-black">${escHtml(c.Nome_Cartao)}</h3>
+        </div>
+        <div class="flex items-center gap-1.5">
+          ${inativo ? '<span class="badge pendente">Inativo</span>' : ''}
+          <button onclick="editarCartaoClick('${c.ID_Cartao}')" class="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center"><i class="fas fa-pen text-[11px]"></i></button>
+        </div>
+      </div>
+      <div class="relative z-10">
+        <div class="flex items-center justify-between text-[10px] font-bold opacity-90 mb-1.5">
+          <span>${escHtml(c.Bandeira||'')}</span>
+          <span>Fecha dia ${c.Dia_Fechamento} · Vence dia ${c.Dia_Vencimento}</span>
+        </div>
+        <div class="progress-track claro mb-1.5"><div class="progress-bar" style="width:${pct}%; background:#fff;"></div></div>
+        <div class="flex items-center justify-between text-xs font-black">
+          <span>${fmt(c.limiteUtilizado)} usado</span>
+          <span class="opacity-90">${fmt(c.Limite)}</span>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function sombrear(hex, pct) {
+  try {
+    let c = hex.replace('#','');
+    if (c.length===3) c = c.split('').map(x=>x+x).join('');
+    const num = parseInt(c,16);
+    let r=(num>>16)+Math.round(2.55*pct), g=((num>>8)&0xff)+Math.round(2.55*pct), b=(num&0xff)+Math.round(2.55*pct);
+    r=Math.max(0,Math.min(255,r)); g=Math.max(0,Math.min(255,g)); b=Math.max(0,Math.min(255,b));
+    return '#' + [r,g,b].map(x=>x.toString(16).padStart(2,'0')).join('');
+  } catch(e) { return hex; }
+}
+
+function abrirModalCartao() {
+  document.getElementById('tituloModalCartao').textContent = 'Novo Cartão';
+  ['cartaoId','cartaoNome','cartaoBanco','cartaoBandeira','cartaoLimite','cartaoFechamento','cartaoVencimento','cartaoObs'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('cartaoCor').value = '#6366f1';
+  document.getElementById('cartaoAtivo').checked = true;
+  abrirModal('modalCartao');
+}
+function editarCartaoClick(id) {
+  const c = STATE.cartoes.find(x=>x.ID_Cartao===id);
+  if (!c) return;
+  document.getElementById('tituloModalCartao').textContent = 'Editar Cartão';
+  document.getElementById('cartaoId').value = c.ID_Cartao;
+  document.getElementById('cartaoNome').value = c.Nome_Cartao || '';
+  document.getElementById('cartaoBanco').value = c.Banco || '';
+  document.getElementById('cartaoBandeira').value = c.Bandeira || '';
+  document.getElementById('cartaoLimite').value = c.Limite || '';
+  document.getElementById('cartaoFechamento').value = c.Dia_Fechamento || '';
+  document.getElementById('cartaoVencimento').value = c.Dia_Vencimento || '';
+  document.getElementById('cartaoCor').value = c.Cor || '#6366f1';
+  document.getElementById('cartaoObs').value = c.Observacao || '';
+  document.getElementById('cartaoAtivo').checked = c.Ativo === 'SIM';
+  abrirModal('modalCartao');
+}
+async function salvarCartao() {
+  const nome = document.getElementById('cartaoNome').value.trim();
+  if (!nome) return toast('Informe o nome do cartão', 'erro');
+  const id = document.getElementById('cartaoId').value;
+  const payload = {
+    Nome_Cartao: nome,
+    Banco: document.getElementById('cartaoBanco').value.trim(),
+    Bandeira: document.getElementById('cartaoBandeira').value.trim(),
+    Limite: Number(document.getElementById('cartaoLimite').value || 0),
+    Dia_Fechamento: Number(document.getElementById('cartaoFechamento').value || 1),
+    Dia_Vencimento: Number(document.getElementById('cartaoVencimento').value || 1),
+    Cor: document.getElementById('cartaoCor').value,
+    Ativo: document.getElementById('cartaoAtivo').checked ? 'SIM' : 'NAO',
+    Observacao: document.getElementById('cartaoObs').value.trim()
+  };
+  try {
+    if (id) { payload.ID_Cartao = id; await api('editarCartao', payload); toast('Cartão atualizado', 'sucesso'); }
+    else { const r = await api('criarCartao', payload); toast('Cartão criado', 'sucesso'); avisarColunasFaltando(r.data); }
+    fecharModal('modalCartao');
+    await aposMutacao();
+  } catch(e) {}
+}
+</script>
+
+<script>
+/* =====================================================
+   LANÇAMENTOS
+   ===================================================== */
+async function renderLancamentos() {
+  atualizarLabelMes();
+  const el = document.getElementById('viewLancamentos');
+  el.innerHTML = `<div class="space-y-2">${Array(5).fill('<div class="skel h-16 rounded-2xl"></div>').join('')}</div>`;
+  try {
+    const r = await api('listarLancamentos', {}, { Mes_Fatura: STATE.mesAtual });
+    STATE.lancamentos = mesclarLancamentos(STATE.lancamentos, r.data || [], STATE.mesAtual);
+  } catch(e) { el.innerHTML = estadoErro('Não foi possível carregar os lançamentos.'); return; }
+
+  let lista = STATE.lancamentos.filter(l => l.Mes_Fatura === STATE.mesAtual);
+  lista = filtrosAtivosLocal(lista);
+  const total = lista.reduce((s,l)=> s + (l.Tipo==='Estorno' ? -Number(l.Valor||0) : Number(l.Valor||0)), 0);
+
+  el.innerHTML = `
+    <div class="glass-card rounded-2xl p-4 flex items-center justify-between slide-up">
+      <div><p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Total do período</p><p class="text-xl font-black text-slate-800">${fmt(total)}</p></div>
+      <button onclick="abrirModalLancamento()" class="btn-primario !py-2.5 !px-4 text-xs flex items-center gap-2"><i class="fas fa-plus"></i>Novo</button>
+    </div>
+    <div class="space-y-2 slide-up-d1" id="listaLancamentos"></div>
+  `;
+  const wrap = document.getElementById('listaLancamentos');
+  wrap.innerHTML = lista.length ? lista.sort((a,b)=> new Date(parseDataBR(b.Data_Compra)) - new Date(parseDataBR(a.Data_Compra))).map(itemLancamentoAcoesHtml).join('') : estadoVazioMini('Nenhum lançamento neste período.');
+}
+function parseDataBR(v) { if (!v) return new Date(); const s=String(v).split(' ')[0]; const [d,m,a]=s.split('/'); return a? new Date(+a,+m-1,+d) : new Date(v); }
+
+function mesclarLancamentos(atual, novos, mes) {
+  const semEsseMes = atual.filter(l => l.Mes_Fatura !== mes);
+  return [...semEsseMes, ...novos];
+}
+
+function itemLancamentoAcoesHtml(l) {
+  const c = STATE.cartoes.find(x=>x.ID_Cartao===l.ID_Cartao);
+  const cor = c ? idParaCor(c) : '#94a3b8';
+  return `
+    <div class="item-row">
+      <div class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style="background:${cor}1f;">
+        <i class="fas ${l.Tipo==='Estorno'?'fa-undo':'fa-shopping-bag'} text-sm" style="color:${cor}"></i>
+      </div>
+      <div class="flex-1 min-w-0" onclick="abrirModalLancamento('${l.ID_Lancamento}')" style="cursor:pointer;">
+        <p class="text-xs font-bold text-slate-700 truncate">${escHtml(l.Descricao)}</p>
+        <p class="text-[10px] text-slate-400 truncate">${escHtml(nomeCartao(l.ID_Cartao))} · ${escHtml(nomePessoa(l.ID_Pessoa))} · ${l.Parcelado==='SIM' ? 'Parcela '+l.Parcela_Atual+'/'+l.Total_Parcelas : 'À vista'}</p>
+        <p class="text-[10px] text-slate-400">${escHtml(formatarDataExibicao(l.Data_Compra))} ${l.Status && l.Status!=='Aberto' ? '· <span class=\"font-bold\">'+escHtml(l.Status)+'</span>' : ''}</p>
+      </div>
+      <div class="flex flex-col items-end gap-1 flex-shrink-0">
+        <span class="text-xs font-black ${l.Tipo==='Estorno'?'text-emerald-600':'text-slate-800'}">${l.Tipo==='Estorno'?'+':''}${fmt(l.Valor)}</span>
+        <button onclick="excluirLancamentoClick('${l.ID_Lancamento}')" class="text-rose-400 text-[11px]"><i class="fas fa-trash"></i></button>
+      </div>
+    </div>`;
+}
+
+function preencherSelectsLancamento() {
+  document.getElementById('lancCartao').innerHTML = STATE.cartoes.filter(c=>c.Ativo==='SIM').map(c=>`<option value="${c.ID_Cartao}">${escHtml(c.Nome_Cartao)}</option>`).join('') || '<option value="">Cadastre um cartão</option>';
+  document.getElementById('lancPessoa').innerHTML = '<option value="">—</option>' + STATE.pessoas.map(p=>`<option value="${p.ID_Pessoa}">${escHtml(p.Nome||p.Nome_Pessoa||p.ID_Pessoa)}</option>`).join('');
+  document.getElementById('lancCategoria').innerHTML = '<option value="">—</option>' + STATE.categorias.map(c=>`<option value="${c.ID_Categoria}">${escHtml(c.Nome||c.Nome_Categoria||c.ID_Categoria)}</option>`).join('');
+}
+
+function abrirModalLancamento(id) {
+  preencherSelectsLancamento();
+  document.getElementById('lancamentoId').value = id || '';
+  document.getElementById('tituloModalLancamento').textContent = id ? 'Editar Lançamento' : 'Novo Lançamento';
+  document.getElementById('wrapParcelas').classList.add('hidden');
+  document.getElementById('lancParcelado').checked = false;
+  document.getElementById('lancParcelado').disabled = !!id;
+  if (id) {
+    const l = STATE.lancamentos.find(x=>x.ID_Lancamento===id);
+    if (!l) return;
+    document.getElementById('lancDescricao').value = l.Descricao || '';
+    document.getElementById('lancCartao').value = l.ID_Cartao || '';
+    document.getElementById('lancPessoa').value = l.ID_Pessoa || '';
+    document.getElementById('lancData').value = converterParaInputDate(l.Data_Compra);
+    document.getElementById('lancValor').value = l.Valor || '';
+    document.getElementById('lancTipo').value = l.Tipo || 'Compra';
+    document.getElementById('lancCategoria').value = l.ID_Categoria || '';
+    document.getElementById('lancTags').value = l.Tags || '';
+    document.getElementById('lancObs').value = l.Observacao || '';
+  } else {
+    ['lancDescricao','lancValor','lancTags','lancObs','lancTotalParcelas'].forEach(i=>document.getElementById(i).value='');
+    document.getElementById('lancData').value = hojeISO();
+    document.getElementById('lancTipo').value = 'Compra';
+  }
+  abrirModal('modalLancamento');
+}
+function converterParaInputDate(v) {
+  if (!v) return '';
+  const s = String(v).split(' ')[0];
+  const [d,m,a] = s.split('/');
+  if (a) return a+'-'+m.padStart(2,'0')+'-'+d.padStart(2,'0');
+  return '';
+}
+function converterParaBR(inputDate) {
+  if (!inputDate) return '';
+  const [a,m,d] = inputDate.split('-');
+  return d+'/'+m+'/'+a;
+}
+function toggleParcelado() {
+  document.getElementById('wrapParcelas').classList.toggle('hidden', !document.getElementById('lancParcelado').checked);
+}
+async function salvarLancamento() {
+  const id = document.getElementById('lancamentoId').value;
+  const descricao = document.getElementById('lancDescricao').value.trim();
+  const cartao = document.getElementById('lancCartao').value;
+  const valor = Number(document.getElementById('lancValor').value || 0);
+  if (!descricao) return toast('Informe a descrição', 'erro');
+  if (!cartao) return toast('Selecione um cartão', 'erro');
+  if (valor <= 0) return toast('Informe um valor válido', 'erro');
+
+  const payload = {
+    ID_Cartao: cartao,
+    ID_Pessoa: document.getElementById('lancPessoa').value,
+    Data_Compra: converterParaBR(document.getElementById('lancData').value),
+    Descricao: descricao,
+    Valor: valor,
+    Tipo: document.getElementById('lancTipo').value,
+    ID_Categoria: document.getElementById('lancCategoria').value,
+    Tags: document.getElementById('lancTags').value.trim(),
+    Observacao: document.getElementById('lancObs').value.trim()
+  };
+  try {
+    if (id) {
+      payload.ID_Lancamento = id;
+      await api('editarLancamento', payload);
+      toast('Lançamento atualizado', 'sucesso');
+      fecharModal('modalLancamento');
+      await aposMutacao();
+    } else {
+      const parcelado = document.getElementById('lancParcelado').checked;
+      payload.Parcelado = parcelado ? 'SIM' : 'NAO';
+      payload.Total_Parcelas = parcelado ? Number(document.getElementById('lancTotalParcelas').value || 1) : 1;
+      const r = await api('criarLancamento', payload);
+      // O backend decide em qual fatura (mês) o lançamento cai, com base no
+      // dia de fechamento do cartão — pode não ser o mês calendário atual.
+      // Navegamos até lá para o lançamento aparecer imediatamente na tela.
+      const mesDestino = (r.data && r.data[0] && r.data[0].Mes_Fatura) || STATE.mesAtual;
+      toast((r.totalParcelas>1 ? r.totalParcelas+' parcelas criadas · fatura de '+mesDestino : 'Lançamento criado na fatura de '+mesDestino), 'sucesso');
+      avisarColunasFaltando(r.data && r.data[0]);
+      fecharModal('modalLancamento');
+      STATE.mesAtual = mesDestino;
+      atualizarLabelMes();
+      if (STATE.view !== 'lancamentos') mudarView('lancamentos');
+      await aposMutacao();
+    }
+  } catch(e) {}
+}
+function excluirLancamentoClick(id) {
+  confirmarAcao('Excluir lançamento?', 'Essa ação removerá o lançamento e atualizará a fatura.', async () => {
+    try { await api('excluirLancamento', { ID_Lancamento: id }); toast('Lançamento excluído', 'sucesso'); await aposMutacao(); } catch(e) {}
+  }, 'Excluir');
+}
+</script>
+
+<script>
+/* =====================================================
+   FATURAS
+   ===================================================== */
+async function renderFaturas() {
+  atualizarLabelMes();
+  const el = document.getElementById('viewFaturas');
+  el.innerHTML = `<div class="space-y-2">${Array(4).fill('<div class="skel h-20 rounded-2xl"></div>').join('')}</div>`;
+  try {
+    const r = await api('listarFaturas');
+    STATE.faturas = r.data || [];
+  } catch(e) { el.innerHTML = estadoErro('Não foi possível carregar as faturas.'); return; }
+
+  const idxAtual = mesCompararIndice(STATE.mesAtual);
+  const proximaMes = somarMeses(STATE.mesAtual, 1);
+  const atual = STATE.faturas.filter(f=>f.Mes_Referencia===STATE.mesAtual);
+  const proxima = STATE.faturas.filter(f=>f.Mes_Referencia===proximaMes);
+  const futuras = STATE.faturas.filter(f=> mesCompararIndice(f.Mes_Referencia) > mesCompararIndice(proximaMes));
+  const anteriores = STATE.faturas.filter(f=> mesCompararIndice(f.Mes_Referencia) < idxAtual).sort((a,b)=>mesCompararIndice(b.Mes_Referencia)-mesCompararIndice(a.Mes_Referencia));
+
+  const el2 = document.getElementById('viewFaturas');
+  el2.innerHTML = `
+    ${blocoFaturas('Fatura Atual', atual, 'indigo')}
+    ${blocoFaturas('Próxima Fatura', proxima, 'sky')}
+    ${blocoFaturas('Faturas Futuras', futuras, 'violet')}
+    ${blocoFaturas('Faturas Anteriores', anteriores, 'slate')}
+  `;
+}
+function blocoFaturas(titulo, lista, cor) {
+  return `
+    <div class="slide-up-d1">
+      <h3 class="text-xs font-black text-slate-500 uppercase tracking-widest mb-2 px-1">${titulo}</h3>
+      <div class="space-y-2">${lista.length ? lista.map(itemFaturaHtml).join('') : '<div class="glass-card rounded-2xl p-4 text-center text-xs text-slate-400 font-semibold">Nenhuma fatura.</div>'}</div>
+    </div>`;
+}
+function itemFaturaHtml(f) {
+  return `
+    <div class="item-row cursor-pointer" onclick="abrirDetalheFatura('${f.ID_Fatura}')">
+      <div class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style="background:${idParaCor(STATE.cartoes.find(c=>c.ID_Cartao===f.ID_Cartao))}1f;">
+        <i class="fas fa-file-invoice-dollar text-sm" style="color:${idParaCor(STATE.cartoes.find(c=>c.ID_Cartao===f.ID_Cartao))}"></i>
+      </div>
+      <div class="flex-1 min-w-0">
+        <p class="text-xs font-bold text-slate-700 truncate">${escHtml(nomeCartao(f.ID_Cartao))} · ${escHtml(formatarMesExibicao(f.Mes_Referencia))}</p>
+        <p class="text-[10px] text-slate-400">Vence em ${escHtml(formatarDataExibicao(f.Data_Vencimento))}</p>
+      </div>
+      <div class="flex flex-col items-end gap-1 flex-shrink-0">
+        <span class="text-xs font-black text-slate-800">${fmt(f.Valor_Total)}</span>
+        <span class="badge ${statusFaturaClasse(f.Status)}">${escHtml(f.Status)}</span>
+      </div>
+    </div>`;
+}
+function abrirDetalheFatura(id) {
+  const f = STATE.faturas.find(x=>x.ID_Fatura===id);
+  if (!f) return;
+  document.getElementById('reajusteFaturaId').value = f.ID_Fatura;
+  document.getElementById('pagamentoFaturaId').value = f.ID_Fatura;
+  document.getElementById('pagamentoCartaoId').value = f.ID_Cartao;
+  document.getElementById('tituloModalFatura').textContent = nomeCartao(f.ID_Cartao) + ' · ' + formatarMesExibicao(f.Mes_Referencia);
+  document.getElementById('subtituloModalFatura').textContent = 'Fechamento ' + formatarDataExibicao(f.Data_Fechamento) + ' · Vencimento ' + formatarDataExibicao(f.Data_Vencimento);
+  document.getElementById('statusModalFatura').textContent = f.Status;
+  document.getElementById('statusModalFatura').className = 'badge ' + statusFaturaClasse(f.Status);
+  document.getElementById('resumoModalFatura').innerHTML = [
+    ['Lançamentos', f.Valor_Lancamentos], ['Reembolsos', -f.Valor_Reembolsos],
+    ['Antecipações', -f.Valor_Antecipacoes], ['Reajustes', f.Valor_Reajustes],
+    ['Total', f.Valor_Total], ['Pago', f.Valor_Pago], ['Restante', f.Valor_Restante]
+  ].map(([l,v]) => `<div class="bg-slate-50 rounded-xl p-3 border border-slate-100"><p class="text-[9px] font-bold text-slate-400 uppercase mb-1">${l}</p><p class="text-sm font-black text-slate-700">${fmt(v)}</p></div>`).join('');
+
+  const lancs = STATE.lancamentos.filter(l => l.ID_Cartao===f.ID_Cartao && l.Mes_Fatura===f.Mes_Referencia);
+  document.getElementById('listaModalFatura').innerHTML = lancs.length ? lancs.map(itemLancamentoHtml).join('') : estadoVazioMini('Nenhum lançamento nesta fatura.');
+  abrirModal('modalFatura');
+}
+function excluirFaturaClick() {
+  const id = document.getElementById('reajusteFaturaId').value;
+  if (!id) return;
+  confirmarAcao('Excluir esta fatura?', 'Isso remove apenas o registro da fatura — os lançamentos continuam existindo e uma nova fatura será recriada automaticamente na próxima atualização, se ainda houver lançamentos naquele mês. Use para limpar registros de teste.', async () => {
+    try {
+      await api('excluirFatura', { ID_Fatura: id });
+      toast('Fatura excluída', 'sucesso');
+      fecharModal('modalFatura');
+      await aposMutacao();
+    } catch(e) {}
+  }, 'Excluir');
+}
+function abrirReajuste() {
+  document.getElementById('reajusteValor').value = '';
+  document.getElementById('reajusteMotivo').value = '';
+  document.getElementById('reajusteTipo').value = 'Acréscimo';
+  abrirModal('modalReajuste');
+}
+async function salvarReajuste() {
+  const valor = Number(document.getElementById('reajusteValor').value || 0);
+  if (valor <= 0) return toast('Informe um valor', 'erro');
+  const payload = {
+    ID_Fatura: document.getElementById('reajusteFaturaId').value,
+    Tipo: document.getElementById('reajusteTipo').value,
+    Valor: valor,
+    Motivo: document.getElementById('reajusteMotivo').value.trim()
+  };
+  try {
+    const r = await api('criarReajuste', payload);
+    STATE.reajustes.push(r.data);
+    toast('Reajuste registrado', 'sucesso');
+    fecharModal('modalReajuste');
+    fecharModal('modalFatura');
+    await aposMutacao();
+  } catch(e) {}
+}
+function abrirPagamento() {
+  document.getElementById('pagamentoValor').value = '';
+  document.getElementById('pagamentoData').value = hojeISO();
+  document.getElementById('pagamentoTipo').value = 'Total';
+  document.getElementById('pagamentoConta').value = '';
+  document.getElementById('pagamentoObs').value = '';
+  abrirModal('modalPagamento');
+}
+async function salvarPagamento() {
+  const valor = Number(document.getElementById('pagamentoValor').value || 0);
+  if (valor <= 0) return toast('Informe um valor', 'erro');
+  const payload = {
+    ID_Fatura: document.getElementById('pagamentoFaturaId').value,
+    ID_Cartao: document.getElementById('pagamentoCartaoId').value,
+    Data_Pagamento: converterParaBR(document.getElementById('pagamentoData').value),
+    Valor: valor,
+    Tipo: document.getElementById('pagamentoTipo').value,
+    Conta_Origem: document.getElementById('pagamentoConta').value.trim(),
+    Observacao: document.getElementById('pagamentoObs').value.trim()
+  };
+  try {
+    const r = await api('criarPagamento', payload);
+    STATE.pagamentos.push(r.data);
+    toast('Pagamento registrado', 'sucesso');
+    fecharModal('modalPagamento');
+    fecharModal('modalFatura');
+    await aposMutacao();
+  } catch(e) {}
+}
+</script>
+
+<script>
+/* =====================================================
+   REEMBOLSOS
+   ===================================================== */
+async function renderReembolsos() {
+  const el = document.getElementById('viewReembolsos');
+  el.innerHTML = `<div class="space-y-2">${Array(3).fill('<div class="skel h-16 rounded-2xl"></div>').join('')}</div>`;
+  try { const r = await api('listarReembolsos'); STATE.reembolsos = r.data || []; }
+  catch(e) { el.innerHTML = estadoErro('Não foi possível carregar os reembolsos.'); return; }
+
+  el.innerHTML = `
+    <div class="flex items-center justify-between slide-up">
+      <p class="text-xs font-semibold text-slate-500">${STATE.reembolsos.length} reembolso(s) registrado(s)</p>
+      <button onclick="abrirModalReembolso()" class="btn-primario !py-2.5 !px-4 text-xs flex items-center gap-2"><i class="fas fa-plus"></i>Novo</button>
+    </div>
+    <div class="space-y-2 slide-up-d1" id="listaReembolsos"></div>
+  `;
+  const wrap = document.getElementById('listaReembolsos');
+  wrap.innerHTML = STATE.reembolsos.length ? STATE.reembolsos.slice().reverse().map(itemReembolsoHtml).join('') : estadoVazioMini('Nenhum reembolso registrado ainda.');
+}
+function itemReembolsoHtml(r) {
+  return `
+    <div class="item-row">
+      <div class="w-9 h-9 rounded-xl bg-sky-50 flex items-center justify-center flex-shrink-0"><i class="fas fa-undo text-sky-500 text-xs"></i></div>
+      <div class="flex-1 min-w-0" onclick="editarReembolsoClick('${r.ID_Reembolso}')" style="cursor:pointer;">
+        <p class="text-xs font-bold text-slate-700 truncate">${escHtml(r.Motivo || 'Reembolso')}</p>
+        <p class="text-[10px] text-slate-400">Solicitado em ${escHtml(r.Data_Solicitacao)}</p>
+      </div>
+      <div class="flex flex-col items-end gap-1 flex-shrink-0">
+        <span class="text-xs font-black text-slate-800">${fmt(r.Valor)}</span>
+        <div class="flex items-center gap-2">
+          <span class="badge ${r.Status==='Recebido'?'recebido':'pendente'}">${escHtml(r.Status)}</span>
+          <button onclick="excluirReembolsoClick('${r.ID_Reembolso}')" class="text-rose-400 text-[11px]"><i class="fas fa-trash"></i></button>
+        </div>
+      </div>
+    </div>`;
+}
+function abrirModalReembolso() {
+  document.getElementById('reembolsoId').value = '';
+  document.getElementById('tituloModalReembolso').textContent = 'Novo Reembolso';
+  document.getElementById('reembolsoLancamento').innerHTML = '<option value="">—</option>' + STATE.lancamentos.map(l=>`<option value="${l.ID_Lancamento}">${escHtml(l.Descricao)} (${fmt(l.Valor)})</option>`).join('');
+  document.getElementById('reembolsoFatura').innerHTML = '<option value="">—</option>' + STATE.faturas.map(f=>`<option value="${f.ID_Fatura}">${escHtml(nomeCartao(f.ID_Cartao))} · ${escHtml(formatarMesExibicao(f.Mes_Referencia))}</option>`).join('');
+  ['reembolsoDataSol','reembolsoDataReceb','reembolsoValor','reembolsoMotivo','reembolsoObs'].forEach(i=>document.getElementById(i).value='');
+  document.getElementById('reembolsoDataSol').value = hojeISO();
+  document.getElementById('reembolsoStatus').value = 'Pendente';
+  abrirModal('modalReembolso');
+}
+function editarReembolsoClick(id) {
+  const r = STATE.reembolsos.find(x=>x.ID_Reembolso===id);
+  if (!r) return;
+  abrirModalReembolso();
+  document.getElementById('reembolsoId').value = r.ID_Reembolso;
+  document.getElementById('tituloModalReembolso').textContent = 'Editar Reembolso';
+  document.getElementById('reembolsoLancamento').value = r.ID_Lancamento || '';
+  document.getElementById('reembolsoFatura').value = r.ID_Fatura || '';
+  document.getElementById('reembolsoDataSol').value = converterParaInputDate(r.Data_Solicitacao);
+  document.getElementById('reembolsoDataReceb').value = converterParaInputDate(r.Data_Recebimento);
+  document.getElementById('reembolsoValor').value = r.Valor || '';
+  document.getElementById('reembolsoMotivo').value = r.Motivo || '';
+  document.getElementById('reembolsoStatus').value = r.Status || 'Pendente';
+  document.getElementById('reembolsoObs').value = r.Observacao || '';
+}
+async function salvarReembolso() {
+  const valor = Number(document.getElementById('reembolsoValor').value || 0);
+  if (valor <= 0) return toast('Informe um valor', 'erro');
+  const id = document.getElementById('reembolsoId').value;
+  const payload = {
+    ID_Lancamento: document.getElementById('reembolsoLancamento').value,
+    ID_Fatura: document.getElementById('reembolsoFatura').value,
+    Data_Solicitacao: converterParaBR(document.getElementById('reembolsoDataSol').value),
+    Data_Recebimento: converterParaBR(document.getElementById('reembolsoDataReceb').value),
+    Valor: valor,
+    Motivo: document.getElementById('reembolsoMotivo').value.trim(),
+    Status: document.getElementById('reembolsoStatus').value,
+    Observacao: document.getElementById('reembolsoObs').value.trim()
+  };
+  try {
+    if (id) { payload.ID_Reembolso = id; await api('editarReembolso', payload); toast('Reembolso atualizado', 'sucesso'); }
+    else { await api('criarReembolso', payload); toast('Reembolso registrado', 'sucesso'); }
+    fecharModal('modalReembolso');
+    await renderReembolsos();
+    await aposMutacao();
+  } catch(e) {}
+}
+function excluirReembolsoClick(id) {
+  confirmarAcao('Excluir reembolso?', 'Essa ação não pode ser desfeita.', async () => {
+    try { await api('excluirReembolso', { ID_Reembolso: id }); toast('Reembolso excluído', 'sucesso'); await renderReembolsos(); await aposMutacao(); } catch(e) {}
+  }, 'Excluir');
+}
+
+/* =====================================================
+   ANTECIPAÇÕES
+   ===================================================== */
+async function renderAntecipacoes() {
+  const el = document.getElementById('viewAntecipacoes');
+  el.innerHTML = `<div class="space-y-2">${Array(3).fill('<div class="skel h-16 rounded-2xl"></div>').join('')}</div>`;
+  try { const r = await api('listarAntecipacoes'); STATE.antecipacoes = r.data || []; }
+  catch(e) { el.innerHTML = estadoErro('Não foi possível carregar as antecipações.'); return; }
+
+  el.innerHTML = `
+    <div class="flex items-center justify-between slide-up">
+      <p class="text-xs font-semibold text-slate-500">${STATE.antecipacoes.length} antecipação(ões) registrada(s)</p>
+      <button onclick="abrirModalAntecipacao()" class="btn-primario !py-2.5 !px-4 text-xs flex items-center gap-2"><i class="fas fa-plus"></i>Nova</button>
+    </div>
+    <div class="space-y-2 slide-up-d1" id="listaAntecipacoes"></div>
+  `;
+  const wrap = document.getElementById('listaAntecipacoes');
+  wrap.innerHTML = STATE.antecipacoes.length ? STATE.antecipacoes.slice().reverse().map(itemAntecipacaoHtml).join('') : estadoVazioMini('Nenhuma antecipação registrada ainda.');
+}
+function itemAntecipacaoHtml(a) {
+  return `
+    <div class="item-row">
+      <div class="w-9 h-9 rounded-xl bg-violet-50 flex items-center justify-center flex-shrink-0"><i class="fas fa-forward text-violet-500 text-xs"></i></div>
+      <div class="flex-1 min-w-0">
+        <p class="text-xs font-bold text-slate-700 truncate">${escHtml(nomeCartao(a.ID_Cartao))} · ${a.Parcelas_Antecipadas} parcela(s)</p>
+        <p class="text-[10px] text-slate-400">Desconto de ${fmt(a.Desconto)}</p>
+      </div>
+      <div class="flex items-center gap-2 flex-shrink-0">
+        <span class="text-xs font-black text-slate-800">${fmt(a.Valor_Pago)}</span>
+        <button onclick="excluirAntecipacaoClick('${a.ID_Antecipacao}')" class="text-rose-400 text-[11px]"><i class="fas fa-trash"></i></button>
+      </div>
+    </div>`;
+}
+function excluirAntecipacaoClick(id) {
+  confirmarAcao('Excluir antecipação?', 'Essa ação não pode ser desfeita.', async () => {
+    try { await api('excluirAntecipacao', { ID_Antecipacao: id }); toast('Antecipação excluída', 'sucesso'); await renderAntecipacoes(); await aposMutacao(); } catch(e) {}
+  }, 'Excluir');
+}
+function abrirModalAntecipacao() {
+  document.getElementById('antecipacaoLancamento').innerHTML = '<option value="">—</option>' + STATE.lancamentos.filter(l=>l.Parcelado==='SIM').map(l=>`<option value="${l.ID_Lancamento}">${escHtml(l.Descricao)} (Parcela ${l.Parcela_Atual}/${l.Total_Parcelas})</option>`).join('');
+  document.getElementById('antecipacaoCartao').innerHTML = STATE.cartoes.map(c=>`<option value="${c.ID_Cartao}">${escHtml(c.Nome_Cartao)}</option>`).join('');
+  ['antecipacaoParcelas','antecipacaoValorOriginal','antecipacaoDesconto','antecipacaoValorPago','antecipacaoObs'].forEach(i=>document.getElementById(i).value='');
+  abrirModal('modalAntecipacao');
+}
+function preencherAntecipacao() {
+  const id = document.getElementById('antecipacaoLancamento').value;
+  const l = STATE.lancamentos.find(x=>x.ID_Lancamento===id);
+  if (!l) return;
+  document.getElementById('antecipacaoCartao').value = l.ID_Cartao;
+  document.getElementById('antecipacaoValorOriginal').value = l.Valor;
+}
+async function salvarAntecipacao() {
+  const valorPago = Number(document.getElementById('antecipacaoValorPago').value || 0);
+  if (valorPago <= 0) return toast('Informe o valor pago', 'erro');
+  const payload = {
+    ID_Lancamento: document.getElementById('antecipacaoLancamento').value,
+    ID_Cartao: document.getElementById('antecipacaoCartao').value,
+    Data: converterParaBR(hojeISO()),
+    Parcelas_Antecipadas: Number(document.getElementById('antecipacaoParcelas').value || 0),
+    Valor_Original: Number(document.getElementById('antecipacaoValorOriginal').value || 0),
+    Desconto: Number(document.getElementById('antecipacaoDesconto').value || 0),
+    Valor_Pago: valorPago,
+    Observacao: document.getElementById('antecipacaoObs').value.trim()
+  };
+  try {
+    const r = await api('criarAntecipacao', payload);
+    STATE.antecipacoes.push(r.data);
+    toast('Antecipação registrada', 'sucesso');
+    fecharModal('modalAntecipacao');
+    await renderAntecipacoes();
+    await aposMutacao();
+  } catch(e) {}
+}
+
+/* =====================================================
+   PAGAMENTOS (tela de histórico)
+   ===================================================== */
+function renderPagamentos() {
+  const el = document.getElementById('viewPagamentos');
+  el.innerHTML = `
+    <div class="glass-card rounded-2xl p-3 text-[11px] text-slate-400 font-medium slide-up flex items-start gap-2">
+      <i class="fas fa-circle-info text-indigo-400 mt-0.5"></i>
+      <span>Registre pagamentos a partir do detalhe de cada fatura. Aqui você vê os pagamentos feitos nesta sessão.</span>
+    </div>
+    <div class="space-y-2 slide-up-d1" id="listaPagamentos"></div>
+  `;
+  const wrap = document.getElementById('listaPagamentos');
+  wrap.innerHTML = STATE.pagamentos.length ? STATE.pagamentos.slice().reverse().map(itemPagamentoHtml).join('') : estadoVazioMini('Nenhum pagamento registrado ainda. Abra uma fatura para registrar.');
+}
+function itemPagamentoHtml(p) {
+  return `
+    <div class="item-row">
+      <div class="w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center flex-shrink-0"><i class="fas fa-hand-holding-usd text-emerald-500 text-xs"></i></div>
+      <div class="flex-1 min-w-0">
+        <p class="text-xs font-bold text-slate-700 truncate">${escHtml(nomeCartao(p.ID_Cartao))} · ${escHtml(p.Tipo)}</p>
+        <p class="text-[10px] text-slate-400">${escHtml(p.Data_Pagamento)} ${p.Conta_Origem ? '· '+escHtml(p.Conta_Origem) : ''}</p>
+      </div>
+      <span class="text-xs font-black text-emerald-600 flex-shrink-0">${fmt(p.Valor)}</span>
+    </div>`;
+}
+</script>
+
+<script>
+/* =====================================================
+   CADASTROS: CATEGORIAS, TAGS & PESSOAS
+   ===================================================== */
+async function renderCategorias() {
+  const el = document.getElementById('viewCategorias');
+  el.innerHTML = `<div class="grid grid-cols-1 md:grid-cols-3 gap-4">${Array(3).fill('<div class="skel h-56 rounded-[28px]"></div>').join('')}</div>`;
+  try {
+    const [catR, tagR, pesR] = await Promise.all([api('listarCategorias'), api('listarTags'), api('listarPessoas')]);
+    STATE.categorias = catR.data || [];
+    STATE.tags = tagR.data || [];
+    STATE.pessoas = pesR.data || [];
+  } catch(e) { el.innerHTML = estadoErro('Não foi possível carregar os cadastros.'); return; }
+
+  el.innerHTML = `
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 slide-up">
+      <div class="glass-card p-5 rounded-[28px]">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="text-sm font-bold text-slate-700">Categorias (${STATE.categorias.length})</h3>
+          <button onclick="abrirModalCategoria()" class="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center"><i class="fas fa-plus text-xs"></i></button>
+        </div>
+        <div class="space-y-2 max-h-[360px] overflow-y-auto" id="listaCategoriasCad"></div>
+      </div>
+      <div class="glass-card p-5 rounded-[28px]">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="text-sm font-bold text-slate-700">Tags (${STATE.tags.length})</h3>
+          <button onclick="abrirModalTag()" class="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center"><i class="fas fa-plus text-xs"></i></button>
+        </div>
+        <div class="space-y-2 max-h-[360px] overflow-y-auto" id="listaTagsCad"></div>
+      </div>
+      <div class="glass-card p-5 rounded-[28px]">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="text-sm font-bold text-slate-700">Pessoas (${STATE.pessoas.length})</h3>
+          <button onclick="abrirModalPessoa()" class="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center"><i class="fas fa-plus text-xs"></i></button>
+        </div>
+        <div class="space-y-2 max-h-[360px] overflow-y-auto" id="listaPessoasCad"></div>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('listaCategoriasCad').innerHTML = STATE.categorias.length ? STATE.categorias.map(c => `
+    <div class="item-row">
+      <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style="background:${(c.Cor||'#6366f1')}22;"><i class="fas ${c.Icone||'fa-tag'} text-xs" style="color:${c.Cor||'#6366f1'}"></i></div>
+      <span class="text-xs font-bold text-slate-700 flex-1 truncate">${escHtml(c.Nome)}</span>
+      ${c.Ativa==='NAO' ? '<span class="badge pendente">Inativa</span>' : ''}
+      <button onclick="editarCategoriaClick('${c.ID_Categoria}')" class="text-slate-400 text-xs px-1"><i class="fas fa-pen"></i></button>
+      <button onclick="excluirCategoriaClick('${c.ID_Categoria}')" class="text-rose-400 text-xs px-1"><i class="fas fa-trash"></i></button>
+    </div>`).join('') : estadoVazioMini('Nenhuma categoria cadastrada.');
+
+  document.getElementById('listaTagsCad').innerHTML = STATE.tags.length ? STATE.tags.map(t => `
+    <div class="item-row">
+      <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style="background:${(t.Cor||'#6366f1')}22;"><i class="fas fa-tag text-xs" style="color:${t.Cor||'#6366f1'}"></i></div>
+      <span class="text-xs font-bold text-slate-700 flex-1 truncate">${escHtml(t.Nome)}</span>
+      ${t.Ativa==='NAO' ? '<span class="badge pendente">Inativa</span>' : ''}
+      <button onclick="editarTagClick('${t.ID_Tag}')" class="text-slate-400 text-xs px-1"><i class="fas fa-pen"></i></button>
+      <button onclick="excluirTagClick('${t.ID_Tag}')" class="text-rose-400 text-xs px-1"><i class="fas fa-trash"></i></button>
+    </div>`).join('') : estadoVazioMini('Nenhuma tag cadastrada.');
+
+  document.getElementById('listaPessoasCad').innerHTML = STATE.pessoas.length ? STATE.pessoas.map(p => `
+    <div class="item-row">
+      <div class="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center flex-shrink-0"><i class="fas fa-user text-xs text-indigo-500"></i></div>
+      <span class="text-xs font-bold text-slate-700 flex-1 truncate">${escHtml(p.Nome)}</span>
+      ${p.Ativa==='NAO' ? '<span class="badge pendente">Inativa</span>' : ''}
+      <button onclick="editarPessoaClick('${p.ID_Pessoa}')" class="text-slate-400 text-xs px-1"><i class="fas fa-pen"></i></button>
+      <button onclick="excluirPessoaClick('${p.ID_Pessoa}')" class="text-rose-400 text-xs px-1"><i class="fas fa-trash"></i></button>
+    </div>`).join('') : estadoVazioMini('Nenhuma pessoa cadastrada.');
+}
+
+/* ---- Categoria ---- */
+function abrirModalCategoria() {
+  document.getElementById('categoriaId').value = '';
+  document.getElementById('tituloModalCategoria').textContent = 'Nova Categoria';
+  document.getElementById('categoriaNome').value = '';
+  document.getElementById('categoriaCor').value = '#6366f1';
+  document.getElementById('categoriaIcone').value = '';
+  document.getElementById('categoriaAtiva').checked = true;
+  abrirModal('modalCategoria');
+}
+function editarCategoriaClick(id) {
+  const c = STATE.categorias.find(x=>x.ID_Categoria===id);
+  if (!c) return;
+  abrirModalCategoria();
+  document.getElementById('categoriaId').value = c.ID_Categoria;
+  document.getElementById('tituloModalCategoria').textContent = 'Editar Categoria';
+  document.getElementById('categoriaNome').value = c.Nome || '';
+  document.getElementById('categoriaCor').value = c.Cor || '#6366f1';
+  document.getElementById('categoriaIcone').value = c.Icone || '';
+  document.getElementById('categoriaAtiva').checked = c.Ativa !== 'NAO';
+}
+async function salvarCategoria() {
+  const nome = document.getElementById('categoriaNome').value.trim();
+  if (!nome) return toast('Informe o nome da categoria', 'erro');
+  const id = document.getElementById('categoriaId').value;
+  const payload = {
+    Nome: nome,
+    Cor: document.getElementById('categoriaCor').value,
+    Icone: document.getElementById('categoriaIcone').value.trim(),
+    Ativa: document.getElementById('categoriaAtiva').checked ? 'SIM' : 'NAO'
+  };
+  try {
+    if (id) { payload.ID_Categoria = id; await api('editarCategoria', payload); toast('Categoria atualizada', 'sucesso'); }
+    else { await api('criarCategoria', payload); toast('Categoria criada', 'sucesso'); }
+    fecharModal('modalCategoria');
+    await renderCategorias();
+  } catch(e) {}
+}
+function excluirCategoriaClick(id) {
+  confirmarAcao('Excluir categoria?', 'Categorias usadas em lançamentos não podem ser excluídas — desative-as, se preferir.', async () => {
+    try { await api('excluirCategoria', { ID_Categoria: id }); toast('Categoria excluída', 'sucesso'); await renderCategorias(); } catch(e) {}
+  }, 'Excluir');
+}
+
+/* ---- Tag ---- */
+function abrirModalTag() {
+  document.getElementById('tagId').value = '';
+  document.getElementById('tagNomeOriginal').value = '';
+  document.getElementById('tituloModalTag').textContent = 'Nova Tag';
+  document.getElementById('tagNome').value = '';
+  document.getElementById('tagCor').value = '#6366f1';
+  document.getElementById('tagAtiva').checked = true;
+  abrirModal('modalTag');
+}
+function editarTagClick(id) {
+  const t = STATE.tags.find(x=>x.ID_Tag===id);
+  if (!t) return;
+  abrirModalTag();
+  document.getElementById('tagId').value = t.ID_Tag;
+  document.getElementById('tagNomeOriginal').value = t.Nome || '';
+  document.getElementById('tituloModalTag').textContent = 'Editar Tag';
+  document.getElementById('tagNome').value = t.Nome || '';
+  document.getElementById('tagCor').value = t.Cor || '#6366f1';
+  document.getElementById('tagAtiva').checked = t.Ativa !== 'NAO';
+}
+async function salvarTag() {
+  const nome = document.getElementById('tagNome').value.trim();
+  if (!nome) return toast('Informe o nome da tag', 'erro');
+  const id = document.getElementById('tagId').value;
+  const payload = {
+    Nome: nome,
+    Cor: document.getElementById('tagCor').value,
+    Ativa: document.getElementById('tagAtiva').checked ? 'SIM' : 'NAO'
+  };
+  try {
+    if (id) { payload.ID_Tag = id; await api('editarTag', payload); toast('Tag atualizada', 'sucesso'); }
+    else { await api('criarTag', payload); toast('Tag criada', 'sucesso'); }
+    fecharModal('modalTag');
+    await renderCategorias();
+  } catch(e) {}
+}
+function excluirTagClick(id) {
+  const t = STATE.tags.find(x=>x.ID_Tag===id);
+  confirmarAcao('Excluir tag?', 'Tags usadas em lançamentos não podem ser excluídas — desative-as, se preferir.', async () => {
+    try { await api('excluirTag', { ID_Tag: id, Nome: t ? t.Nome : '' }); toast('Tag excluída', 'sucesso'); await renderCategorias(); } catch(e) {}
+  }, 'Excluir');
+}
+
+/* ---- Pessoa ---- */
+function abrirModalPessoa() {
+  document.getElementById('pessoaId').value = '';
+  document.getElementById('tituloModalPessoa').textContent = 'Nova Pessoa';
+  document.getElementById('pessoaNome').value = '';
+  document.getElementById('pessoaAtiva').checked = true;
+  abrirModal('modalPessoa');
+}
+function editarPessoaClick(id) {
+  const p = STATE.pessoas.find(x=>x.ID_Pessoa===id);
+  if (!p) return;
+  abrirModalPessoa();
+  document.getElementById('pessoaId').value = p.ID_Pessoa;
+  document.getElementById('tituloModalPessoa').textContent = 'Editar Pessoa';
+  document.getElementById('pessoaNome').value = p.Nome || '';
+  document.getElementById('pessoaAtiva').checked = p.Ativa !== 'NAO';
+}
+async function salvarPessoa() {
+  const nome = document.getElementById('pessoaNome').value.trim();
+  if (!nome) return toast('Informe o nome da pessoa', 'erro');
+  const id = document.getElementById('pessoaId').value;
+  const payload = {
+    Nome: nome,
+    Ativa: document.getElementById('pessoaAtiva').checked ? 'SIM' : 'NAO'
+  };
+  try {
+    if (id) { payload.ID_Pessoa = id; await api('editarPessoa', payload); toast('Pessoa atualizada', 'sucesso'); }
+    else { await api('criarPessoa', payload); toast('Pessoa criada', 'sucesso'); }
+    fecharModal('modalPessoa');
+    await renderCategorias();
+  } catch(e) {}
+}
+function excluirPessoaClick(id) {
+  confirmarAcao('Excluir pessoa?', 'Pessoas com lançamentos associados não podem ser excluídas — desative-a, se preferir.', async () => {
+    try { await api('excluirPessoa', { ID_Pessoa: id }); toast('Pessoa excluída', 'sucesso'); await renderCategorias(); } catch(e) {}
+  }, 'Excluir');
+}
+
+/* =====================================================
+   ESTIMATIVAS
+   ===================================================== */
+async function renderEstimativas() {
+  atualizarLabelMes();
+  const el = document.getElementById('viewEstimativas');
+  el.innerHTML = `<div class="space-y-2">${Array(3).fill('<div class="skel h-20 rounded-2xl"></div>').join('')}</div>`;
+  try {
+    const r = await api('listarEstimativas', {}, { Mes: STATE.mesAtual });
+    STATE.estimativas = STATE.estimativas.filter(e=>e.Mes!==STATE.mesAtual).concat(r.data || []);
+  } catch(e) { el.innerHTML = estadoErro('Não foi possível carregar as estimativas.'); return; }
+
+  const lista = STATE.estimativas.filter(e=>e.Mes===STATE.mesAtual);
+  el.innerHTML = `
+    <div class="flex items-center justify-between slide-up">
+      <p class="text-xs font-semibold text-slate-500">${lista.length} estimativa(s) para ${STATE.mesAtual}</p>
+      <button onclick="abrirModalEstimativa()" class="btn-primario !py-2.5 !px-4 text-xs flex items-center gap-2"><i class="fas fa-plus"></i>Nova</button>
+    </div>
+    <div class="space-y-2 slide-up-d1" id="listaEstimativas"></div>
+  `;
+  document.getElementById('listaEstimativas').innerHTML = lista.length ? lista.map(itemEstimativaHtml).join('') : estadoVazioMini('Nenhuma estimativa definida para este mês.');
+}
+function itemEstimativaHtml(e) {
+  const pct = Math.min(150, Number(e.Percentual_Utilizado||0));
+  const escopo = [e.ID_Cartao&&nomeCartao(e.ID_Cartao), e.ID_Categoria&&nomeCategoria(e.ID_Categoria), e.ID_Pessoa&&nomePessoa(e.ID_Pessoa)].filter(Boolean).join(' · ') || 'Geral';
+  return `
+    <div class="item-row" style="align-items:stretch; flex-direction:column; gap:8px;">
+      <div class="flex items-center justify-between">
+        <div class="min-w-0">
+          <p class="text-xs font-bold text-slate-700 truncate">${escHtml(escopo)}</p>
+          <p class="text-[10px] text-slate-400">${fmt(e.Valor_Atual)} de ${fmt(e.Valor_Estimado)}</p>
+        </div>
+        <div class="flex items-center gap-2 flex-shrink-0">
+          <span class="text-xs font-black ${pct>100?'text-rose-600':'text-slate-800'}">${fmtPct(pct)}</span>
+          <button onclick="editarEstimativaClick('${e.ID_Estimativa}')" class="text-slate-400 text-xs"><i class="fas fa-pen"></i></button>
+          <button onclick="excluirEstimativaClick('${e.ID_Estimativa}')" class="text-rose-400 text-xs"><i class="fas fa-trash"></i></button>
+        </div>
+      </div>
+      <div class="progress-track"><div class="progress-bar" style="width:${Math.min(100,pct)}%; background:${pct>100?'#f43f5e':'#8b5cf6'};"></div></div>
+    </div>`;
+}
+function abrirModalEstimativa() {
+  document.getElementById('estimativaId').value = '';
+  document.getElementById('tituloModalEstimativa').textContent = 'Nova Estimativa';
+  document.getElementById('estimativaCartao').innerHTML = '<option value="">Geral</option>' + STATE.cartoes.map(c=>`<option value="${c.ID_Cartao}">${escHtml(c.Nome_Cartao)}</option>`).join('');
+  document.getElementById('estimativaCategoria').innerHTML = '<option value="">Geral</option>' + STATE.categorias.map(c=>`<option value="${c.ID_Categoria}">${escHtml(c.Nome||c.Nome_Categoria)}</option>`).join('');
+  document.getElementById('estimativaPessoa').innerHTML = '<option value="">Geral</option>' + STATE.pessoas.map(p=>`<option value="${p.ID_Pessoa}">${escHtml(p.Nome||p.Nome_Pessoa)}</option>`).join('');
+  document.getElementById('estimativaMes').value = STATE.mesAtual;
+  ['estimativaValor','estimativaObs'].forEach(i=>document.getElementById(i).value='');
+  abrirModal('modalEstimativa');
+}
+function editarEstimativaClick(id) {
+  const e = STATE.estimativas.find(x=>x.ID_Estimativa===id);
+  if (!e) return;
+  abrirModalEstimativa();
+  document.getElementById('estimativaId').value = e.ID_Estimativa;
+  document.getElementById('tituloModalEstimativa').textContent = 'Editar Estimativa';
+  document.getElementById('estimativaMes').value = e.Mes;
+  document.getElementById('estimativaCartao').value = e.ID_Cartao || '';
+  document.getElementById('estimativaCategoria').value = e.ID_Categoria || '';
+  document.getElementById('estimativaPessoa').value = e.ID_Pessoa || '';
+  document.getElementById('estimativaValor').value = e.Valor_Estimado || '';
+  document.getElementById('estimativaObs').value = e.Observacao || '';
+}
+async function salvarEstimativa() {
+  const valor = Number(document.getElementById('estimativaValor').value || 0);
+  if (valor <= 0) return toast('Informe o valor estimado', 'erro');
+  const id = document.getElementById('estimativaId').value;
+  const payload = {
+    Mes: document.getElementById('estimativaMes').value.trim(),
+    ID_Cartao: document.getElementById('estimativaCartao').value,
+    ID_Categoria: document.getElementById('estimativaCategoria').value,
+    ID_Pessoa: document.getElementById('estimativaPessoa').value,
+    Valor_Estimado: valor,
+    Observacao: document.getElementById('estimativaObs').value.trim()
+  };
+  try {
+    if (id) { payload.ID_Estimativa = id; await api('editarEstimativa', payload); toast('Estimativa atualizada', 'sucesso'); }
+    else { await api('criarEstimativa', payload); toast('Estimativa criada', 'sucesso'); }
+    fecharModal('modalEstimativa');
+    await renderEstimativas();
+  } catch(e) {}
+}
+function excluirEstimativaClick(id) {
+  confirmarAcao('Excluir estimativa?', 'Essa ação não pode ser desfeita.', async () => {
+    try { await api('excluirEstimativa', { ID_Estimativa: id }); toast('Estimativa excluída', 'sucesso'); await renderEstimativas(); } catch(e) {}
+  }, 'Excluir');
+}
+
+/* =====================================================
+   ALERTAS
+   ===================================================== */
+async function renderAlertas() {
+  const el = document.getElementById('viewAlertas');
+  el.innerHTML = `<div class="space-y-2">${Array(3).fill('<div class="skel h-16 rounded-2xl"></div>').join('')}</div>`;
+  try {
+    const r = await api('listarAlertas');
+    STATE.alertas = r.data || [];
+  } catch(e) { el.innerHTML = estadoErro('Não foi possível carregar os alertas.'); return; }
+
+  el.innerHTML = `
+    <div class="flex items-center justify-between slide-up">
+      <p class="text-xs font-semibold text-slate-500">${STATE.alertas.length} alerta(s) cadastrado(s)</p>
+      <button onclick="abrirModalAlerta()" class="btn-primario !py-2.5 !px-4 text-xs flex items-center gap-2"><i class="fas fa-plus"></i>Novo</button>
+    </div>
+    <div class="space-y-2 slide-up-d1" id="listaAlertas"></div>
+  `;
+  document.getElementById('listaAlertas').innerHTML = STATE.alertas.length ? STATE.alertas.map(itemAlertaHtml).join('') : estadoVazioMini('Nenhum alerta cadastrado.');
+}
+function itemAlertaHtml(a) {
+  return `
+    <div class="item-row">
+      <div class="w-9 h-9 rounded-xl bg-amber-50 flex items-center justify-center flex-shrink-0"><i class="fas fa-bell text-amber-500 text-xs"></i></div>
+      <div class="flex-1 min-w-0">
+        <p class="text-xs font-bold text-slate-700 truncate">${escHtml(a.Tipo)}${a.ID_Cartao?' · '+escHtml(nomeCartao(a.ID_Cartao)):''}</p>
+        <p class="text-[10px] text-slate-400 truncate">${escHtml(a.Mensagem || (a.Percentual ? a.Percentual+'%' : ''))}</p>
+      </div>
+      <label class="flex items-center gap-2 flex-shrink-0">
+        <input type="checkbox" ${a.Ativo==='SIM'?'checked':''} onchange="toggleAlerta('${a.ID_Alerta}', this.checked)" class="w-4 h-4 accent-indigo-600">
+      </label>
+    </div>`;
+}
+function abrirModalAlerta() {
+  document.getElementById('alertaCartao').innerHTML = '<option value="">Todos</option>' + STATE.cartoes.map(c=>`<option value="${c.ID_Cartao}">${escHtml(c.Nome_Cartao)}</option>`).join('');
+  ['alertaPercentual','alertaDias','alertaMensagem'].forEach(i=>document.getElementById(i).value='');
+  document.getElementById('alertaTipo').value = 'Vencimento';
+  abrirModal('modalAlerta');
+}
+async function salvarAlerta() {
+  const payload = {
+    Tipo: document.getElementById('alertaTipo').value,
+    ID_Cartao: document.getElementById('alertaCartao').value,
+    Percentual: Number(document.getElementById('alertaPercentual').value || 0),
+    Dias_Antecedencia: Number(document.getElementById('alertaDias').value || 0),
+    Mensagem: document.getElementById('alertaMensagem').value.trim(),
+    Ativo: 'SIM'
+  };
+  try {
+    await api('criarAlerta', payload);
+    toast('Alerta criado', 'sucesso');
+    fecharModal('modalAlerta');
+    await renderAlertas();
+  } catch(e) {}
+}
+async function toggleAlerta(id, ativo) {
+  try { await api('editarAlerta', { ID_Alerta: id, Ativo: ativo?'SIM':'NAO' }); toast('Alerta atualizado', 'sucesso'); await renderAlertas(); } catch(e) {}
+}
+</script>
+
+<script>
+/* =====================================================
+   COMPARAÇÃO DE MESES
+   ===================================================== */
+let chartComparacaoRef;
+async function renderComparacao() {
+  const el = document.getElementById('viewComparacao');
+  el.innerHTML = `<div class="skel h-64 rounded-[28px]"></div>`;
+  let r;
+  try { r = await api('relatorio', {}, { Mes: STATE.mesAtual }); } catch(e) { el.innerHTML = estadoErro('Não foi possível carregar a comparação.'); return; }
+  const d = r.data;
+  const dif = d.diferenca, pct = d.percentual;
+
+  el.innerHTML = `
+    <div class="glass-card rounded-2xl p-3 flex items-center gap-3 slide-up">
+      <button onclick="STATE.mesComparacao=undefined; mudarMesComparacao(-1)" class="btn-chip"><i class="fas fa-chevron-left"></i></button>
+      <span class="text-xs font-bold text-slate-600 flex-1 text-center">${d.mesAnterior} <i class="fas fa-arrow-right mx-2 text-slate-300"></i> ${d.mes}</span>
+      <button onclick="mudarMesComparacao(1)" class="btn-chip"><i class="fas fa-chevron-right"></i></button>
+    </div>
+
+    <div class="grid grid-cols-2 gap-3 slide-up-d1">
+      <div class="glass-card p-4 rounded-[22px]"><p class="text-[9px] font-bold text-slate-400 uppercase mb-1">Mês Anterior</p><p class="text-lg font-black text-slate-500">${fmt(d.anterior)}</p></div>
+      <div class="glass-card p-4 rounded-[22px]"><p class="text-[9px] font-bold text-slate-400 uppercase mb-1">Mês Atual</p><p class="text-lg font-black text-indigo-600">${fmt(d.atual)}</p></div>
+    </div>
+
+    <div class="glass-card p-4 rounded-[22px] flex items-center justify-between slide-up-d1">
+      <div>
+        <p class="text-[9px] font-bold text-slate-400 uppercase mb-1">Diferença</p>
+        <p class="text-lg font-black ${dif>=0?'text-rose-600':'text-emerald-600'}">${dif>=0?'+':''}${fmt(dif)}</p>
+      </div>
+      <span class="badge ${dif>=0?'cancelado':'recebido'}">${dif>=0?'+':''}${fmtPct(pct)}</span>
+    </div>
+
+    <div class="glass-card p-5 rounded-[28px] slide-up-d2">
+      <h3 class="text-sm font-bold text-slate-700 mb-3">Gastos por Categoria — Comparativo</h3>
+      <div class="chart-container"><canvas id="chartComparacao"></canvas></div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 slide-up-d3">
+      ${blocoComparacaoDimensao('Por Cartão', d.dashboard.graficos.porCartao, d.dashboardAnterior.graficos.porCartao, nomeCartao)}
+      ${blocoComparacaoDimensao('Por Pessoa', d.dashboard.graficos.porPessoa, d.dashboardAnterior.graficos.porPessoa, nomePessoa)}
+      ${blocoComparacaoDimensao('Por Categoria', d.dashboard.graficos.porCategoria, d.dashboardAnterior.graficos.porCategoria, nomeCategoria)}
+    </div>
+  `;
+
+  const catsAtual = d.dashboard.graficos.porCategoria || {};
+  const catsAnterior = d.dashboardAnterior.graficos.porCategoria || {};
+  const chaves = [...new Set([...Object.keys(catsAtual), ...Object.keys(catsAnterior)])];
+  if (chartComparacaoRef) chartComparacaoRef.destroy();
+  chartComparacaoRef = new Chart(document.getElementById('chartComparacao'), {
+    type: 'bar',
+    data: { labels: chaves.map(nomeCategoria),
+      datasets: [
+        { label: d.mesAnterior, data: chaves.map(k=>catsAnterior[k]||0), backgroundColor:'#cbd5e1', borderRadius:6, maxBarThickness:22 },
+        { label: d.mes, data: chaves.map(k=>catsAtual[k]||0), backgroundColor:'#6366f1', borderRadius:6, maxBarThickness:22 }
+      ] },
+    options: { plugins:{ legend:{ position:'bottom', labels:{ boxWidth:8, font:{size:10} } }, tooltip:{ callbacks:{ label:(ctx)=> (ctx.dataset.label?ctx.dataset.label+': ':'') + fmt(ctx.parsed.y) } } }, scales:{ y:{ beginAtZero:true, ticks:{font:{size:9}, callback:(v)=>fmt(v)} }, x:{ ticks:{font:{size:9}} } } }
+  });
+}
+function blocoComparacaoDimensao(titulo, atual, anterior, nomeFn) {
+  const chaves = [...new Set([...Object.keys(atual||{}), ...Object.keys(anterior||{})])];
+  return `
+    <div class="glass-card p-4 rounded-[22px]">
+      <h4 class="text-xs font-bold text-slate-700 mb-2">${titulo}</h4>
+      <div class="space-y-2">
+        ${chaves.length ? chaves.map(k => {
+          const a = Number(atual[k]||0), b = Number(anterior[k]||0);
+          return `<div class="flex items-center justify-between text-[11px]"><span class="text-slate-500 font-semibold truncate">${escHtml(nomeFn(k))}</span><span class="font-bold ${a>=b?'text-rose-500':'text-emerald-500'}">${fmt(a)}</span></div>`;
+        }).join('') : '<p class="text-[11px] text-slate-400">Sem dados.</p>'}
+      </div>
+    </div>`;
+}
+function mudarMesComparacao(delta) { STATE.mesAtual = somarMeses(STATE.mesAtual, delta); atualizarLabelMes(); renderComparacao(); }
+
+/* =====================================================
+   COMPROMISSOS FUTUROS
+   ===================================================== */
+function renderCompromissos() {
+  atualizarLabelMes();
+  const el = document.getElementById('viewCompromissos');
+  const idxAtual = mesCompararIndice(STATE.mesAtual);
+  const proximaMes = somarMeses(STATE.mesAtual, 1);
+
+  const faturaAtual = STATE.faturas.find(f=>f.Mes_Referencia===STATE.mesAtual);
+  const faturaProxima = STATE.faturas.find(f=>f.Mes_Referencia===proximaMes);
+
+  const futuras = STATE.lancamentos.filter(l => l.Parcelado==='SIM' && mesCompararIndice(l.Mes_Fatura) > idxAtual);
+  const porMes = {};
+  futuras.forEach(l => { porMes[l.Mes_Fatura] = (porMes[l.Mes_Fatura]||0) + Number(l.Valor||0); });
+  const mesesOrdenados = Object.keys(porMes).sort((a,b)=>mesCompararIndice(a)-mesCompararIndice(b));
+  const totalComprometido = futuras.reduce((s,l)=>s+Number(l.Valor||0),0);
+
+  el.innerHTML = `
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 slide-up">
+      ${cardResumo('Fatura Atual', faturaAtual?fmt(faturaAtual.Valor_Total):'—', 'fa-file-invoice-dollar', 'indigo')}
+      ${cardResumo('Próxima Fatura', faturaProxima?fmt(faturaProxima.Valor_Total):'—', 'fa-calendar-plus', 'sky')}
+      ${cardResumo('Total Comprometido', fmt(totalComprometido), 'fa-layer-group', 'violet')}
+      ${cardResumo('Parcelas Futuras', String(futuras.length), 'fa-receipt', 'slate')}
+    </div>
+
+    <div class="glass-card p-5 rounded-[28px] slide-up-d1">
+      <h3 class="text-sm font-bold text-slate-700 mb-3">Comprometido por mês</h3>
+      <div class="space-y-3" id="barrasCompromissos"></div>
+    </div>
+
+    <div class="slide-up-d2">
+      <h3 class="text-xs font-black text-slate-500 uppercase tracking-widest mb-2 px-1">De onde vem cada valor</h3>
+      <div class="space-y-2" id="listaCompromissos"></div>
+    </div>
+  `;
+
+  const maxValor = Math.max(1, ...mesesOrdenados.map(m=>porMes[m]));
+  document.getElementById('barrasCompromissos').innerHTML = mesesOrdenados.length ? mesesOrdenados.map(m => `
+    <div>
+      <div class="flex items-center justify-between mb-1"><span class="text-xs font-bold text-slate-600">${m}</span><span class="text-[10px] font-bold text-slate-400">${fmt(porMes[m])}</span></div>
+      <div class="progress-track"><div class="progress-bar" style="width:${(porMes[m]/maxValor*100)}%; background:#8b5cf6;"></div></div>
+    </div>`).join('') : '<p class="text-xs text-slate-400">Nenhum compromisso futuro.</p>';
+
+  document.getElementById('listaCompromissos').innerHTML = futuras.length ? futuras.sort((a,b)=>mesCompararIndice(a.Mes_Fatura)-mesCompararIndice(b.Mes_Fatura)).map(l => `
+    <div class="item-row cursor-pointer" onclick="abrirModalLancamento('${l.ID_Compra_Original||l.ID_Lancamento}')">
+      <div class="w-9 h-9 rounded-xl bg-violet-50 flex items-center justify-center flex-shrink-0"><i class="fas fa-calendar-day text-violet-500 text-xs"></i></div>
+      <div class="flex-1 min-w-0">
+        <p class="text-xs font-bold text-slate-700 truncate">${escHtml(l.Descricao)} · Parcela ${l.Parcela_Atual}/${l.Total_Parcelas}</p>
+        <p class="text-[10px] text-slate-400">${escHtml(nomeCartao(l.ID_Cartao))} · Fatura ${escHtml(l.Mes_Fatura)}</p>
+      </div>
+      <span class="text-xs font-black text-slate-800 flex-shrink-0">${fmt(l.Valor)}</span>
+    </div>`).join('') : estadoVazioMini('Nenhuma parcela futura comprometida.');
+}
+</script>
+
+<script>
+/* =====================================================
+   INICIALIZAÇÃO
+   ===================================================== */
+Chart.defaults.font.family = "'Plus Jakarta Sans', sans-serif";
+
+document.querySelectorAll('.modal-overlay').forEach(m => {
+  m.addEventListener('click', (e) => { if (e.target === m) m.classList.remove('show'); });
+});
+
+async function init() {
+  montarNavDesktop();
+  montarMenusRapidos();
+  atualizarLabelMes();
+  mudarView('dashboard');
+  await carregarTudo(false);
+}
+init();
+</script>
+</body>
+</html>

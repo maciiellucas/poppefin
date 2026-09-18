@@ -420,6 +420,20 @@
             display: flex; flex-direction: column; align-items: center; justify-content: center;
             padding: 40px 20px; color: #94a3b8; text-align: center; gap: 10px;
         }
+
+        /* ===== Card expansível: Fatura dos Cartões ===== */
+        .fc-header { background: transparent; border: 0; cursor: pointer; font: inherit; color: inherit; }
+        .fc-header:focus-visible { outline: 2px solid #8b5cf6; outline-offset: -3px; border-radius: 28px; }
+        .fc-chevron { transition: transform 0.3s ease; }
+        .fc-open .fc-chevron { transform: rotate(180deg); }
+        /* Técnica grid 0fr -> 1fr: anima a altura real do conteúdo, sem altura fixa. */
+        .fc-body { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 0.3s ease; }
+        .fc-inner { overflow: hidden; min-height: 0; visibility: hidden; transition: visibility 0s linear 0.3s; }
+        .fc-open .fc-body { grid-template-rows: 1fr; }
+        .fc-open .fc-inner { visibility: visible; transition-delay: 0s; }
+        @media (prefers-reduced-motion: reduce) {
+            .fc-body, .fc-chevron, .fc-inner { transition: none; }
+        }
     </style>
 </head>
 <body class="text-slate-800">
@@ -717,6 +731,44 @@
                     <span class="text-[10px] text-slate-400 font-semibold" id="qtdSaidas">0 transações</span>
                 </div>
             </div>
+        </div>
+
+        <!-- Fatura dos Cartões (card expansível — SEMPRE inicia fechado) + acesso ao Controle de Cartões -->
+        <div class="slide-up-d1 space-y-3" id="secaoFaturaCartoes">
+            <div class="glass-card rounded-[28px] border-l-[6px] border-violet-500 relative overflow-hidden" id="cardFaturaCartoes">
+                <div class="absolute top-0 right-0 w-24 h-24 bg-violet-50 rounded-full -translate-y-8 translate-x-8 pointer-events-none"></div>
+                <button type="button" id="btnFaturaCartoes" class="fc-header relative z-10 w-full flex items-center gap-3 p-5 text-left"
+                    aria-expanded="false" aria-controls="corpoFaturaCartoes" onclick="toggleFaturaCartoes()">
+                    <div class="w-10 h-10 bg-violet-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                        <i class="fas fa-credit-card text-violet-600"></i>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Fatura dos Cartões</p>
+                        <p id="fcDica" class="text-sm font-bold text-slate-700 truncate">Toque para ver as faturas</p>
+                    </div>
+                    <i class="fas fa-chevron-down fc-chevron text-slate-400 text-sm flex-shrink-0"></i>
+                </button>
+                <div id="corpoFaturaCartoes" class="fc-body relative z-10" role="region" aria-labelledby="btnFaturaCartoes">
+                    <div class="fc-inner">
+                        <div class="px-5 pb-5" id="fcConteudo"></div>
+                    </div>
+                </div>
+            </div>
+
+            <a href="controle_cartao.html"
+                class="w-full flex items-center justify-between gap-3 px-4 py-3 bg-white/80 border border-indigo-100 rounded-2xl shadow-sm active:scale-[0.98] transition-all"
+                style="text-decoration:none;">
+                <div class="flex items-center gap-3 min-w-0">
+                    <div class="w-9 h-9 bg-indigo-600 rounded-xl flex items-center justify-center flex-shrink-0">
+                        <i class="fas fa-credit-card text-white text-sm"></i>
+                    </div>
+                    <div class="text-left min-w-0">
+                        <p class="text-xs font-bold text-slate-700 leading-tight">Controle de Cartões</p>
+                        <p class="text-[10px] text-slate-400 font-medium truncate">Lançamentos, faturas e limites</p>
+                    </div>
+                </div>
+                <i class="fas fa-arrow-right text-indigo-400 text-xs flex-shrink-0"></i>
+            </a>
         </div>
 
         <!-- Card-resumo do módulo de Metas Financeiras -->
@@ -1992,6 +2044,7 @@
             else { cEvo.classList.remove('oculto'); cDist.classList.remove('oculto'); badgeVar?.classList.remove('oculto'); }
             atualizarDashboard();
             salvarEstado();
+            renderFaturaCartoes();
             mostrarToast(valoresOcultos ? 'Valores ocultados' : 'Valores visíveis');
         }
 
@@ -2054,6 +2107,7 @@
         }
 
         async function carregarDados() {
+            carregarFaturaCartoes(true); // fatura dos cartões (backend do controle_cartao) — independente da API financeira
             const icon = document.getElementById('iconSync');
             const lb = document.getElementById('loadingBar');
             icon.classList.add('animate-spin');
@@ -2085,6 +2139,7 @@
                 }
 
                 atualizarDashboard();
+                renderFaturaCartoes();
 
                 const now = new Date().toLocaleTimeString('pt-br', { hour: '2-digit', minute: '2-digit' });
                 const badge = `<i class="fas fa-check-circle text-emerald-400 mr-1"></i>Sync ${now}`;
@@ -3268,8 +3323,210 @@
             }
         }
 
+        // =============================================
+        // FATURA DOS CARTÕES
+        // Fonte única de dados: o backend do controle_cartao.html.
+        // Nada é duplicado aqui — a cada carga lemos listarCartoes e
+        // listarFaturas do MESMO Apps Script (mesma URL padrão e mesma chave
+        // 'cc_apiUrl' do localStorage usadas pelo controle_cartao.html),
+        // então qualquer mudança feita lá aparece aqui automaticamente.
+        // =============================================
+        const CC_API_URL_PADRAO = 'https://script.google.com/macros/s/AKfycbx4yU1u6iexcZErjRa_VE4pXFWopIRYlDUqm4R1wqRN_tMwRf9IYsOMrAQ8diHOlGQKxw/exec';
+        const CC_COR_PADRAO = '#6366f1';
+        const CC_REFRESH_MS = 60 * 1000;   // atualização automática enquanto a aba está visível
+        const CC_THROTTLE_MS = 10 * 1000;  // evita consultas repetidas em sequência
+        const CC_THROTTLE_FORCADO_MS = 3 * 1000;
+        const ccEstado = { carregou: false, erro: '', cartoes: [], faturas: [], ultimaCarga: 0, emVoo: null };
+
+        function getCcApiUrl() {
+            try { return localStorage.getItem('cc_apiUrl') || CC_API_URL_PADRAO; }
+            catch (e) { return CC_API_URL_PADRAO; }
+        }
+
+        async function ccApi(action, params = {}) {
+            let resp;
+            try {
+                resp = await fetch(getCcApiUrl(), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify({ action, data: {}, params })
+                });
+            } catch (err) {
+                throw new Error('Falha de rede ao contatar a API de cartões.');
+            }
+            if (!resp.ok) throw new Error('Falha na comunicação com a API de cartões (HTTP ' + resp.status + ')');
+            let json;
+            try { json = await resp.json(); }
+            catch (err) { throw new Error('A API de cartões não retornou JSON válido.'); }
+            if (!json.success) throw new Error(json.error || json.message || 'Erro na API de cartões');
+            return json.data || [];
+        }
+
+        function ccEsc(s) {
+            return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        }
+        function ccCor(cartao) {
+            const c = cartao && cartao.Cor;
+            return (typeof c === 'string' && /^#[0-9a-fA-F]{3,8}$/.test(c)) ? c : CC_COR_PADRAO;
+        }
+        function ccMesAtual() {
+            const dt = new Date();
+            return String(dt.getMonth() + 1).padStart(2, '0') + '/' + dt.getFullYear();
+        }
+        // Mesma normalização de "Mes_Referencia" usada no controle_cartao.html
+        function ccNormalizarMes(v) {
+            if (!v) return '';
+            const s = String(v).trim();
+            if (/^\d{1,2}\/\d{4}$/.test(s)) {
+                const [m, a] = s.split('/');
+                return String(m).padStart(2, '0') + '/' + a;
+            }
+            const partes = s.split(' ')[0].split('/');
+            if (partes.length === 3) return String(partes[1]).padStart(2, '0') + '/' + partes[2];
+            return s;
+        }
+        // Respeita o "ocultar valores" do dashboard. Lê também o estado salvo para não
+        // exibir valores por um instante caso o card carregue antes do estado ser restaurado.
+        function ccValoresOcultos() {
+            if (valoresOcultos) return true;
+            try {
+                const s = JSON.parse(sessionStorage.getItem('dashEstado') || 'null');
+                return !!(s && s.valoresOcultos);
+            } catch (e) { return false; }
+        }
+        function ccFmt(v) {
+            if (ccValoresOcultos()) return 'R$ ••••';
+            return (Number(v) || 0).toLocaleString('pt-br', { style: 'currency', currency: 'BRL' });
+        }
+        function ccBadgeStatus(status) {
+            const mapa = {
+                'Aberta': 'bg-indigo-100 text-indigo-700',
+                'Fechada': 'bg-amber-100 text-amber-700',
+                'Paga': 'bg-emerald-100 text-emerald-700',
+                'Parcialmente Paga': 'bg-sky-100 text-sky-700'
+            };
+            const cls = mapa[status] || 'bg-slate-100 text-slate-500';
+            return `<span class="text-[10px] font-extrabold px-2.5 py-1 rounded-full whitespace-nowrap flex-shrink-0 ${cls}">${ccEsc(status || 'Sem fatura')}</span>`;
+        }
+
+        function renderFaturaCartoes() {
+            const el = document.getElementById('fcConteudo');
+            if (!el) return;
+
+            if (!ccEstado.carregou) {
+                if (ccEstado.erro) {
+                    el.innerHTML = `
+                        <div class="border-t border-slate-100 pt-4 text-center">
+                            <i class="fas fa-triangle-exclamation text-rose-400 text-xl mb-2"></i>
+                            <p class="text-xs font-bold text-slate-600">Não foi possível carregar as faturas dos cartões.</p>
+                            <p class="text-[10px] text-slate-400 mt-1 break-words">${ccEsc(ccEstado.erro)}</p>
+                            <button type="button" onclick="carregarFaturaCartoes(true)"
+                                class="mt-3 text-[11px] font-bold text-violet-700 bg-violet-50 border border-violet-100 px-4 py-2 rounded-full active:scale-95 transition-all">
+                                Tentar novamente
+                            </button>
+                        </div>`;
+                } else {
+                    el.innerHTML = `
+                        <div class="border-t border-slate-100 pt-4 animate-pulse" aria-busy="true">
+                            <div class="h-3 w-32 bg-slate-200 rounded mb-3"></div>
+                            <div class="h-8 w-44 bg-slate-200 rounded mb-4"></div>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                                <div class="h-20 bg-slate-100 rounded-2xl"></div>
+                                <div class="h-20 bg-slate-100 rounded-2xl"></div>
+                            </div>
+                        </div>`;
+                }
+                return;
+            }
+
+            const mes = ccMesAtual();
+            const linhas = ccEstado.cartoes.map(c => {
+                const fats = ccEstado.faturas.filter(f =>
+                    String(f.ID_Cartao) === String(c.ID_Cartao) && ccNormalizarMes(f.Mes_Referencia) === mes);
+                const valor = fats.reduce((s, f) => s + (Number(f.Valor_Total) || 0), 0);
+                return { cartao: c, valor, status: fats.length ? fats[0].Status : '' };
+            });
+            const total = linhas.reduce((s, l) => s + l.valor, 0);
+            const qtd = linhas.length;
+
+            const subcards = linhas.map(l => {
+                const c = l.cartao;
+                const cor = ccCor(c);
+                const inativo = c.Ativo !== 'SIM';   // mesmo critério do controle_cartao.html
+                return `
+                    <div class="rounded-2xl bg-white/80 border border-slate-100 shadow-sm p-3.5 min-w-0"
+                        style="border-left:4px solid ${cor};${inativo ? 'opacity:.6;' : ''}">
+                        <div class="flex items-start justify-between gap-2 mb-1.5">
+                            <div class="min-w-0">
+                                <p class="text-xs font-bold text-slate-700 truncate">${ccEsc(c.Nome_Cartao || 'Cartão')}</p>
+                                <p class="text-[10px] text-slate-400 font-semibold truncate">${ccEsc(c.Banco || '')}${inativo ? (c.Banco ? ' · ' : '') + 'Inativo' : ''}</p>
+                            </div>
+                            ${ccBadgeStatus(l.status)}
+                        </div>
+                        <p class="text-lg font-black text-slate-800 break-words">${ccFmt(l.valor)}</p>
+                    </div>`;
+            }).join('');
+
+            el.innerHTML = `
+                <div class="border-t border-slate-100 pt-4">
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Fatura total · ${ccEsc(mes)}</p>
+                    <h2 class="text-2xl md:text-3xl font-black text-violet-600 break-words">${ccFmt(total)}</h2>
+                    <p class="text-[10px] text-slate-400 font-semibold mt-1">Soma de ${qtd} cartão${qtd === 1 ? '' : 'es'}</p>
+                </div>
+                ${qtd
+                    ? `<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-4">${subcards}</div>`
+                    : `<p class="text-xs text-slate-400 font-medium mt-4">Nenhum cartão cadastrado no Controle de Cartões.</p>`}
+                ${ccEstado.erro
+                    ? `<p class="text-[10px] text-amber-600 font-semibold mt-3"><i class="fas fa-triangle-exclamation mr-1"></i>Não foi possível atualizar agora — exibindo o último valor carregado.</p>`
+                    : ''}`;
+        }
+
+        function carregarFaturaCartoes(forcar) {
+            if (ccEstado.emVoo) return ccEstado.emVoo;
+            const minimo = forcar ? CC_THROTTLE_FORCADO_MS : CC_THROTTLE_MS;
+            if (ccEstado.carregou && (Date.now() - ccEstado.ultimaCarga) < minimo) return Promise.resolve();
+
+            ccEstado.emVoo = (async () => {
+                try {
+                    const [cartoes, faturas] = await Promise.all([ccApi('listarCartoes'), ccApi('listarFaturas')]);
+                    ccEstado.cartoes = Array.isArray(cartoes) ? cartoes : [];
+                    ccEstado.faturas = Array.isArray(faturas) ? faturas : [];
+                    ccEstado.carregou = true;
+                    ccEstado.erro = '';
+                    ccEstado.ultimaCarga = Date.now();
+                } catch (e) {
+                    console.warn('[PoppeFin] Fatura dos cartões:', e);
+                    ccEstado.erro = (e && e.message) || 'Erro desconhecido';
+                } finally {
+                    ccEstado.emVoo = null;
+                    renderFaturaCartoes();
+                }
+            })();
+            return ccEstado.emVoo;
+        }
+
+        // O card SEMPRE inicia fechado (a classe fc-open nunca é persistida).
+        // Atualizações de dados só trocam o conteúdo interno, sem alterar aberto/fechado.
+        function toggleFaturaCartoes() {
+            const card = document.getElementById('cardFaturaCartoes');
+            const btn = document.getElementById('btnFaturaCartoes');
+            const dica = document.getElementById('fcDica');
+            const aberto = card.classList.toggle('fc-open');
+            btn.setAttribute('aria-expanded', aberto ? 'true' : 'false');
+            dica.textContent = aberto ? 'Toque para recolher' : 'Toque para ver as faturas';
+            if (aberto) carregarFaturaCartoes();   // valores frescos ao abrir (respeita o throttle)
+        }
+
+        // Atualização automática: ao voltar para a aba/tela (ex.: depois de mexer no
+        // controle_cartao.html), ao restaurar do cache de navegação e a cada 60s.
+        document.addEventListener('visibilitychange', () => { if (!document.hidden) carregarFaturaCartoes(); });
+        window.addEventListener('pageshow', e => { if (e.persisted) carregarFaturaCartoes(true); });
+        setInterval(() => { if (!document.hidden) carregarFaturaCartoes(); }, CC_REFRESH_MS);
+
         // Inicializar
         iniciarSessao();
+        renderFaturaCartoes();
+        carregarFaturaCartoes(true);
         buscarSelic().then(() => { carregarDados(); atualizarRefCdi(); });
         // Atualiza a Selic a cada 6 horas durante a sessão
         setInterval(() => buscarSelic(), 6 * 60 * 60 * 1000);
