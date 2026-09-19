@@ -180,48 +180,33 @@
         <div class="modal-sheet">
             <div class="modal-handle"></div>
             <h3 class="text-lg font-bold text-slate-800 mb-1 flex items-center gap-2">
-                <i class="fas fa-bullseye text-indigo-600"></i> Editar Meta
+                <i class="fas fa-bullseye text-indigo-600"></i> Editar Metas
             </h3>
-            <p class="text-slate-400 text-xs font-medium mb-5">Defina a meta anual, mensal e (opcionalmente) por conta.</p>
+            <p class="text-slate-400 text-xs font-medium mb-5">Cada ano tem sua própria meta de patrimônio. Ao selecionar um ano no painel, o sistema compara o valor cadastrado para aquele ano com tudo o que você já tem acumulado — não é preciso definir um valor de aporte anual.</p>
 
             <div class="space-y-4">
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="text-[10px] font-bold text-slate-400 uppercase ml-1">Ano</label>
-                        <select id="editAno" class="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl font-bold outline-none focus:border-indigo-500 transition-all mt-1"></select>
+                <div>
+                    <div class="flex items-center justify-between ml-1 mb-1.5">
+                        <label class="text-[10px] font-bold text-slate-400 uppercase">Metas por Ano (R$)</label>
+                        <button type="button" onclick="adicionarLinhaMetaAno()" class="text-[10px] font-bold text-indigo-600 flex items-center gap-1"><i class="fas fa-plus"></i> Adicionar ano</button>
                     </div>
-                    <div>
-                        <label class="text-[10px] font-bold text-slate-400 uppercase ml-1">Meta Anual (R$)</label>
-                        <input type="number" id="editMetaAnual" min="0" step="0.01" placeholder="500000.00"
-                            oninput="atualizarResumoDistribuicao()"
-                            class="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl font-bold outline-none focus:border-indigo-500 transition-all mt-1">
-                    </div>
-                </div>
-
-                <div class="border-t border-slate-100 pt-4">
-                    <div class="flex items-center justify-between mb-2">
-                        <label class="text-[10px] font-bold text-slate-400 uppercase">Metas Mensais</label>
-                        <button type="button" onclick="distribuirAutomaticamente()"
-                            class="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2.5 py-1.5 rounded-lg active:scale-95 transition-all">
-                            <i class="fas fa-wand-magic-sparkles mr-1"></i>Distribuir automaticamente
-                        </button>
-                    </div>
-                    <div class="grid grid-cols-3 gap-2" id="gridMesesEdit"></div>
-                    <p id="resumoDistribuicao" class="text-[10px] font-semibold mt-2 text-slate-400"></p>
+                    <div id="wrapMetasAnos" class="space-y-2"></div>
+                    <p class="text-[10px] text-slate-400 font-semibold mt-1.5 ml-1">Quanto você quer ter acumulado, no total, ao final de cada ano — não é uma meta de quanto juntar naquele ano.</p>
                 </div>
 
                 <div class="border-t border-slate-100 pt-4">
                     <label class="flex items-center gap-2 cursor-pointer">
                         <input type="checkbox" id="editContasHabilitado" onchange="toggleContasEdicao()"
                             class="w-4 h-4 accent-indigo-600 cursor-pointer">
-                        <span class="text-xs font-bold text-slate-700">Definir metas por conta (opcional)</span>
+                        <span class="text-xs font-bold text-slate-700">Definir alvo por conta (opcional)</span>
                     </label>
-                    <div id="wrapContasEdicao" class="mt-3 space-y-2 hidden"></div>
+                    <p class="text-[10px] text-slate-400 font-semibold mt-1 mb-2">Quanto você quer ter acumulado em cada conta, no total.</p>
+                    <div id="wrapContasEdicao" class="mt-1 space-y-2 hidden"></div>
                 </div>
 
                 <div class="flex gap-3 pt-2">
                     <button onclick="fecharModalEdicao()" class="flex-1 py-3.5 font-bold text-slate-500 bg-slate-100 rounded-xl transition-all active:scale-95">Cancelar</button>
-                    <button onclick="salvarMeta()" class="flex-1 py-3.5 font-bold bg-indigo-600 text-white rounded-xl shadow-lg active:scale-95">Salvar Meta</button>
+                    <button onclick="salvarMeta()" class="flex-1 py-3.5 font-bold bg-indigo-600 text-white rounded-xl shadow-lg active:scale-95">Salvar Metas</button>
                 </div>
             </div>
         </div>
@@ -235,9 +220,11 @@
                 <i class="fas fa-circle-info text-indigo-600"></i> Como os cálculos funcionam
             </h3>
             <div class="space-y-3 text-xs text-slate-600 leading-relaxed">
-                <p><strong>Realizado</strong> = soma de (Entradas − Saídas + Rendimentos) de todas as movimentações do ano selecionado. Transferências entre contas próprias não contam como entrada/saída no total consolidado.</p>
-                <p><strong>Necessário por mês</strong> = (Meta anual − Realizado) ÷ meses restantes no ano.</p>
-                <p><strong>Projeção anual</strong> = (Realizado até o momento ÷ meses decorridos) × 12 — ou seja, projeta o ritmo médio atual para o ano inteiro.</p>
+                <p><strong>Meta do ano</strong> = valor que você cadastrou como objetivo de patrimônio para o ano selecionado. Cada ano tem a sua própria meta (ex.: 2026 → R$ 50.000, 2027 → R$ 70.000, 2028 → R$ 100.000).</p>
+                <p><strong>Valor acumulado</strong> = soma de (Entradas − Saídas + Rendimentos) de todas as movimentações desde o início, até a data de referência. É o seu patrimônio total até aquele momento — não apenas o que entrou no ano.</p>
+                <p><strong>Falta para a meta</strong> = Meta do ano selecionado − Valor acumulado atual.</p>
+                <p><strong>Progresso</strong> = (Valor acumulado ÷ Meta do ano selecionado) × 100.</p>
+                <p>A meta nunca representa quanto você precisa juntar naquele ano — ela representa quanto você quer ter acumulado, no total, ao final daquele ano. O Acompanhamento Mensal e a Evolução mostram como o total foi crescendo mês a mês dentro do ano selecionado.</p>
                 <p>Tudo é recalculado automaticamente sempre que uma movimentação é criada, editada ou excluída.</p>
             </div>
             <button onclick="document.getElementById('modalInfoMetas').style.display='none'" class="w-full mt-5 py-3.5 font-bold bg-indigo-600 text-white rounded-xl shadow-lg active:scale-95">Entendi</button>
@@ -293,21 +280,22 @@
             <div class="absolute top-0 right-0 w-40 h-40 bg-indigo-50 rounded-full -translate-y-16 translate-x-16"></div>
             <div class="flex items-center justify-between mb-4 relative z-10 flex-wrap gap-2">
                 <h2 class="text-sm font-black text-slate-700 uppercase tracking-widest flex items-center gap-2">
-                    <i class="fas fa-bullseye text-indigo-600"></i> Meta <span id="tituloMetaAno">—</span>
+                    <i class="fas fa-bullseye text-indigo-600"></i> Meta de <span id="labelAnoDestaque"></span>
                 </h2>
                 <button class="btn-info" onclick="document.getElementById('modalInfoMetas').style.display='flex'" title="Como os cálculos funcionam">i</button>
             </div>
+            <p id="labelReferenciaMeta" class="text-[10px] text-slate-400 font-semibold -mt-2 mb-4 relative z-10"></p>
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4 relative z-10 mb-5">
                 <div>
                     <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Meta</p>
                     <p id="valMetaAnual" class="text-lg md:text-2xl font-black text-slate-800">R$ 0,00</p>
                 </div>
                 <div>
-                    <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Realizado</p>
+                    <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Você já tem</p>
                     <p id="valRealizadoAnual" class="text-lg md:text-2xl font-black text-indigo-600">R$ 0,00</p>
                 </div>
                 <div>
-                    <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Restante</p>
+                    <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Falta</p>
                     <p id="valRestanteAnual" class="text-lg md:text-2xl font-black text-slate-800">R$ 0,00</p>
                 </div>
                 <div>
@@ -321,49 +309,17 @@
             <p id="labelProgressoMeta" class="text-[11px] text-slate-500 font-semibold mt-2 relative z-10"></p>
         </div>
 
-        <!-- Ritmo necessário + Projeção -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 slide-up-d2">
-            <div class="glass-card p-5 rounded-[28px]">
-                <div class="flex items-center gap-2.5 mb-3">
-                    <div class="w-9 h-9 bg-violet-100 rounded-xl flex items-center justify-center">
-                        <i class="fas fa-gauge-high text-violet-600 text-sm"></i>
-                    </div>
-                    <div>
-                        <p class="text-[9px] font-black uppercase tracking-widest text-slate-400">Ritmo necessário</p>
-                        <p class="text-[10px] text-slate-400 font-medium">Para atingir a meta anual</p>
-                    </div>
-                </div>
-                <p id="valNecessarioMes" class="text-xl md:text-2xl font-black text-slate-800">R$ 0,00<span class="text-xs font-bold text-slate-400">/mês</span></p>
-                <p id="labelMesesRestantes" class="text-[11px] text-slate-500 font-semibold mt-1"></p>
-            </div>
-            <div class="glass-card p-5 rounded-[28px]">
-                <div class="flex items-center justify-between mb-3">
-                    <div class="flex items-center gap-2.5">
-                        <div class="w-9 h-9 bg-amber-100 rounded-xl flex items-center justify-center">
-                            <i class="fas fa-chart-line text-amber-600 text-sm"></i>
-                        </div>
-                        <div>
-                            <p class="text-[9px] font-black uppercase tracking-widest text-slate-400">Projeção para o fim do ano</p>
-                            <p class="text-[10px] text-slate-400 font-medium">Baseada no ritmo atual</p>
-                        </div>
-                    </div>
-                    <span id="badgeProjecao" class="status-pill cinza">—</span>
-                </div>
-                <p id="valProjecao" class="text-xl md:text-2xl font-black text-slate-800">—</p>
-            </div>
-        </div>
-
         <!-- Gráficos -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 slide-up-d2">
             <div class="glass-card p-5 rounded-[28px]">
-                <h3 class="text-sm font-bold text-slate-700 mb-3">Meta x Realizado</h3>
+                <h3 class="text-sm font-bold text-slate-700 mb-3">Meta x Acumulado</h3>
                 <div class="chart-container"><canvas id="chartMetaRealizado"></canvas></div>
             </div>
             <div class="glass-card p-5 rounded-[28px]">
                 <div class="flex items-center justify-between mb-3">
-                    <h3 class="text-sm font-bold text-slate-700">Evolução Mensal</h3>
+                    <h3 class="text-sm font-bold text-slate-700">Evolução do Patrimônio</h3>
                     <div class="flex items-center gap-3 text-[10px] font-bold text-slate-500">
-                        <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-indigo-500 inline-block"></span>Realizado</span>
+                        <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-indigo-500 inline-block"></span>Acumulado</span>
                         <span class="inline-flex items-center gap-1"><span class="w-3 border-t-2 border-dashed border-amber-400 inline-block"></span>Meta</span>
                     </div>
                 </div>
@@ -379,7 +335,7 @@
 
         <!-- Metas por conta -->
         <div class="glass-card p-5 rounded-[28px] slide-up-d3 hidden" id="cardMetasContas">
-            <h3 class="text-sm font-bold text-slate-700 mb-3">Metas por Conta</h3>
+            <h3 class="text-sm font-bold text-slate-700 mb-3">Alvo por Conta</h3>
             <div id="listaContasMetas"></div>
         </div>
 
@@ -498,7 +454,6 @@
         let contasRaw = [];
         let anoSelecionado = new Date().getFullYear();
         let valoresOcultos = false;
-        let metasStore = {};
         let chartMetaRealizado = null, chartEvolucao = null;
 
         function fmt(v) { return (v || 0).toLocaleString('pt-br', { style: 'currency', currency: 'BRL' }); }
@@ -525,28 +480,119 @@
         }
 
         // ============================================================
-        // PERSISTÊNCIA DAS METAS (localStorage — não há endpoint de metas
-        // na API atual; assim que houver, basta trocar loadMetasStore/
-        // saveMetasStore por chamadas a apiGet/apiPost)
+        // PERSISTÊNCIA DA META (localStorage — não há endpoint de metas
+        // na API atual; assim que houver, basta trocar loadMetaGlobal/
+        // saveMetaGlobal por chamadas a apiGet/apiPost)
+        //
+        // A meta é definida INDIVIDUALMENTE para cada ano (ex.: 2026 →
+        // R$ 50.000, 2027 → R$ 70.000, 2028 → R$ 100.000). Cada valor
+        // representa quanto o usuário quer TER ACUMULADO, no total, ao
+        // final daquele ano — nunca quanto precisa juntar/investir
+        // durante o ano. Ao selecionar um ano, comparamos a meta
+        // cadastrada para ele com o que já foi acumulado (valor JÁ
+        // acumulado, nunca um aporte anual/mensal exigido).
         // ============================================================
-        function loadMetasStore() {
-            try { metasStore = JSON.parse(localStorage.getItem('poppefinMetas') || '{}'); }
-            catch (e) { metasStore = {}; }
-        }
-        function saveMetasStore() { localStorage.setItem('poppefinMetas', JSON.stringify(metasStore)); }
+        let metaGlobal = { porAno: {}, contasHabilitado: false, metasContas: {} };
 
-        function getMetaAno(ano) {
-            if (!metasStore[ano]) {
-                metasStore[ano] = { metaAnual: 0, metasMensais: new Array(12).fill(0), contasHabilitado: false, metasContas: {} };
+        function loadMetaGlobal() {
+            try {
+                const salvo = JSON.parse(localStorage.getItem('poppefinMetaPatrimonio') || 'null');
+                if (salvo && typeof salvo === 'object') metaGlobal = salvo;
+            } catch (e) { /* mantém default */ }
+            if (!metaGlobal.metasContas) metaGlobal.metasContas = {};
+            // Migração do formato antigo (meta única, campo "valor") para o
+            // novo formato por ano: aplica o valor antigo ao ano atual.
+            if (!metaGlobal.porAno) {
+                metaGlobal.porAno = {};
+                if (typeof metaGlobal.valor === 'number' && metaGlobal.valor > 0) {
+                    metaGlobal.porAno[String(new Date().getFullYear())] = metaGlobal.valor;
+                }
+                delete metaGlobal.valor;
             }
-            const m = metasStore[ano];
-            if (!Array.isArray(m.metasMensais) || m.metasMensais.length !== 12) m.metasMensais = new Array(12).fill(0);
-            if (!m.metasContas) m.metasContas = {};
-            return m;
+        }
+        function saveMetaGlobal() { localStorage.setItem('poppefinMetaPatrimonio', JSON.stringify(metaGlobal)); }
+
+        function getMetaGlobal() { return metaGlobal; }
+
+        // Meta cadastrada para um ano específico (0 se não houver).
+        function getMetaAno(ano) { return parseFloat(metaGlobal.porAno[String(ano)]) || 0; }
+
+        // ============================================================
+        // CÁLCULO DO VALOR ACUMULADO A PARTIR DAS MOVIMENTAÇÕES REAIS
+        // ============================================================
+
+        // Total acumulado (todas as contas, desde o início) até uma data de corte.
+        // Mesma lógica do "Saldo Consolidado" do dashboard: exclui transferências
+        // entre contas próprias (elas se cancelam no total).
+        function computeAcumuladoTotalAteData(cutoffStr) {
+            let total = 0;
+            dadosRaw.forEach(d => {
+                const dataStr = (d['Data'] || '').split('T')[0];
+                if (!dataStr || dataStr > cutoffStr) return;
+                const vA = parseFloat(d['Valor Aporte']) || 0;
+                const vR = parseFloat(d['Valor Rendimento']) || 0;
+                let valor = vR;
+                if (!d.isTransferencia) valor += (d['Tipo'] === 'Entrada' ? vA : -vA);
+                total += valor;
+            });
+            return total;
+        }
+
+        // Saldo acumulado por conta até uma data de corte (inclui transferências,
+        // pois elas afetam o saldo da conta individualmente).
+        function computeAcumuladoPorContaAteData(cutoffStr) {
+            const porConta = {};
+            dadosRaw.forEach(d => {
+                const dataStr = (d['Data'] || '').split('T')[0];
+                if (!dataStr || dataStr > cutoffStr) return;
+                const vA = parseFloat(d['Valor Aporte']) || 0;
+                const vR = parseFloat(d['Valor Rendimento']) || 0;
+                const contaId = String(d['ID Conta']);
+                const valorConta = vR + (d['Tipo'] === 'Entrada' ? vA : -vA);
+                porConta[contaId] = (porConta[contaId] || 0) + valorConta;
+            });
+            return porConta;
+        }
+
+        // Data de referência (corte) para o ano selecionado: hoje, se for o ano
+        // corrente; 31/dez, se for um ano passado; null se ainda não começou.
+        function cutoffParaAno(ano) {
+            const hoje = new Date();
+            const anoAtual = hoje.getFullYear();
+            if (ano < anoAtual) return `${ano}-12-31`;
+            if (ano > anoAtual) return null;
+            return hoje.toISOString().split('T')[0];
+        }
+
+        // Trajetória do saldo acumulado total, mês a mês, dentro de um ano —
+        // usada no Acompanhamento Mensal e no gráfico de Evolução.
+        function computeAcumuladoPorMes(ano) {
+            const hoje = new Date();
+            const anoAtual = hoje.getFullYear();
+            const mesLimite = ano < anoAtual ? 11 : (ano > anoAtual ? -1 : hoje.getMonth());
+            const baseline = computeAcumuladoTotalAteData(`${ano - 1}-12-31`);
+            const real = computeRealizado(ano);
+            const valores = [];
+            const crescimentos = [];
+            let cum = baseline;
+            for (let i = 0; i < 12; i++) {
+                if (i <= mesLimite) {
+                    const delta = real.porMes[i] || 0;
+                    cum += delta;
+                    valores.push(cum);
+                    crescimentos.push(delta);
+                } else {
+                    valores.push(null);
+                    crescimentos.push(null);
+                }
+            }
+            return { valores, crescimentos, baseline, mesLimite };
         }
 
         // ============================================================
-        // CÁLCULO DO REALIZADO A PARTIR DAS MOVIMENTAÇÕES REAIS
+        // CÁLCULO DO FLUXO (ENTRADAS/SAÍDAS/RENDIMENTOS) DENTRO DO ANO
+        // — usado para montar a trajetória mensal acumulada acima e a
+        // comparação com o ano anterior.
         // ============================================================
         function computeRealizado(ano) {
             const porMes = new Array(12).fill(0);
@@ -598,7 +644,6 @@
                 const dataStr = (d['Data'] || '').split('T')[0];
                 if (dataStr && dataStr.length >= 4) anos.add(parseInt(dataStr.substring(0, 4), 10));
             });
-            Object.keys(metasStore).forEach(a => anos.add(parseInt(a, 10)));
             return anos;
         }
 
@@ -651,6 +696,7 @@
             const atual = new Date().getFullYear();
             const anos = new Set([atual - 2, atual - 1, atual, atual + 1, atual + 2]);
             anosComDados().forEach(a => anos.add(a));
+            Object.keys(metaGlobal.porAno).forEach(a => anos.add(parseInt(a, 10)));
             const lista = [...anos].sort((a, b) => b - a);
             const sel = document.getElementById('seletorAno');
             sel.innerHTML = lista.map(a => `<option value="${a}">${a}</option>`).join('');
@@ -678,92 +724,64 @@
         // RENDERIZAÇÃO
         // ============================================================
         function renderAll() {
-            const meta = getMetaAno(anoSelecionado);
-            const real = computeRealizado(anoSelecionado);
-            renderDestaque(meta, real);
-            renderRitmoProjecao(meta, real);
-            renderGraficos(meta, real);
-            renderTabelaMensal(meta, real);
-            renderContas(meta, real);
+            const meta = getMetaGlobal();
+            const metaAno = getMetaAno(anoSelecionado);
+            const cutoff = cutoffParaAno(anoSelecionado);
+            const valorAcumulado = cutoff ? computeAcumuladoTotalAteData(cutoff) : 0;
+            const porContaAcumulado = cutoff ? computeAcumuladoPorContaAteData(cutoff) : {};
+            const trajetoria = computeAcumuladoPorMes(anoSelecionado);
+
+            renderDestaque(metaAno, valorAcumulado, cutoff);
+            renderGraficos(metaAno, valorAcumulado, trajetoria);
+            renderTabelaMensal(metaAno, trajetoria);
+            renderContas(meta, porContaAcumulado);
             renderComparacaoAnoAnterior();
-            renderAlertas(meta, real);
+            renderAlertas(metaAno, valorAcumulado, trajetoria);
             renderHistorico();
         }
 
-        function renderDestaque(meta, real) {
-            document.getElementById('tituloMetaAno').textContent = anoSelecionado;
-            const restante = meta.metaAnual - real.total;
-            const pct = meta.metaAnual > 0 ? (real.total / meta.metaAnual) * 100 : 0;
+        function renderDestaque(metaAno, valorAcumulado, cutoff) {
+            const hoje = new Date();
+            const ehAnoAtual = anoSelecionado === hoje.getFullYear();
+            document.getElementById('labelAnoDestaque').textContent = anoSelecionado;
+            document.getElementById('labelReferenciaMeta').textContent = !cutoff
+                ? `${anoSelecionado} ainda não começou — comparando com o que você tem acumulado hoje.`
+                : ehAnoAtual ? `Meta cadastrada para ${anoSelecionado}, comparada com tudo o que você já acumulou até hoje.`
+                : `Meta cadastrada para ${anoSelecionado}, comparada com o patrimônio acumulado até 31/12/${anoSelecionado}.`;
 
-            document.getElementById('valMetaAnual').textContent = oc(fmt(meta.metaAnual));
-            document.getElementById('valRealizadoAnual').textContent = oc(fmt(real.total));
-            document.getElementById('valRestanteAnual').textContent = oc(restante > 0 ? fmt(restante) : 'Meta superada');
+            const valorRef = cutoff ? valorAcumulado : computeAcumuladoTotalAteData(hoje.toISOString().split('T')[0]);
+            const restante = metaAno - valorRef;
+            const pct = metaAno > 0 ? (valorRef / metaAno) * 100 : 0;
+
+            document.getElementById('valMetaAnual').textContent = oc(fmt(metaAno));
+            document.getElementById('valRealizadoAnual').textContent = oc(fmt(valorRef));
+            document.getElementById('valRestanteAnual').textContent = oc(restante > 0 ? fmt(restante) : 'Meta atingida');
             document.getElementById('valRestanteAnual').className = 'text-lg md:text-2xl font-black ' + (restante > 0 ? 'text-slate-800' : 'text-emerald-600');
-            document.getElementById('valPercentualAnual').textContent = oc(fmtPct(pct));
+            document.getElementById('valPercentualAnual').textContent = oc(fmtPct(Math.max(0, pct)));
 
             const barra = document.getElementById('barraProgressoMeta');
             barra.style.width = Math.min(100, Math.max(0, pct)) + '%';
             barra.classList.toggle('superado', pct >= 100);
 
             const label = document.getElementById('labelProgressoMeta');
-            if (meta.metaAnual <= 0) label.textContent = 'Defina uma meta anual em "Editar Meta" para começar a acompanhar.';
-            else if (pct >= 100) label.textContent = `Meta atingida! Você superou em ${oc(fmt(real.total - meta.metaAnual))}.`;
-            else label.textContent = `${oc(fmtPct(pct))} concluído — faltam ${oc(fmt(restante))}.`;
+            if (metaAno <= 0) label.textContent = `Defina a meta de ${anoSelecionado} em "Editar Meta" para começar a acompanhar.`;
+            else if (pct >= 100) label.textContent = `Meta de ${anoSelecionado} atingida! Você já tem ${oc(fmt(valorRef - metaAno))} a mais do que precisava.`;
+            else label.textContent = `${oc(fmtPct(pct))} do caminho percorrido — faltam ${oc(fmt(restante))} para chegar à meta de ${anoSelecionado}.`;
         }
 
         function statusEmoji(cor) { return cor === 'verde' ? '🟢' : cor === 'amarelo' ? '🟡' : cor === 'vermelho' ? '🔴' : '⚪'; }
 
-        function renderRitmoProjecao(meta, real) {
-            const hoje = new Date();
-            const anoAtual = hoje.getFullYear();
-            const mesAtualIdx = hoje.getMonth();
-
-            let mesesDecorridos, mesesRestantes;
-            if (anoSelecionado < anoAtual) { mesesDecorridos = 12; mesesRestantes = 0; }
-            else if (anoSelecionado > anoAtual) { mesesDecorridos = 0; mesesRestantes = 12; }
-            else { mesesDecorridos = mesAtualIdx + 1; mesesRestantes = 12 - mesesDecorridos; }
-
-            const faltaPositivo = Math.max(0, meta.metaAnual - real.total);
-            const necessarioMes = mesesRestantes > 0 ? faltaPositivo / mesesRestantes : 0;
-            document.getElementById('valNecessarioMes').innerHTML = mesesRestantes > 0
-                ? `${oc(fmt(necessarioMes))}<span class="text-xs font-bold text-slate-400">/mês</span>`
-                : (real.total >= meta.metaAnual && meta.metaAnual > 0 ? 'Meta já atingida 🎉' : '—');
-            document.getElementById('labelMesesRestantes').textContent = mesesRestantes > 0
-                ? `${mesesRestantes} ${mesesRestantes === 1 ? 'mês restante' : 'meses restantes'} em ${anoSelecionado}`
-                : (anoSelecionado < anoAtual ? 'Ano encerrado' : anoSelecionado > anoAtual ? 'Ano ainda não iniciado' : 'Último mês do ano');
-
-            const badge = document.getElementById('badgeProjecao');
-            const valEl = document.getElementById('valProjecao');
-            if (mesesDecorridos <= 0) {
-                valEl.textContent = '—';
-                badge.className = 'status-pill cinza';
-                badge.textContent = 'Sem dados ainda';
-                return;
-            }
-            const projecao = (real.total / mesesDecorridos) * 12;
-            valEl.textContent = oc(fmt(projecao));
-            if (meta.metaAnual <= 0) {
-                badge.className = 'status-pill cinza';
-                badge.textContent = 'Sem meta definida';
-                return;
-            }
-            const pctProj = (projecao / meta.metaAnual) * 100;
-            let cor = pctProj >= 100 ? 'verde' : pctProj >= 85 ? 'amarelo' : 'vermelho';
-            badge.className = 'status-pill ' + cor;
-            badge.textContent = statusEmoji(cor) + ' ' + (cor === 'verde' ? 'Tendência de atingir' : cor === 'amarelo' ? 'Próximo da meta' : 'Tendência de ficar abaixo');
-        }
-
-        function renderGraficos(meta, real) {
+        function renderGraficos(metaAno, valorAcumulado, trajetoria) {
             const ctx1 = document.getElementById('chartMetaRealizado').getContext('2d');
-            const corRealizado = real.total >= meta.metaAnual && meta.metaAnual > 0 ? '#10b981' : '#6366f1';
+            const corAcumulado = valorAcumulado >= metaAno && metaAno > 0 ? '#10b981' : '#6366f1';
             if (chartMetaRealizado) chartMetaRealizado.destroy();
             chartMetaRealizado = new Chart(ctx1, {
                 type: 'bar',
                 data: {
-                    labels: ['Meta', 'Realizado'],
+                    labels: [`Meta ${anoSelecionado}`, 'Acumulado'],
                     datasets: [{
-                        data: [meta.metaAnual, real.total],
-                        backgroundColor: ['#f59e0b', corRealizado],
+                        data: [metaAno, valorAcumulado],
+                        backgroundColor: ['#f59e0b', corAcumulado],
                         borderRadius: 10,
                         maxBarThickness: 70
                     }]
@@ -779,21 +797,7 @@
             });
 
             const ctx2 = document.getElementById('chartEvolucao').getContext('2d');
-            const hoje = new Date();
-            const limiteMes = (anoSelecionado === hoje.getFullYear()) ? hoje.getMonth() : (anoSelecionado < hoje.getFullYear() ? 11 : -1);
-
-            let acumReal = 0, acumMeta = 0;
-            const realizadoAcumulado = [], metaAcumulada = [];
-            for (let i = 0; i < 12; i++) {
-                acumMeta += meta.metasMensais[i] || 0;
-                metaAcumulada.push(acumMeta);
-                if (i <= limiteMes) {
-                    acumReal += real.porMes[i] || 0;
-                    realizadoAcumulado.push(acumReal);
-                } else {
-                    realizadoAcumulado.push(null);
-                }
-            }
+            const metaLinha = new Array(12).fill(metaAno);
 
             if (chartEvolucao) chartEvolucao.destroy();
             chartEvolucao = new Chart(ctx2, {
@@ -802,14 +806,14 @@
                     labels: MESES_ABR,
                     datasets: [
                         {
-                            label: 'Realizado acumulado', data: realizadoAcumulado,
+                            label: 'Acumulado', data: trajetoria.valores,
                             borderColor: '#6366f1', backgroundColor: 'rgba(99,102,241,0.12)',
                             fill: true, tension: 0.35, pointRadius: 3, spanGaps: false
                         },
                         {
-                            label: 'Meta acumulada', data: metaAcumulada,
+                            label: 'Meta', data: metaLinha,
                             borderColor: '#f59e0b', borderDash: [6, 4],
-                            backgroundColor: 'transparent', fill: false, tension: 0.35, pointRadius: 0
+                            backgroundColor: 'transparent', fill: false, tension: 0, pointRadius: 0
                         }
                     ]
                 },
@@ -826,38 +830,34 @@
 
         const MESES_LONGOS = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 
-        function renderTabelaMensal(meta, real) {
+        function renderTabelaMensal(metaAno, trajetoria) {
             const hoje = new Date();
             const container = document.getElementById('listaMeses');
             let html = '';
             for (let i = 0; i < 12; i++) {
-                const metaMes = meta.metasMensais[i] || 0;
-                const realizadoMes = real.porMes[i] || 0;
-                const diff = realizadoMes - metaMes;
-                const jaOcorreu = anoSelecionado < hoje.getFullYear() || (anoSelecionado === hoje.getFullYear() && i <= hoje.getMonth());
+                const saldoFimMes = trajetoria.valores[i];
+                const crescimentoMes = trajetoria.crescimentos[i];
+                const jaOcorreu = saldoFimMes !== null;
                 const ehMesAtual = anoSelecionado === hoje.getFullYear() && i === hoje.getMonth();
-                const pct = metaMes > 0 ? (realizadoMes / metaMes) * 100 : (realizadoMes > 0 ? 100 : 0);
+                const pctMeta = (jaOcorreu && metaAno > 0) ? (saldoFimMes / metaAno) * 100 : null;
 
                 let statusHtml, corBarra;
                 if (!jaOcorreu) {
                     statusHtml = '<span class="status-pill cinza">Pendente</span>';
                     corBarra = '#cbd5e1';
-                } else if (metaMes <= 0) {
-                    statusHtml = '<span class="status-pill cinza">Sem meta</span>';
-                    corBarra = '#cbd5e1';
-                } else if (pct >= 100) {
-                    statusHtml = '<span class="status-pill verde">🟢 Acima</span>';
+                } else if (crescimentoMes > 0) {
+                    statusHtml = '<span class="status-pill verde">🟢 Cresceu</span>';
                     corBarra = '#10b981';
-                } else if (pct >= 70) {
-                    statusHtml = '<span class="status-pill amarelo">🟡 Abaixo</span>';
-                    corBarra = '#f59e0b';
-                } else {
-                    statusHtml = '<span class="status-pill vermelho">🔴 Crítico</span>';
+                } else if (crescimentoMes < 0) {
+                    statusHtml = '<span class="status-pill vermelho">🔴 Caiu</span>';
                     corBarra = '#f43f5e';
+                } else {
+                    statusHtml = '<span class="status-pill cinza">Estável</span>';
+                    corBarra = '#94a3b8';
                 }
 
-                const diffTexto = (diff >= 0 ? '+' : '−') + oc(fmt(Math.abs(diff)));
-                const diffCor = diff >= 0 ? '#059669' : '#e11d48';
+                const crescTexto = jaOcorreu ? (crescimentoMes >= 0 ? '+' : '−') + oc(fmt(Math.abs(crescimentoMes))) : '—';
+                const crescCor = crescimentoMes >= 0 ? '#059669' : '#e11d48';
 
                 html += `
                 <div class="mes-card ${ehMesAtual ? 'atual' : ''} ${!jaOcorreu ? 'pendente' : ''}">
@@ -867,28 +867,28 @@
                     </div>
                     <div class="mes-card-stats">
                         <div class="mes-stat">
-                            <p class="mes-stat-label">Meta</p>
-                            <p class="mes-stat-valor">${oc(fmt(metaMes))}</p>
+                            <p class="mes-stat-label">Acumulado</p>
+                            <p class="mes-stat-valor">${jaOcorreu ? oc(fmt(saldoFimMes)) : '—'}</p>
                         </div>
                         <div class="mes-stat">
-                            <p class="mes-stat-label">Realizado</p>
-                            <p class="mes-stat-valor">${oc(fmt(realizadoMes))}</p>
+                            <p class="mes-stat-label">No mês</p>
+                            <p class="mes-stat-valor" style="color:${jaOcorreu ? crescCor : '#94a3b8'}">${crescTexto}</p>
                         </div>
                         <div class="mes-stat">
-                            <p class="mes-stat-label">Diferença</p>
-                            <p class="mes-stat-valor" style="color:${diffCor}">${diffTexto}</p>
+                            <p class="mes-stat-label">Da meta</p>
+                            <p class="mes-stat-valor">${pctMeta !== null ? oc(fmtPct(Math.max(0, pctMeta))) : '—'}</p>
                         </div>
                     </div>
-                    ${jaOcorreu && metaMes > 0 ? `
+                    ${jaOcorreu && metaAno > 0 ? `
                     <div class="mes-mini-track">
-                        <div class="mes-mini-fill" style="width:${Math.min(100, Math.max(0, pct))}%;background:${corBarra}"></div>
+                        <div class="mes-mini-fill" style="width:${Math.min(100, Math.max(0, pctMeta))}%;background:${corBarra}"></div>
                     </div>` : ''}
                 </div>`;
             }
             container.innerHTML = html;
         }
 
-        function renderContas(meta, real) {
+        function renderContas(meta, porContaAcumulado) {
             const card = document.getElementById('cardMetasContas');
             if (!meta.contasHabilitado || contasRaw.length === 0) { card.classList.add('hidden'); return; }
             card.classList.remove('hidden');
@@ -897,20 +897,20 @@
             contasRaw.forEach(c => {
                 const id = String(c.id);
                 const alvo = parseFloat(meta.metasContas[id]) || 0;
-                const realizadoConta = real.porConta[id] || 0;
-                const pct = alvo > 0 ? (realizadoConta / alvo) * 100 : 0;
+                const acumuladoConta = porContaAcumulado[id] || 0;
+                const pct = alvo > 0 ? (acumuladoConta / alvo) * 100 : 0;
                 html += `
                 <div class="conta-mini">
                     <div class="flex items-center justify-between mb-1.5">
                         <span class="text-xs font-bold text-slate-700 truncate">${c.banco || ''} ${c.descricao ? '· ' + c.descricao : ''}</span>
-                        <span class="text-[10px] font-bold text-slate-400">${alvo > 0 ? oc(fmtPct(pct)) : 'sem meta'}</span>
+                        <span class="text-[10px] font-bold text-slate-400">${alvo > 0 ? oc(fmtPct(Math.max(0, pct))) : 'sem alvo'}</span>
                     </div>
                     <div class="progress-track" style="height:8px;">
                         <div class="progress-fill ${pct >= 100 ? 'superado' : ''}" style="width:${Math.min(100, Math.max(0, pct))}%"></div>
                     </div>
                     <div class="flex items-center justify-between mt-1.5 text-[10px] font-semibold text-slate-500">
-                        <span>${oc(fmt(realizadoConta))} realizado</span>
-                        <span>Meta: ${oc(fmt(alvo))}</span>
+                        <span>${oc(fmt(acumuladoConta))} acumulado</span>
+                        <span>Alvo: ${oc(fmt(alvo))}</span>
                     </div>
                 </div>`;
             });
@@ -943,49 +943,56 @@
             texto.textContent = `Crescimento: ${crescimento >= 0 ? '+' : ''}${oc(fmtPct(crescimento))}`;
         }
 
-        function renderAlertas(meta, real) {
+        function renderAlertas(metaAno, valorAcumulado, trajetoria) {
             const hoje = new Date();
             const anoAtual = hoje.getFullYear();
             const alertas = [];
 
-            if (meta.metaAnual <= 0) {
-                alertas.push({ tone: 'indigo', icon: 'fa-circle-info', text: 'Defina uma meta anual para começar a receber alertas de desempenho.' });
+            if (metaAno <= 0) {
+                alertas.push({ tone: 'indigo', icon: 'fa-circle-info', text: `Defina a meta de ${anoSelecionado} para começar a receber alertas de desempenho.` });
             } else {
-                const pct = (real.total / meta.metaAnual) * 100;
-                const restante = meta.metaAnual - real.total;
+                const pct = (valorAcumulado / metaAno) * 100;
+                const restante = metaAno - valorAcumulado;
 
                 if (pct >= 100) {
-                    alertas.push({ tone: 'verde', icon: 'fa-trophy', text: 'Meta anual já atingida! 🎉' });
+                    alertas.push({ tone: 'verde', icon: 'fa-trophy', text: `Meta de ${anoSelecionado} já atingida! 🎉` });
                 } else {
-                    if (restante > 0 && restante <= 10000) {
-                        alertas.push({ tone: 'amarelo', icon: 'fa-flag-checkered', text: `Faltam apenas ${oc(fmt(restante))} para atingir sua meta.` });
-                    }
-                    let mesesDecorridos = anoSelecionado < anoAtual ? 12 : anoSelecionado > anoAtual ? 0 : hoje.getMonth() + 1;
-                    if (mesesDecorridos > 0) {
-                        const ritmoAtual = real.total / mesesDecorridos;
-                        const mesesRestantes = 12 - mesesDecorridos;
-                        const necessarioMes = mesesRestantes > 0 ? Math.max(0, restante) / mesesRestantes : 0;
-                        if (mesesRestantes > 0 && necessarioMes > 0) {
-                            const diffRitmo = ((ritmoAtual - necessarioMes) / necessarioMes) * 100;
-                            if (diffRitmo >= 0) {
-                                alertas.push({ tone: 'verde', icon: 'fa-gauge-high', text: `Você está ${oc(fmtPct(diffRitmo))} acima do ritmo necessário.` });
-                            } else {
-                                const falta = necessarioMes - ritmoAtual;
-                                alertas.push({ tone: 'vermelho', icon: 'fa-gauge-high', text: `Você precisa aumentar o resultado mensal em ${oc(fmt(falta))} para atingir a meta.` });
+                    if (restante > 0 && restante <= metaAno * 0.05) {
+                        alertas.push({ tone: 'amarelo', icon: 'fa-flag-checkered', text: `Você está quase lá — faltam apenas ${oc(fmt(restante))} para atingir a meta de ${anoSelecionado}.` });
+                    } else {
+                        [90, 75, 50, 25].some(marco => {
+                            if (pct >= marco) {
+                                alertas.push({ tone: 'amarelo', icon: 'fa-chart-simple', text: `Você já atingiu ${oc(fmtPct(pct))} da meta de ${anoSelecionado}.` });
+                                return true;
                             }
+                            return false;
+                        });
+                    }
+
+                    // Projeção informativa baseada no crescimento médio real dos últimos
+                    // meses (não é um valor exigido — apenas uma estimativa de ritmo).
+                    const crescimentosValidos = trajetoria.crescimentos.filter(v => v !== null);
+                    const ultimos = crescimentosValidos.slice(-6);
+                    if (ultimos.length >= 2 && restante > 0) {
+                        const media = ultimos.reduce((a, b) => a + b, 0) / ultimos.length;
+                        if (media > 0) {
+                            const mesesEstimados = Math.ceil(restante / media);
+                            alertas.push({ tone: 'indigo', icon: 'fa-chart-line', text: `No ritmo médio dos últimos meses (${oc(fmt(media))}/mês), você deve atingir a meta em cerca de ${mesesEstimados} ${mesesEstimados === 1 ? 'mês' : 'meses'}.` });
+                        } else if (media < 0) {
+                            alertas.push({ tone: 'vermelho', icon: 'fa-triangle-exclamation', text: `Seu patrimônio caiu em média ${oc(fmt(Math.abs(media)))}/mês recentemente — nesse ritmo, a meta se distancia.` });
                         }
                     }
-                    if (pct >= 75) {
-                        alertas.push({ tone: 'amarelo', icon: 'fa-chart-simple', text: `Você atingiu ${oc(fmtPct(pct))} da meta anual.` });
-                    }
                 }
+            }
 
-                if (anoSelecionado === anoAtual) {
-                    const mIdx = hoje.getMonth();
-                    const metaMes = meta.metasMensais[mIdx] || 0;
-                    const realizadoMes = real.porMes[mIdx] || 0;
-                    if (metaMes > 0 && realizadoMes >= metaMes) {
-                        alertas.push({ tone: 'verde', icon: 'fa-calendar-check', text: 'A meta deste mês já foi atingida.' });
+            if (anoSelecionado === anoAtual) {
+                const mIdx = hoje.getMonth();
+                const crescimentoMes = trajetoria.crescimentos[mIdx];
+                if (crescimentoMes !== null) {
+                    if (crescimentoMes > 0) {
+                        alertas.push({ tone: 'verde', icon: 'fa-arrow-trend-up', text: `Seu patrimônio cresceu ${oc(fmt(crescimentoMes))} neste mês.` });
+                    } else if (crescimentoMes < 0) {
+                        alertas.push({ tone: 'vermelho', icon: 'fa-arrow-trend-down', text: `Seu patrimônio caiu ${oc(fmt(Math.abs(crescimentoMes)))} neste mês.` });
                     }
                 }
             }
@@ -1003,24 +1010,31 @@
         }
 
         function renderHistorico() {
-            const anos = [...anosComDados()].sort((a, b) => b - a);
+            // Une anos com movimentações e anos que têm meta cadastrada, para
+            // que uma meta futura (ex.: 2028) apareça mesmo sem lançamentos ainda.
+            const anos = new Set(anosComDados());
+            Object.keys(metaGlobal.porAno).forEach(a => anos.add(parseInt(a, 10)));
+            const listaAnos = [...anos].sort((a, b) => b - a);
             const cont = document.getElementById('listaHistorico');
-            if (anos.length === 0) { cont.innerHTML = '<p class="text-xs text-slate-400 font-medium">Sem histórico ainda.</p>'; return; }
+            if (listaAnos.length === 0) { cont.innerHTML = '<p class="text-xs text-slate-400 font-medium">Sem histórico ainda.</p>'; return; }
+            const hoje = new Date();
             let html = '';
-            anos.forEach(ano => {
-                const metaAno = metasStore[ano];
-                const real = computeRealizado(ano);
-                const temMeta = metaAno && metaAno.metaAnual > 0;
-                const pct = temMeta ? (real.total / metaAno.metaAnual) * 100 : null;
+            listaAnos.forEach(ano => {
+                const cutoff = cutoffParaAno(ano);
+                const valorFimAno = cutoff ? computeAcumuladoTotalAteData(cutoff) : 0;
+                const metaDoAno = getMetaAno(ano);
+                const temMeta = metaDoAno > 0;
+                const pct = temMeta ? (valorFimAno / metaDoAno) * 100 : null;
+                const rotuloData = ano === hoje.getFullYear() ? 'até hoje' : (ano > hoje.getFullYear() ? 'ainda não iniciado' : 'até 31/12');
                 html += `
                 <div class="hist-item ${ano === anoSelecionado ? 'selecionado' : ''}" onclick="selecionarAnoHistorico(${ano})">
                     <div>
                         <p class="text-sm font-black text-slate-800">${ano}</p>
-                        <p class="text-[10px] text-slate-400 font-semibold">${temMeta ? `Meta: ${oc(fmt(metaAno.metaAnual))}` : 'Meta não definida'}</p>
+                        <p class="text-[10px] text-slate-400 font-semibold">Acumulado ${rotuloData} · Meta: ${temMeta ? oc(fmt(metaDoAno)) : 'não definida'}</p>
                     </div>
                     <div class="text-right">
-                        <p class="text-sm font-black text-indigo-600">${oc(fmt(real.total))}</p>
-                        <p class="text-[10px] font-bold ${pct === null ? 'text-slate-400' : pct >= 100 ? 'text-emerald-600' : 'text-slate-400'}">${pct === null ? 'realizado' : oc(fmtPct(pct)) + ' da meta'}</p>
+                        <p class="text-sm font-black text-indigo-600">${oc(fmt(valorFimAno))}</p>
+                        <p class="text-[10px] font-bold ${pct === null ? 'text-slate-400' : pct >= 100 ? 'text-emerald-600' : 'text-slate-400'}">${pct === null ? 'meta não definida' : oc(fmtPct(Math.max(0, pct))) + ' da meta'}</p>
                     </div>
                 </div>`;
             });
@@ -1035,49 +1049,8 @@
         }
 
         // ============================================================
-        // MODAL DE EDIÇÃO
+        // MODAL DE EDIÇÃO (meta única de patrimônio, sem aporte anual)
         // ============================================================
-        function popularSelectAnoEdicao() {
-            const atual = new Date().getFullYear();
-            const anos = new Set([atual - 2, atual - 1, atual, atual + 1, atual + 2, anoSelecionado]);
-            anosComDados().forEach(a => anos.add(a));
-            const lista = [...anos].sort((a, b) => b - a);
-            document.getElementById('editAno').innerHTML = lista.map(a => `<option value="${a}">${a}</option>`).join('');
-        }
-
-        function renderGridMesesEdit(metasMensais) {
-            const grid = document.getElementById('gridMesesEdit');
-            grid.innerHTML = MESES_ABR.map((m, i) => `
-                <div>
-                    <label class="text-[9px] font-bold text-slate-400">${m}</label>
-                    <input type="number" min="0" step="0.01" id="editMes${i}" value="${(metasMensais[i] || 0).toFixed(2)}"
-                        oninput="atualizarResumoDistribuicao()"
-                        class="w-full bg-slate-50 border border-slate-200 p-2 rounded-lg text-xs font-bold outline-none focus:border-indigo-500 transition-all mt-0.5">
-                </div>`).join('');
-        }
-
-        function distribuirAutomaticamente() {
-            const anual = parseFloat(document.getElementById('editMetaAnual').value) || 0;
-            const parte = anual / 12;
-            for (let i = 0; i < 12; i++) document.getElementById(`editMes${i}`).value = parte.toFixed(2);
-            atualizarResumoDistribuicao();
-        }
-
-        function atualizarResumoDistribuicao() {
-            let soma = 0;
-            for (let i = 0; i < 12; i++) soma += parseFloat(document.getElementById(`editMes${i}`)?.value) || 0;
-            const anual = parseFloat(document.getElementById('editMetaAnual').value) || 0;
-            const resumo = document.getElementById('resumoDistribuicao');
-            const diff = anual - soma;
-            if (Math.abs(diff) < 0.01) {
-                resumo.className = 'text-[10px] font-semibold mt-2 text-emerald-600';
-                resumo.textContent = `Soma dos meses: ${fmt(soma)} — bate com a meta anual ✓`;
-            } else {
-                resumo.className = 'text-[10px] font-semibold mt-2 text-amber-600';
-                resumo.textContent = `Soma dos meses: ${fmt(soma)} (${diff > 0 ? 'faltam' : 'excedem'} ${fmt(Math.abs(diff))} em relação à meta anual)`;
-            }
-        }
-
         function renderInputsContas(meta) {
             const wrap = document.getElementById('wrapContasEdicao');
             if (contasRaw.length === 0) { wrap.innerHTML = '<p class="text-xs text-slate-400">Nenhuma conta encontrada.</p>'; return; }
@@ -1094,16 +1067,89 @@
             document.getElementById('wrapContasEdicao').classList.toggle('hidden', !on);
         }
 
+        // ------------------------------------------------------------
+        // Linhas de "Ano → Meta (R$)" dentro do modal de edição
+        // ------------------------------------------------------------
+        // ------------------------------------------------------------
+        // Máscara de moeda (R$ 1.000,00) — formata durante a digitação
+        // mantendo o cursor no fim (padrão de máscara monetária: os
+        // dígitos entram da direita para a esquerda, como numa
+        // calculadora, então o cursor sempre faz sentido no fim).
+        // ------------------------------------------------------------
+        function formatarMoedaInput(el) {
+            let digitos = el.value.replace(/\D/g, '');
+            digitos = digitos.replace(/^0+(?=\d)/, ''); // remove zeros à esquerda
+            if (!digitos) { el.value = ''; return; }
+            while (digitos.length < 3) digitos = '0' + digitos;
+            const centavos = digitos.slice(-2);
+            const inteiros = digitos.slice(0, -2).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+            el.value = 'R$ ' + inteiros + ',' + centavos;
+            el.setSelectionRange(el.value.length, el.value.length);
+        }
+
+        function moedaStrParaNumero(str) {
+            const digitos = (str || '').replace(/\D/g, '');
+            return digitos ? parseInt(digitos, 10) / 100 : 0;
+        }
+
+        function moedaNumeroParaInputStr(v) {
+            v = parseFloat(v) || 0;
+            if (v <= 0) return '';
+            return v.toLocaleString('pt-br', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2 });
+        }
+
+        function linhaMetaAnoHtml(ano, valor) {
+            return `
+                <div class="flex items-center gap-2" data-linha-meta-ano>
+                    <input type="number" min="2000" max="2100" step="1" value="${ano}"
+                        data-campo-ano
+                        class="w-24 bg-slate-50 border border-slate-200 p-2.5 rounded-xl text-xs font-bold outline-none focus:border-indigo-500 transition-all">
+                    <span class="text-slate-300 text-xs font-bold">→</span>
+                    <input type="text" inputmode="decimal" placeholder="R$ 100.000,00" value="${moedaNumeroParaInputStr(valor)}"
+                        oninput="formatarMoedaInput(this)"
+                        data-campo-valor
+                        class="flex-1 bg-slate-50 border border-slate-200 p-2.5 rounded-xl text-xs font-bold outline-none focus:border-indigo-500 transition-all">
+                    <button type="button" onclick="this.closest('[data-linha-meta-ano]').remove()"
+                        class="w-9 h-9 flex-shrink-0 flex items-center justify-center text-rose-400 bg-rose-50 rounded-xl active:scale-95">
+                        <i class="fas fa-trash text-xs"></i>
+                    </button>
+                </div>`;
+        }
+
+        // Sugere o próximo ano ainda não usado nas linhas já presentes no
+        // modal (não apenas nas metas salvas), olhando o maior ano exibido.
+        function proximoAnoDisponivel() {
+            const anosUsados = [...document.querySelectorAll('#wrapMetasAnos [data-campo-ano]')]
+                .map(inp => parseInt(inp.value, 10)).filter(n => !isNaN(n));
+            if (anosUsados.length === 0) return anoSelecionado || new Date().getFullYear();
+            let candidato = Math.max(...anosUsados) + 1;
+            while (anosUsados.includes(candidato)) candidato++;
+            return candidato;
+        }
+
+        function adicionarLinhaMetaAno(ano, valor) {
+            const wrap = document.getElementById('wrapMetasAnos');
+            const anoPadrao = (ano !== undefined && ano !== null) ? ano : proximoAnoDisponivel();
+            wrap.insertAdjacentHTML('beforeend', linhaMetaAnoHtml(anoPadrao, valor || 0));
+        }
+
+        function renderInputsMetasAnos(meta) {
+            const wrap = document.getElementById('wrapMetasAnos');
+            wrap.innerHTML = '';
+            const anos = Object.keys(meta.porAno).map(a => parseInt(a, 10)).sort((a, b) => b - a);
+            // Garante que o ano atualmente selecionado no painel sempre apareça,
+            // mesmo que ainda não tenha uma meta cadastrada.
+            if (!anos.includes(anoSelecionado)) anos.unshift(anoSelecionado);
+            if (anos.length === 0) anos.push(new Date().getFullYear());
+            anos.forEach(ano => adicionarLinhaMetaAno(ano, meta.porAno[String(ano)] || 0));
+        }
+
         function abrirModalEdicao() {
-            popularSelectAnoEdicao();
-            document.getElementById('editAno').value = anoSelecionado;
-            const meta = getMetaAno(anoSelecionado);
-            document.getElementById('editMetaAnual').value = meta.metaAnual || '';
-            renderGridMesesEdit(meta.metasMensais);
+            const meta = getMetaGlobal();
+            renderInputsMetasAnos(meta);
             document.getElementById('editContasHabilitado').checked = !!meta.contasHabilitado;
             renderInputsContas(meta);
             toggleContasEdicao();
-            atualizarResumoDistribuicao();
             document.getElementById('modalEditarMeta').style.display = 'flex';
         }
 
@@ -1112,17 +1158,18 @@
         }
 
         function salvarMeta() {
-            const anoVal = parseInt(document.getElementById('editAno').value, 10);
-            if (isNaN(anoVal) || anoVal < 2000 || anoVal > 2100) return mostrarToast('Ano inválido.');
-
-            const metaAnualVal = parseFloat(document.getElementById('editMetaAnual').value);
-            if (isNaN(metaAnualVal) || metaAnualVal < 0) return mostrarToast('Informe uma meta anual válida.');
-
-            const mesesVals = [];
-            for (let i = 0; i < 12; i++) {
-                const v = parseFloat(document.getElementById(`editMes${i}`).value);
-                if (isNaN(v) || v < 0) return mostrarToast(`Meta de ${MESES_ABR[i]} inválida.`);
-                mesesVals.push(v);
+            const linhas = [...document.querySelectorAll('#wrapMetasAnos [data-linha-meta-ano]')];
+            const porAno = {};
+            const anosVistos = new Set();
+            for (const linha of linhas) {
+                const anoInp = linha.querySelector('[data-campo-ano]');
+                const valorInp = linha.querySelector('[data-campo-valor]');
+                const ano = parseInt(anoInp.value, 10);
+                const valor = moedaStrParaNumero(valorInp.value);
+                if (isNaN(ano) || ano < 2000 || ano > 2100) return mostrarToast('Informe um ano válido em todas as linhas.');
+                if (anosVistos.has(ano)) return mostrarToast(`O ano ${ano} está duplicado — cada ano deve aparecer só uma vez.`);
+                anosVistos.add(ano);
+                if (valor > 0) porAno[String(ano)] = valor;
             }
 
             const contasHabilitado = document.getElementById('editContasHabilitado').checked;
@@ -1135,21 +1182,22 @@
                 });
             }
 
-            metasStore[anoVal] = { metaAnual: metaAnualVal, metasMensais: mesesVals, contasHabilitado, metasContas };
-            saveMetasStore();
+            metaGlobal = { porAno, contasHabilitado, metasContas };
+            saveMetaGlobal();
 
-            anoSelecionado = anoVal;
-            garantirOpcaoAno(anoVal);
+            // Atualiza o filtro de ano do painel para refletir qualquer ano
+            // novo cadastrado (ex.: uma meta para um ano futuro sem dados ainda).
+            popularSeletorAno();
             fecharModalEdicao();
             renderAll();
-            mostrarToast('Meta salva ✓');
+            mostrarToast('Metas salvas ✓');
         }
 
         // ============================================================
         // INICIALIZAÇÃO
         // ============================================================
         (function init() {
-            loadMetasStore();
+            loadMetaGlobal();
             const cachedData = sessionStorage.getItem('dashData');
             const cachedContas = sessionStorage.getItem('dashContas');
             if (cachedData) {

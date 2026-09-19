@@ -771,58 +771,74 @@
             </a>
         </div>
 
-        <!-- Card-resumo do módulo de Metas Financeiras -->
-        <div class="glass-card p-5 rounded-[28px] slide-up-d1 relative overflow-hidden" id="cardResumoMeta">
-            <div class="absolute top-0 right-0 w-32 h-32 bg-violet-50 rounded-full -translate-y-12 translate-x-12"></div>
-            <div class="flex items-center justify-between mb-4 relative z-10 flex-wrap gap-2">
-                <h3 class="text-sm font-bold text-slate-700 flex items-center gap-2">
-                    <i class="fas fa-bullseye text-violet-600"></i> Meta Financeira <span id="rmAnoLabel" class="text-slate-400 font-semibold">—</span>
-                </h3>
-                <button onclick="window.location.href='meta_financeira.html'"
-                    class="text-[11px] font-bold text-violet-700 bg-violet-50 border border-violet-100 px-3 py-1.5 rounded-full active:scale-95 transition-all">
-                    Ver detalhes da meta <i class="fas fa-arrow-right ml-1"></i>
+        <!-- Meta Financeira (card expansível — SEMPRE inicia fechado) + acesso ao módulo de Metas -->
+        <div class="slide-up-d1 space-y-3" id="secaoResumoMeta">
+            <div class="glass-card rounded-[28px] border-l-[6px] border-violet-500 relative overflow-hidden" id="cardResumoMeta">
+                <div class="absolute top-0 right-0 w-24 h-24 bg-violet-50 rounded-full -translate-y-8 translate-x-8 pointer-events-none"></div>
+                <button type="button" id="btnResumoMeta" class="fc-header relative z-10 w-full flex items-center gap-3 p-5 text-left"
+                    aria-expanded="false" aria-controls="corpoResumoMeta" onclick="toggleResumoMeta()">
+                    <div class="w-10 h-10 bg-violet-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                        <i class="fas fa-bullseye text-violet-600"></i>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Meta Financeira · <span id="rmAnoLabel">—</span></p>
+                        <p id="rmDica" class="text-sm font-bold text-slate-700 truncate">Toque para ver o progresso</p>
+                    </div>
+                    <i class="fas fa-chevron-down fc-chevron text-slate-400 text-sm flex-shrink-0"></i>
                 </button>
-            </div>
-            <div id="rmSemMeta" class="hidden relative z-10">
-                <p class="text-xs text-slate-400 font-medium">Nenhuma meta definida para este ano ainda.</p>
-                <button onclick="window.location.href='meta_financeira.html'"
-                    class="mt-3 text-[11px] font-bold text-white bg-violet-600 px-4 py-2 rounded-xl active:scale-95 transition-all">
-                    <i class="fas fa-plus mr-1"></i>Definir meta
-                </button>
-            </div>
-            <div id="rmComMeta" class="relative z-10">
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-                    <div>
-                        <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Meta anual</p>
-                        <p id="rmMetaAnual" class="text-sm md:text-base font-black text-slate-800">R$ 0,00</p>
-                    </div>
-                    <div>
-                        <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Realizado</p>
-                        <p id="rmRealizado" class="text-sm md:text-base font-black text-violet-600">R$ 0,00</p>
-                    </div>
-                    <div>
-                        <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Falta</p>
-                        <p id="rmFalta" class="text-sm md:text-base font-black text-slate-800">R$ 0,00</p>
-                    </div>
-                    <div>
-                        <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Progresso</p>
-                        <p id="rmProgresso" class="text-sm md:text-base font-black text-emerald-600">0%</p>
-                    </div>
-                </div>
-                <div class="progress-track mb-3" style="width:100%;background:rgba(148,163,184,0.2);border-radius:50px;height:10px;overflow:hidden;">
-                    <div id="rmBarra" style="height:100%;border-radius:50px;background:linear-gradient(90deg,#8b5cf6,#6366f1);transition:width 1s ease;width:0%;"></div>
-                </div>
-                <div class="grid grid-cols-2 gap-3">
-                    <div class="bg-slate-50 rounded-xl p-3 border border-slate-100">
-                        <p class="text-[9px] font-bold text-slate-400 uppercase mb-1">Necessário/mês</p>
-                        <p id="rmNecessarioMes" class="text-xs md:text-sm font-black text-slate-700">R$ 0,00</p>
-                    </div>
-                    <div class="bg-slate-50 rounded-xl p-3 border border-slate-100">
-                        <p class="text-[9px] font-bold text-slate-400 uppercase mb-1">Projeção</p>
-                        <p id="rmProjecao" class="text-xs md:text-sm font-black text-slate-700">R$ 0,00</p>
+                <div id="corpoResumoMeta" class="fc-body relative z-10" role="region" aria-labelledby="btnResumoMeta">
+                    <div class="fc-inner">
+                        <div class="px-5 pb-5">
+                            <div id="rmSemMeta" class="hidden">
+                                <p class="text-xs text-slate-400 font-medium">Nenhuma meta definida para este ano ainda.</p>
+                                <button onclick="window.location.href='meta_financeira.html'"
+                                    class="mt-3 text-[11px] font-bold text-white bg-violet-600 px-4 py-2 rounded-xl active:scale-95 transition-all">
+                                    <i class="fas fa-plus mr-1"></i>Definir meta
+                                </button>
+                            </div>
+                            <div id="rmComMeta">
+                                <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                                    <div>
+                                        <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Meta do ano</p>
+                                        <p id="rmMetaAnual" class="text-sm md:text-base font-black text-slate-800">R$ 0,00</p>
+                                    </div>
+                                    <div>
+                                        <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Você já tem</p>
+                                        <p id="rmRealizado" class="text-sm md:text-base font-black text-violet-600">R$ 0,00</p>
+                                    </div>
+                                    <div>
+                                        <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Falta</p>
+                                        <p id="rmFalta" class="text-sm md:text-base font-black text-slate-800">R$ 0,00</p>
+                                    </div>
+                                    <div>
+                                        <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Progresso</p>
+                                        <p id="rmProgresso" class="text-sm md:text-base font-black text-emerald-600">0%</p>
+                                    </div>
+                                </div>
+                                <div class="progress-track mb-2" style="width:100%;background:rgba(148,163,184,0.2);border-radius:50px;height:10px;overflow:hidden;">
+                                    <div id="rmBarra" style="height:100%;border-radius:50px;background:linear-gradient(90deg,#8b5cf6,#6366f1);transition:width 1s ease;width:0%;"></div>
+                                </div>
+                                <p id="rmTextoProgresso" class="text-[11px] text-slate-500 font-semibold"></p>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
+
+            <a href="meta_financeira.html"
+                class="w-full flex items-center justify-between gap-3 px-4 py-3 bg-white/80 border border-violet-100 rounded-2xl shadow-sm active:scale-[0.98] transition-all"
+                style="text-decoration:none;">
+                <div class="flex items-center gap-3 min-w-0">
+                    <div class="w-9 h-9 bg-violet-600 rounded-xl flex items-center justify-center flex-shrink-0">
+                        <i class="fas fa-bullseye text-white text-sm"></i>
+                    </div>
+                    <div class="text-left min-w-0">
+                        <p class="text-xs font-bold text-slate-700 leading-tight">Metas Financeiras</p>
+                        <p class="text-[10px] text-slate-400 font-medium truncate">Definir metas por ano e ver histórico</p>
+                    </div>
+                </div>
+                <i class="fas fa-arrow-right text-violet-400 text-xs flex-shrink-0"></i>
+            </a>
         </div>
 
         <!-- Gráficos -->
@@ -2528,23 +2544,29 @@
 
         // =============================================
         // RESUMO DA META FINANCEIRA (integração com meta_financeira.html)
-        // Lê a meta salva em localStorage (mesma chave usada pelo módulo de
-        // Metas) e calcula o realizado a partir das movimentações reais
-        // (dadosRaw), já carregadas por este dashboard.
+        // Lê a meta salva em localStorage na MESMA chave e no MESMO formato
+        // usados pelo módulo de Metas (uma meta por ano, representando o
+        // patrimônio TOTAL que se quer ter acumulado — nunca um aporte
+        // exigido naquele ano). O "já tem" é o valor acumulado de todas as
+        // movimentações reais (dadosRaw) desde o início até hoje.
         // =============================================
         function renderResumoMeta() {
             const cardEl = document.getElementById('cardResumoMeta');
             if (!cardEl) return;
-            const ano = new Date().getFullYear();
+            const hoje = new Date();
+            const ano = hoje.getFullYear();
             document.getElementById('rmAnoLabel').textContent = ano;
 
-            let metasStore = {};
-            try { metasStore = JSON.parse(localStorage.getItem('poppefinMetas') || '{}'); } catch (e) { metasStore = {}; }
-            const meta = metasStore[ano];
+            let metaGlobalResumo = { porAno: {} };
+            try {
+                const salvo = JSON.parse(localStorage.getItem('poppefinMetaPatrimonio') || 'null');
+                if (salvo && typeof salvo === 'object') metaGlobalResumo = salvo;
+            } catch (e) { /* mantém default */ }
+            const metaAno = parseFloat((metaGlobalResumo.porAno || {})[String(ano)]) || 0;
 
             const semMetaEl = document.getElementById('rmSemMeta');
             const comMetaEl = document.getElementById('rmComMeta');
-            if (!meta || !meta.metaAnual || meta.metaAnual <= 0) {
+            if (metaAno <= 0) {
                 semMetaEl.classList.remove('hidden');
                 comMetaEl.classList.add('hidden');
                 return;
@@ -2552,40 +2574,48 @@
             semMetaEl.classList.add('hidden');
             comMetaEl.classList.remove('hidden');
 
-            // Realizado = Entradas - Saídas + Rendimentos do ano corrente (mesma
-            // lógica do saldo líquido do dashboard), ignorando transferências
-            // entre contas próprias nos totais de entrada/saída.
-            let realizado = 0;
-            const porMes = new Array(12).fill(0);
+            // Valor acumulado total (todas as contas, desde o início) até hoje —
+            // mesma lógica do Saldo Consolidado / meta_financeira.html.
+            const cutoffStr = hoje.toISOString().split('T')[0];
+            let acumulado = 0;
             (dadosRaw || []).forEach(d => {
                 const dataStr = (d['Data'] || '').split('T')[0];
-                if (!dataStr || dataStr.substring(0, 4) != String(ano)) return;
-                const mIdx = parseInt(dataStr.substring(5, 7), 10) - 1;
+                if (!dataStr || dataStr > cutoffStr) return;
                 const vA = parseFloat(d['Valor Aporte']) || 0;
                 const vR = parseFloat(d['Valor Rendimento']) || 0;
                 let valor = vR;
                 if (!d.isTransferencia) valor += (d['Tipo'] === 'Entrada' ? vA : -vA);
-                realizado += valor;
-                if (mIdx >= 0 && mIdx < 12) porMes[mIdx] += valor;
+                acumulado += valor;
             });
 
-            const falta = meta.metaAnual - realizado;
-            const pct = (realizado / meta.metaAnual) * 100;
+            const falta = metaAno - acumulado;
+            const pct = (acumulado / metaAno) * 100;
 
-            document.getElementById('rmMetaAnual').textContent = formatar(meta.metaAnual);
-            document.getElementById('rmRealizado').textContent = formatar(realizado);
-            document.getElementById('rmFalta').textContent = falta > 0 ? formatar(falta) : 'Meta superada';
+            document.getElementById('rmMetaAnual').textContent = valoresOcultos ? '••••••' : formatar(metaAno);
+            document.getElementById('rmRealizado').textContent = valoresOcultos ? '••••••' : formatar(acumulado);
+            document.getElementById('rmFalta').textContent = valoresOcultos ? '••••••' : (falta > 0 ? formatar(falta) : 'Meta atingida');
             document.getElementById('rmProgresso').textContent = valoresOcultos ? '••%' : `${Math.max(0, pct).toFixed(2).replace('.', ',')}%`;
             document.getElementById('rmBarra').style.width = Math.min(100, Math.max(0, pct)) + '%';
 
-            const hoje = new Date();
-            const mesesDecorridos = hoje.getMonth() + 1;
-            const mesesRestantes = 12 - mesesDecorridos;
-            const necessarioMes = mesesRestantes > 0 ? Math.max(0, falta) / mesesRestantes : 0;
-            const projecao = (realizado / mesesDecorridos) * 12;
+            const textoEl = document.getElementById('rmTextoProgresso');
+            if (valoresOcultos) {
+                textoEl.textContent = '';
+            } else if (pct >= 100) {
+                textoEl.textContent = `Meta de ${ano} atingida! Você já tem ${formatar(acumulado - metaAno)} a mais do que precisava.`;
+            } else {
+                textoEl.textContent = `${Math.max(0, pct).toFixed(2).replace('.', ',')}% do caminho percorrido — faltam ${formatar(falta)} para chegar à meta de ${ano}.`;
+            }
+        }
 
-            document.getElementById('rmNecessarioMes').textContent = mesesRestantes > 0 ? formatar(necessarioMes) + '/mês' : '—';
-            document.getElementById('rmProjecao').textContent = formatar(projecao);
+        // O card SEMPRE inicia fechado (a classe fc-open nunca é persistida).
+        // Atualizações de dados só trocam o conteúdo interno, sem alterar aberto/fechado.
+        function toggleResumoMeta() {
+            const card = document.getElementById('cardResumoMeta');
+            const btn = document.getElementById('btnResumoMeta');
+            const dica = document.getElementById('rmDica');
+            const aberto = card.classList.toggle('fc-open');
+            btn.setAttribute('aria-expanded', aberto ? 'true' : 'false');
+            dica.textContent = aberto ? 'Toque para recolher' : 'Toque para ver o progresso';
         }
 
         // =============================================
@@ -3385,6 +3415,36 @@
             if (partes.length === 3) return String(partes[1]).padStart(2, '0') + '/' + partes[2];
             return s;
         }
+        // Mesma regra de COMPETÊNCIA do controle_cartao.html: quando o
+        // fechamento E o vencimento da fatura caem entre os dias 01 e 13 do
+        // mês, ela é considerada como pertencente ao mês anterior (ex.:
+        // fechamento 05/10 + vencimento 10/10 = fatura de 09). Sem isso, o
+        // filtro comparava o mês "cru" (Mes_Referencia) contra o mês
+        // calendário atual, e só batia para os cartões cujo Mes_Referencia
+        // não havia sido deslocado — por isso o card somava só um banco.
+        function ccSomarMeses(mesStr, delta) {
+            const [mm, aa] = mesStr.split('/');
+            let m = Number(mm) + delta, a = Number(aa);
+            while (m > 12) { m -= 12; a++; }
+            while (m < 1) { m += 12; a--; }
+            return String(m).padStart(2, '0') + '/' + a;
+        }
+        function ccDiaDaData(v) {
+            if (!v) return null;
+            const s = String(v).split(' ')[0];
+            const [d] = s.split('/');
+            const n = Number(d);
+            return isNaN(n) ? null : n;
+        }
+        function ccCompetenciaFatura(f) {
+            if (!f) return null;
+            const diaFechamento = ccDiaDaData(f.Data_Fechamento);
+            const diaVencimento = ccDiaDaData(f.Data_Vencimento);
+            if (diaFechamento !== null && diaVencimento !== null && diaFechamento <= 13 && diaVencimento <= 13) {
+                return ccSomarMeses(ccNormalizarMes(f.Mes_Referencia), -1);
+            }
+            return ccNormalizarMes(f.Mes_Referencia);
+        }
         // Respeita o "ocultar valores" do dashboard. Lê também o estado salvo para não
         // exibir valores por um instante caso o card carregue antes do estado ser restaurado.
         function ccValoresOcultos() {
@@ -3442,7 +3502,7 @@
             const mes = ccMesAtual();
             const linhas = ccEstado.cartoes.map(c => {
                 const fats = ccEstado.faturas.filter(f =>
-                    String(f.ID_Cartao) === String(c.ID_Cartao) && ccNormalizarMes(f.Mes_Referencia) === mes);
+                    String(f.ID_Cartao) === String(c.ID_Cartao) && ccCompetenciaFatura(f) === mes);
                 const valor = fats.reduce((s, f) => s + (Number(f.Valor_Total) || 0), 0);
                 return { cartao: c, valor, status: fats.length ? fats[0].Status : '' };
             });

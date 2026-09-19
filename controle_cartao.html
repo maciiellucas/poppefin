@@ -360,7 +360,7 @@ body {
     </div>
     <div class="flex gap-3 pt-5">
       <button onclick="fecharModal('modalCartao')" class="btn-secundario flex-1">Cancelar</button>
-      <button onclick="salvarCartao()" class="btn-primario flex-1">Salvar</button>
+      <button onclick="comBotaoBloqueado(this, salvarCartao)" class="btn-primario flex-1">Salvar</button>
     </div>
   </div>
 </div>
@@ -390,7 +390,7 @@ body {
     </div>
     <div class="flex gap-3 pt-5">
       <button onclick="fecharModal('modalLancamento')" class="btn-secundario flex-1">Cancelar</button>
-      <button onclick="salvarLancamento()" class="btn-primario flex-1">Salvar</button>
+      <button onclick="comBotaoBloqueado(this, salvarLancamento)" class="btn-primario flex-1">Salvar</button>
     </div>
   </div>
 </div>
@@ -422,14 +422,15 @@ body {
     <input type="hidden" id="reajusteFaturaId">
     <div class="space-y-3">
       <div><label class="lbl">Tipo</label>
-        <select class="inp" id="reajusteTipo"><option value="Acréscimo">Acréscimo</option><option value="Desconto">Desconto</option><option value="Ajuste">Ajuste</option></select>
+        <select class="inp" id="reajusteTipo" onchange="atualizarAjudaReajuste()"><option value="Acréscimo">Acréscimo</option><option value="Desconto">Desconto</option><option value="Ajuste">Ajuste</option></select>
       </div>
       <div><label class="lbl">Valor (R$)</label><input class="inp" type="number" step="0.01" id="reajusteValor"></div>
+      <p id="reajusteAjuda" class="text-[10px] text-slate-400 -mt-1"></p>
       <div><label class="lbl">Motivo</label><input class="inp" id="reajusteMotivo" placeholder="Ex: Juros de atraso"></div>
     </div>
     <div class="flex gap-3 pt-5">
       <button onclick="fecharModal('modalReajuste')" class="btn-secundario flex-1">Cancelar</button>
-      <button onclick="salvarReajuste()" class="btn-primario flex-1">Salvar</button>
+      <button onclick="comBotaoBloqueado(this, salvarReajuste)" class="btn-primario flex-1">Salvar</button>
     </div>
   </div>
 </div>
@@ -448,7 +449,7 @@ body {
     </div>
     <div class="flex gap-3 pt-5">
       <button onclick="fecharModal('modalPagamento')" class="btn-secundario flex-1">Cancelar</button>
-      <button onclick="salvarPagamento()" class="btn-primario flex-1">Salvar</button>
+      <button onclick="comBotaoBloqueado(this, salvarPagamento)" class="btn-primario flex-1">Salvar</button>
     </div>
   </div>
 </div>
@@ -473,7 +474,7 @@ body {
     </div>
     <div class="flex gap-3 pt-5">
       <button onclick="fecharModal('modalReembolso')" class="btn-secundario flex-1">Cancelar</button>
-      <button onclick="salvarReembolso()" class="btn-primario flex-1">Salvar</button>
+      <button onclick="comBotaoBloqueado(this, salvarReembolso)" class="btn-primario flex-1">Salvar</button>
     </div>
   </div>
 </div>
@@ -496,7 +497,7 @@ body {
     </div>
     <div class="flex gap-3 pt-5">
       <button onclick="fecharModal('modalAntecipacao')" class="btn-secundario flex-1">Cancelar</button>
-      <button onclick="salvarAntecipacao()" class="btn-primario flex-1">Salvar</button>
+      <button onclick="comBotaoBloqueado(this, salvarAntecipacao)" class="btn-primario flex-1">Salvar</button>
     </div>
   </div>
 </div>
@@ -517,7 +518,7 @@ body {
     </div>
     <div class="flex gap-3 pt-5">
       <button onclick="fecharModal('modalEstimativa')" class="btn-secundario flex-1">Cancelar</button>
-      <button onclick="salvarEstimativa()" class="btn-primario flex-1">Salvar</button>
+      <button onclick="comBotaoBloqueado(this, salvarEstimativa)" class="btn-primario flex-1">Salvar</button>
     </div>
   </div>
 </div>
@@ -547,7 +548,7 @@ body {
     </div>
     <div class="flex gap-3 pt-5">
       <button onclick="fecharModal('modalAlerta')" class="btn-secundario flex-1">Cancelar</button>
-      <button onclick="salvarAlerta()" class="btn-primario flex-1">Salvar</button>
+      <button onclick="comBotaoBloqueado(this, salvarAlerta)" class="btn-primario flex-1">Salvar</button>
     </div>
   </div>
 </div>
@@ -567,7 +568,7 @@ body {
     </div>
     <div class="flex gap-3 pt-5">
       <button onclick="fecharModal('modalCategoria')" class="btn-secundario flex-1">Cancelar</button>
-      <button onclick="salvarCategoria()" class="btn-primario flex-1">Salvar</button>
+      <button onclick="comBotaoBloqueado(this, salvarCategoria)" class="btn-primario flex-1">Salvar</button>
     </div>
   </div>
 </div>
@@ -584,7 +585,7 @@ body {
     </div>
     <div class="flex gap-3 pt-5">
       <button onclick="fecharModal('modalTag')" class="btn-secundario flex-1">Cancelar</button>
-      <button onclick="salvarTag()" class="btn-primario flex-1">Salvar</button>
+      <button onclick="comBotaoBloqueado(this, salvarTag)" class="btn-primario flex-1">Salvar</button>
     </div>
   </div>
 </div>
@@ -600,7 +601,7 @@ body {
     </div>
     <div class="flex gap-3 pt-5">
       <button onclick="fecharModal('modalPessoa')" class="btn-secundario flex-1">Cancelar</button>
-      <button onclick="salvarPessoa()" class="btn-primario flex-1">Salvar</button>
+      <button onclick="comBotaoBloqueado(this, salvarPessoa)" class="btn-primario flex-1">Salvar</button>
     </div>
   </div>
 </div>
@@ -625,7 +626,7 @@ body {
    CONFIGURAÇÕES
    ===================================================== */
 const CONFIG = {
-  apiUrlPadrao: 'https://script.google.com/macros/s/AKfycbx4yU1u6iexcZErjRa_VE4pXFWopIRYlDUqm4R1wqRN_tMwRf9IYsOMrAQ8diHOlGQKxw/exec',
+  apiUrlPadrao: 'https://script.google.com/macros/s/AKfycbzSPUmQf3eGhzdsSzIDjrhKKyGIDoDYe-ZYn31lx42a8Jck9ovmCvGebHNuoT9IENoi3w/exec',
   coresCategoriaPadrao: ['#6366f1','#8b5cf6','#ec4899','#f59e0b','#10b981','#06b6d4','#f43f5e','#84cc16'],
   coresCartaoPadrao: ['#6366f1','#8b5cf6','#0ea5e9','#10b981','#f59e0b','#ef4444','#334155','#d946ef']
 };
@@ -708,6 +709,65 @@ function fmt(v) {
   return v.toLocaleString('pt-BR', { style:'currency', currency:'BRL' });
 }
 function fmtPct(v) { return (Number(v)||0).toFixed(1).replace('.', ',') + '%'; }
+
+/* =====================================================
+   MÁSCARA DE MOEDA (R$) NOS CAMPOS DE VALOR
+   Os campos de valor são <input type="text">: o usuário digita apenas
+   dígitos e o campo se formata como "1.234,56" em tempo real. O valor
+   numérico real (para salvar no banco/planilha) é obtido com
+   valorInput(id), que desfaz a formatação — nunca lemos o texto
+   formatado diretamente como número.
+   ===================================================== */
+const CAMPOS_MOEDA = [
+  'cartaoLimite','lancValor','reajusteValor','pagamentoValor','reembolsoValor',
+  'antecipacaoValorOriginal','antecipacaoDesconto','antecipacaoValorPago',
+  'estimativaValor','fValorMin','fValorMax'
+];
+function formatarMoedaDigitando(digitos) {
+  let n = parseInt(digitos || '0', 10);
+  if (isNaN(n)) n = 0;
+  const semSinal = Math.abs(n);
+  const s = (semSinal / 100).toFixed(2);
+  const [intPart, decPart] = s.split('.');
+  const intFormatado = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  return intFormatado + ',' + decPart;
+}
+function onInputMoeda(e) {
+  const el = e.target;
+  const cursorNoFim = el.selectionEnd === el.value.length;
+  const digitos = el.value.replace(/\D/g, '').replace(/^0+(?=\d)/, '');
+  el.value = digitos ? formatarMoedaDigitando(digitos) : '';
+  if (cursorNoFim) { const p = el.value.length; el.setSelectionRange(p, p); }
+}
+function valorMoedaParaNumero(strFormatada) {
+  if (strFormatada === null || strFormatada === undefined || strFormatada === '') return 0;
+  const limpo = String(strFormatada).replace(/\./g, '').replace(',', '.').replace(/[^\d.-]/g, '');
+  const n = parseFloat(limpo);
+  return isNaN(n) ? 0 : n;
+}
+// Lê o valor numérico real de um campo de moeda (para enviar à API).
+function valorInput(id) {
+  const el = document.getElementById(id);
+  return valorMoedaParaNumero(el ? el.value : '');
+}
+// Preenche um campo de moeda a partir de um número (ex.: ao editar um registro),
+// já exibindo no formato "1.234,56".
+function setValorInput(id, numero) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const n = Number(numero || 0);
+  el.value = n ? formatarMoedaDigitando(String(Math.round(Math.abs(n) * 100))) : '';
+}
+function aplicarMascarasMoeda() {
+  CAMPOS_MOEDA.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.type = 'text';
+    el.setAttribute('inputmode', 'decimal');
+    el.setAttribute('autocomplete', 'off');
+    el.addEventListener('input', onInputMoeda);
+  });
+}
 function escHtml(s) {
   return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
@@ -730,6 +790,61 @@ function somarMeses(mesStr, delta) {
   return String(m).padStart(2,'0') + '/' + a;
 }
 function mesCompararIndice(mesStr) { const {m,a} = parseMesAno(mesStr); return a*12+m; }
+
+/* =====================================================
+   COMPETÊNCIA DA FATURA
+   Regra: quando o fechamento E o vencimento caem entre os dias 01 e 13
+   do mês, a fatura é considerada como pertencente ao MÊS ANTERIOR — ex.:
+   fechamento 05/10/2026 e vencimento 10/10/2026 é a fatura de 09/2026,
+   não 10/2026. É uma regra fixa, aplicada a todos os cartões igual, sem
+   nenhuma configuração por cartão: depende só das datas já calculadas
+   pelo backend (Data_Fechamento/Data_Vencimento), então qualquer lugar
+   que use competenciaFatura() em vez do Mes_Referencia "cru" enxerga o
+   mesmo resultado. Mes_Referencia continua existindo e sendo usado
+   internamente (é o que liga lançamentos à fatura e o que o backend usa
+   para recalcular as datas) — só a COMPETÊNCIA EXIBIDA/usada para
+   agrupar por mês nos cards, no gráfico e no detalhamento é que muda.
+   ===================================================== */
+function diaDaData(v) {
+  if (!v) return null;
+  const s = String(v).split(' ')[0];
+  const [d] = s.split('/');
+  const n = Number(d);
+  return isNaN(n) ? null : n;
+}
+function competenciaFatura(f) {
+  if (!f) return null;
+  const diaFechamento = diaDaData(f.Data_Fechamento);
+  const diaVencimento = diaDaData(f.Data_Vencimento);
+  if (diaFechamento !== null && diaVencimento !== null && diaFechamento <= 13 && diaVencimento <= 13) {
+    return somarMeses(f.Mes_Referencia, -1);
+  }
+  return f.Mes_Referencia;
+}
+
+/* =====================================================
+   RESUMO DE FATURAS DE UM MÊS (TODOS OS CARTÕES)
+   Cada cartão fecha sua fatura em um dia diferente, então uma mesma
+   competência (ex.: 09/2026) pode ter uma linha de fatura por cartão.
+   Os cards-resumo (Fatura Atual/Próxima Fatura) e o gráfico de evolução
+   precisam somar TODAS essas faturas, não pegar apenas a primeira
+   encontrada — e todos usam competenciaFatura() para decidir a quem
+   pertence cada fatura, garantindo o mesmo agrupamento em todo o app.
+   ===================================================== */
+function resumoFaturasMes(mes, listaFaturas) {
+  const lista = (listaFaturas || STATE.faturas).filter(f => competenciaFatura(f) === mes);
+  const total = lista.reduce((s,f)=>s+Number(f.Valor_Total||0),0);
+  const pago = lista.reduce((s,f)=>s+Number(f.Valor_Pago||0),0);
+  const restante = lista.reduce((s,f)=>s+Number(f.Valor_Restante||0),0);
+  let status = null;
+  if (lista.length) {
+    const todasPagas = lista.every(f=>f.Status==='Paga');
+    const algumaPagaOuParcial = lista.some(f=>f.Status==='Paga' || f.Status==='Parcialmente Paga');
+    const todasFechadas = lista.every(f=>['Fechada','Paga','Parcialmente Paga'].includes(f.Status));
+    status = todasPagas ? 'Paga' : (algumaPagaOuParcial ? 'Parcialmente Paga' : (todasFechadas ? 'Fechada' : 'Aberta'));
+  }
+  return { lista, total, pago, restante, status };
+}
 
 function mostrarLoading(ativo) {
   document.getElementById('loadingBar').classList.toggle('ativo', ativo);
@@ -761,6 +876,28 @@ function avisarColunasFaltando(registro) {
 function abrirModal(id) { document.getElementById(id).classList.add('show'); }
 function fecharModal(id) { document.getElementById(id).classList.remove('show'); }
 
+/* =====================================================
+   PROTEÇÃO CONTRA CLIQUE DUPLO NOS BOTÕES "SALVAR"
+   Desabilita o botão assim que é clicado (antes de qualquer await),
+   evitando que um segundo clique durante o processamento dispare uma
+   segunda chamada à API e crie o lançamento/registro duplicado.
+   Reabilita ao final, mesmo em caso de erro.
+   ===================================================== */
+async function comBotaoBloqueado(btn, fn) {
+  if (!btn || btn.disabled) return; // já está processando um clique anterior
+  const htmlOriginal = btn.innerHTML;
+  btn.disabled = true;
+  btn.classList.add('opacity-60', 'pointer-events-none');
+  btn.innerHTML = '<i class="fas fa-spinner spin"></i> Salvando…';
+  try {
+    await fn();
+  } finally {
+    btn.disabled = false;
+    btn.classList.remove('opacity-60', 'pointer-events-none');
+    btn.innerHTML = htmlOriginal;
+  }
+}
+
 function confirmarAcao(titulo, texto, callback, labelBtn) {
   document.getElementById('tituloConfirmar').textContent = titulo;
   document.getElementById('textoConfirmar').textContent = texto;
@@ -787,7 +924,12 @@ function montarNavDesktop() {
     </div>`).join('');
 }
 
-function mudarView(viewId) {
+// Ajusta apenas a "moldura" da view (qual view está visível, título,
+// destaque de navegação) sem disparar a renderização com dados. Separado
+// de mudarView() para que o carregamento inicial possa preparar a tela
+// do dashboard sem buscar/desenhar dados antes de cartões, pessoas e
+// categorias estarem carregados (ver init()).
+function aplicarMoldurasView(viewId) {
   STATE.view = viewId;
   document.querySelectorAll('.view').forEach(v => v.classList.remove('ativa'));
   document.getElementById('view' + viewId.charAt(0).toUpperCase() + viewId.slice(1)).classList.add('ativa');
@@ -804,7 +946,10 @@ function mudarView(viewId) {
   // Barra de mês só faz sentido em views mensais
   const mostraMes = ['dashboard','lancamentos','faturas','estimativas','compromissos'].includes(viewId);
   document.getElementById('barraMes').style.display = mostraMes ? 'flex' : 'none';
+}
 
+function mudarView(viewId) {
+  aplicarMoldurasView(viewId);
   fecharModal('modalMais'); fecharModal('modalAdicionar');
   renderView(viewId);
   window.scrollTo({top:0, behavior:'smooth'});
@@ -882,8 +1027,8 @@ function abrirFiltrosAvancados() {
   document.getElementById('fTag').value = f.Tag;
   document.getElementById('fStatus').value = f.Status;
   document.getElementById('fTipo').value = f.Tipo;
-  document.getElementById('fValorMin').value = f.valorMin;
-  document.getElementById('fValorMax').value = f.valorMax;
+  setValorInput('fValorMin', f.valorMin);
+  setValorInput('fValorMax', f.valorMax);
   abrirModal('modalFiltros');
 }
 function preencherSelectsFiltros() {
@@ -900,8 +1045,8 @@ function aplicarFiltrosAvancados() {
     Tag: document.getElementById('fTag').value,
     Status: document.getElementById('fStatus').value,
     Tipo: document.getElementById('fTipo').value,
-    valorMin: document.getElementById('fValorMin').value,
-    valorMax: document.getElementById('fValorMax').value
+    valorMin: valorInput('fValorMin') || '',
+    valorMax: valorInput('fValorMax') || ''
   };
   const qtd = Object.values(STATE.filtros).filter(v => v !== '').length;
   const badge = document.getElementById('filtroAtivoQtd');
@@ -1077,17 +1222,24 @@ async function renderDashboard() {
   try { d = await atualizarDashboard(); } catch(e) { el.innerHTML = estadoErro('Não foi possível carregar o dashboard.'); return; }
   if (!d) { el.innerHTML = estadoErro('Não foi possível carregar o dashboard.'); return; }
 
-  const faturaAtual = d.faturas.find(f => f.Mes_Referencia === STATE.mesAtual);
+  // Soma as faturas de TODOS os cartões para a competência atual,
+  // respeitando o ciclo (dia de fechamento) já calculado de cada cartão
+  // pelo backend, e a regra de competência (fechamento/vencimento entre
+  // os dias 01 e 13 = mês anterior). Usamos STATE.faturas (lista
+  // completa, carregada por listarFaturas) em vez de d.faturas: o
+  // dashboard no backend filtra por Mes_Referencia "cru", que pode não
+  // bater com a competência exibida.
+  const rFaturaAtual = resumoFaturasMes(STATE.mesAtual, STATE.faturas);
   const proxMes = somarMeses(STATE.mesAtual, 1);
-  const faturaProxima = STATE.faturas.find(f => f.Mes_Referencia === proxMes);
+  const rFaturaProxima = resumoFaturasMes(proxMes, STATE.faturas);
 
   const totalLimite = d.cartoes.reduce((s,c)=>s+Number(c.Limite||0),0);
   const totalUtilizado = d.cartoes.reduce((s,c)=>s+Number(c.limiteUtilizado||0),0);
   const totalDisponivel = totalLimite - totalUtilizado;
   const pctLimite = totalLimite>0 ? (totalUtilizado/totalLimite*100) : 0;
 
-  const totalPago = faturaAtual ? Number(faturaAtual.Valor_Pago||0) : 0;
-  const totalRestante = faturaAtual ? Number(faturaAtual.Valor_Restante||0) : Number(d.resumo.totalLancamentos||0);
+  const totalPago = rFaturaAtual.lista.length ? rFaturaAtual.pago : 0;
+  const totalRestante = rFaturaAtual.lista.length ? rFaturaAtual.restante : Number(d.resumo.totalLancamentos||0);
 
   const estimativaMes = STATE.estimativas.filter(e => e.Mes === STATE.mesAtual);
   const estGeral = estimativaMes.find(e => !e.ID_Cartao && !e.ID_Categoria && !e.ID_Pessoa) || estimativaMes[0];
@@ -1104,8 +1256,8 @@ async function renderDashboard() {
     </div>
 
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 slide-up-d1">
-      ${cardResumo('Fatura Atual', faturaAtual? fmt(faturaAtual.Valor_Total) : fmt(d.resumo.totalLancamentos), 'fa-file-invoice-dollar', 'violet', faturaAtual?faturaAtual.Status:'Em aberto')}
-      ${cardResumo('Próxima Fatura', faturaProxima? fmt(faturaProxima.Valor_Total) : '—', 'fa-calendar-plus', 'sky')}
+      ${cardResumo('Fatura Atual', rFaturaAtual.lista.length? fmt(rFaturaAtual.total) : fmt(d.resumo.totalLancamentos), 'fa-file-invoice-dollar', 'violet', rFaturaAtual.status || 'Em aberto')}
+      ${cardResumo('Próxima Fatura', rFaturaProxima.lista.length? fmt(rFaturaProxima.total) : '—', 'fa-calendar-plus', 'sky')}
       ${cardResumo('Total Pago no Mês', fmt(totalPago), 'fa-check-circle', 'emerald')}
       ${cardResumo('Total Restante', fmt(totalRestante), 'fa-hourglass-half', 'amber')}
     </div>
@@ -1203,7 +1355,15 @@ function renderChartsDashboard(d) {
   const eixoYMoeda = { beginAtZero:true, ticks:{ font:{size:9}, callback:(v)=>fmt(v) } };
 
   // Gastos por cartão
-  const porCartaoEntries = Object.entries(d.graficos.porCartao || {});
+  // Usa a fatura ATUAL (competência) de cada cartão — não o total de
+  // lançamentos "crus" do mês — e inclui TODOS os cartões cadastrados
+  // (mesmo com R$ 0,00), para não parecer que um cartão sumiu quando
+  // ele não tem fatura aberta nesta competência.
+  const porCartaoEntries = STATE.cartoes.map(c => {
+    const faturasCartao = STATE.faturas.filter(f => f.ID_Cartao === c.ID_Cartao);
+    const r = resumoFaturasMes(STATE.mesAtual, faturasCartao);
+    return [c.ID_Cartao, r.total];
+  });
   if (chartCartaoRef) chartCartaoRef.destroy();
   chartCartaoRef = new Chart(document.getElementById('chartCartao'), {
     type: 'doughnut',
@@ -1234,7 +1394,10 @@ function renderChartsDashboard(d) {
 
   // Evolução por mês (últimos 6 meses incluindo atual)
   const meses = []; for (let i=5;i>=0;i--) meses.push(somarMeses(STATE.mesAtual, -i));
-  const totaisMes = meses.map(m => { const f = STATE.faturas.find(x=>x.Mes_Referencia===m); return f ? Number(f.Valor_Total||0) : STATE.lancamentos.filter(l=>l.Mes_Fatura===m).reduce((s,l)=>s+Number(l.Valor||0),0); });
+  const totaisMes = meses.map(m => {
+    const r = resumoFaturasMes(m);
+    return r.lista.length ? r.total : STATE.lancamentos.filter(l=>l.Mes_Fatura===m).reduce((s,l)=>s+Number(l.Valor||0),0);
+  });
   if (chartMesesRef) chartMesesRef.destroy();
   chartMesesRef = new Chart(document.getElementById('chartMeses'), {
     type: 'line',
@@ -1375,7 +1538,8 @@ function sombrear(hex, pct) {
 
 function abrirModalCartao() {
   document.getElementById('tituloModalCartao').textContent = 'Novo Cartão';
-  ['cartaoId','cartaoNome','cartaoBanco','cartaoBandeira','cartaoLimite','cartaoFechamento','cartaoVencimento','cartaoObs'].forEach(id=>document.getElementById(id).value='');
+  ['cartaoId','cartaoNome','cartaoBanco','cartaoBandeira','cartaoFechamento','cartaoVencimento','cartaoObs'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('cartaoLimite').value = '';
   document.getElementById('cartaoCor').value = '#6366f1';
   document.getElementById('cartaoAtivo').checked = true;
   abrirModal('modalCartao');
@@ -1388,7 +1552,7 @@ function editarCartaoClick(id) {
   document.getElementById('cartaoNome').value = c.Nome_Cartao || '';
   document.getElementById('cartaoBanco').value = c.Banco || '';
   document.getElementById('cartaoBandeira').value = c.Bandeira || '';
-  document.getElementById('cartaoLimite').value = c.Limite || '';
+  setValorInput('cartaoLimite', c.Limite);
   document.getElementById('cartaoFechamento').value = c.Dia_Fechamento || '';
   document.getElementById('cartaoVencimento').value = c.Dia_Vencimento || '';
   document.getElementById('cartaoCor').value = c.Cor || '#6366f1';
@@ -1404,7 +1568,7 @@ async function salvarCartao() {
     Nome_Cartao: nome,
     Banco: document.getElementById('cartaoBanco').value.trim(),
     Bandeira: document.getElementById('cartaoBandeira').value.trim(),
-    Limite: Number(document.getElementById('cartaoLimite').value || 0),
+    Limite: valorInput('cartaoLimite'),
     Dia_Fechamento: Number(document.getElementById('cartaoFechamento').value || 1),
     Dia_Vencimento: Number(document.getElementById('cartaoVencimento').value || 1),
     Cor: document.getElementById('cartaoCor').value,
@@ -1435,7 +1599,24 @@ async function renderLancamentos() {
 
   let lista = STATE.lancamentos.filter(l => l.Mes_Fatura === STATE.mesAtual);
   lista = filtrosAtivosLocal(lista);
-  const total = lista.reduce((s,l)=> s + (l.Tipo==='Estorno' ? -Number(l.Valor||0) : Number(l.Valor||0)), 0);
+
+  // Reajustes (acréscimos/descontos/ajustes aplicados a uma fatura) também
+  // aparecem aqui, misturados com os lançamentos do mês, para deixar claro
+  // o impacto que tiveram na fatura. Eles são vinculados por fatura (não
+  // têm Mes_Fatura direto), então achamos as faturas do mês corrente e
+  // filtramos os reajustes que pertencem a elas. Só o filtro de cartão é
+  // aplicado a eles — os demais filtros (pessoa, categoria, tag etc.) não
+  // fazem sentido para um reajuste de fatura.
+  // Usa competenciaFatura() (não o Mes_Referencia cru) para que os
+  // reajustes exibidos aqui pertençam às mesmas faturas que aparecem
+  // como "deste mês" em Faturas/Dashboard/Evolução.
+  const idsFaturasDoMes = new Set(STATE.faturas.filter(f => competenciaFatura(f) === STATE.mesAtual).map(f => f.ID_Fatura));
+  let reajustesDoMes = STATE.reajustes.filter(r => idsFaturasDoMes.has(r.ID_Fatura));
+  if (STATE.filtros.ID_Cartao) reajustesDoMes = reajustesDoMes.filter(r => r.ID_Cartao === STATE.filtros.ID_Cartao);
+
+  const totalLancamentos = lista.reduce((s,l)=> s + (l.Tipo==='Estorno' ? -Number(l.Valor||0) : Number(l.Valor||0)), 0);
+  const totalReajustes = reajustesDoMes.reduce((s,r)=> s + (r.Tipo==='Desconto' ? -Number(r.Valor||0) : Number(r.Valor||0)), 0);
+  const total = totalLancamentos + totalReajustes;
 
   el.innerHTML = `
     <div class="glass-card rounded-2xl p-4 flex items-center justify-between slide-up">
@@ -1445,7 +1626,27 @@ async function renderLancamentos() {
     <div class="space-y-2 slide-up-d1" id="listaLancamentos"></div>
   `;
   const wrap = document.getElementById('listaLancamentos');
-  wrap.innerHTML = lista.length ? lista.sort((a,b)=> new Date(parseDataBR(b.Data_Compra)) - new Date(parseDataBR(a.Data_Compra))).map(itemLancamentoAcoesHtml).join('') : estadoVazioMini('Nenhum lançamento neste período.');
+  const itens = [...lista, ...reajustesDoMes]
+    .sort((a,b)=> new Date(parseDataBR(b.Data_Compra || b.Data)) - new Date(parseDataBR(a.Data_Compra || a.Data)));
+  wrap.innerHTML = itens.length ? itens.map(item => item.ID_Reajuste ? itemReajusteHtml(item) : itemLancamentoAcoesHtml(item)).join('') : estadoVazioMini('Nenhum lançamento neste período.');
+}
+function itemReajusteHtml(r) {
+  const positivo = r.Tipo !== 'Desconto';
+  const cor = positivo ? 'text-emerald-600' : 'text-rose-600';
+  const bg = positivo ? 'bg-emerald-50' : 'bg-rose-50';
+  const iconCor = positivo ? 'text-emerald-500' : 'text-rose-500';
+  return `
+    <div class="item-row">
+      <div class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${bg}">
+        <i class="fas fa-balance-scale-left text-sm ${iconCor}"></i>
+      </div>
+      <div class="flex-1 min-w-0">
+        <p class="text-xs font-bold text-slate-700 truncate">${escHtml(r.Motivo || 'Reajuste de fatura')}</p>
+        <p class="text-[10px] text-slate-400 truncate">${escHtml(nomeCartao(r.ID_Cartao))} · ${positivo ? 'Acréscimo' : 'Desconto'} na fatura</p>
+        <p class="text-[10px] text-slate-400">${escHtml(formatarDataExibicao(r.Data))}</p>
+      </div>
+      <span class="text-xs font-black ${cor} flex-shrink-0">${positivo ? '+' : '-'}${fmt(r.Valor)}</span>
+    </div>`;
 }
 function parseDataBR(v) { if (!v) return new Date(); const s=String(v).split(' ')[0]; const [d,m,a]=s.split('/'); return a? new Date(+a,+m-1,+d) : new Date(v); }
 
@@ -1494,7 +1695,7 @@ function abrirModalLancamento(id) {
     document.getElementById('lancCartao').value = l.ID_Cartao || '';
     document.getElementById('lancPessoa').value = l.ID_Pessoa || '';
     document.getElementById('lancData').value = converterParaInputDate(l.Data_Compra);
-    document.getElementById('lancValor').value = l.Valor || '';
+    setValorInput('lancValor', l.Valor);
     document.getElementById('lancTipo').value = l.Tipo || 'Compra';
     document.getElementById('lancCategoria').value = l.ID_Categoria || '';
     document.getElementById('lancTags').value = l.Tags || '';
@@ -1525,7 +1726,7 @@ async function salvarLancamento() {
   const id = document.getElementById('lancamentoId').value;
   const descricao = document.getElementById('lancDescricao').value.trim();
   const cartao = document.getElementById('lancCartao').value;
-  const valor = Number(document.getElementById('lancValor').value || 0);
+  const valor = valorInput('lancValor');
   if (!descricao) return toast('Informe a descrição', 'erro');
   if (!cartao) return toast('Selecione um cartão', 'erro');
   if (valor <= 0) return toast('Informe um valor válido', 'erro');
@@ -1589,10 +1790,14 @@ async function renderFaturas() {
 
   const idxAtual = mesCompararIndice(STATE.mesAtual);
   const proximaMes = somarMeses(STATE.mesAtual, 1);
-  const atual = STATE.faturas.filter(f=>f.Mes_Referencia===STATE.mesAtual);
-  const proxima = STATE.faturas.filter(f=>f.Mes_Referencia===proximaMes);
-  const futuras = STATE.faturas.filter(f=> mesCompararIndice(f.Mes_Referencia) > mesCompararIndice(proximaMes));
-  const anteriores = STATE.faturas.filter(f=> mesCompararIndice(f.Mes_Referencia) < idxAtual).sort((a,b)=>mesCompararIndice(b.Mes_Referencia)-mesCompararIndice(a.Mes_Referencia));
+  // Classificação por competência (competenciaFatura), não pelo
+  // Mes_Referencia cru — assim uma fatura com fechamento/vencimento
+  // entre os dias 01 e 13 aparece no bloco do mês anterior, igual ao
+  // card "Fatura Atual" e ao gráfico de evolução do Dashboard.
+  const atual = STATE.faturas.filter(f=>competenciaFatura(f)===STATE.mesAtual);
+  const proxima = STATE.faturas.filter(f=>competenciaFatura(f)===proximaMes);
+  const futuras = STATE.faturas.filter(f=> mesCompararIndice(competenciaFatura(f)) > mesCompararIndice(proximaMes));
+  const anteriores = STATE.faturas.filter(f=> mesCompararIndice(competenciaFatura(f)) < idxAtual).sort((a,b)=>mesCompararIndice(competenciaFatura(b))-mesCompararIndice(competenciaFatura(a)));
 
   const el2 = document.getElementById('viewFaturas');
   el2.innerHTML = `
@@ -1616,7 +1821,7 @@ function itemFaturaHtml(f) {
         <i class="fas fa-file-invoice-dollar text-sm" style="color:${idParaCor(STATE.cartoes.find(c=>c.ID_Cartao===f.ID_Cartao))}"></i>
       </div>
       <div class="flex-1 min-w-0">
-        <p class="text-xs font-bold text-slate-700 truncate">${escHtml(nomeCartao(f.ID_Cartao))} · ${escHtml(formatarMesExibicao(f.Mes_Referencia))}</p>
+        <p class="text-xs font-bold text-slate-700 truncate">${escHtml(nomeCartao(f.ID_Cartao))} · ${escHtml(formatarMesExibicao(competenciaFatura(f)))}</p>
         <p class="text-[10px] text-slate-400">Vence em ${escHtml(formatarDataExibicao(f.Data_Vencimento))}</p>
       </div>
       <div class="flex flex-col items-end gap-1 flex-shrink-0">
@@ -1631,7 +1836,7 @@ function abrirDetalheFatura(id) {
   document.getElementById('reajusteFaturaId').value = f.ID_Fatura;
   document.getElementById('pagamentoFaturaId').value = f.ID_Fatura;
   document.getElementById('pagamentoCartaoId').value = f.ID_Cartao;
-  document.getElementById('tituloModalFatura').textContent = nomeCartao(f.ID_Cartao) + ' · ' + formatarMesExibicao(f.Mes_Referencia);
+  document.getElementById('tituloModalFatura').textContent = nomeCartao(f.ID_Cartao) + ' · ' + formatarMesExibicao(competenciaFatura(f));
   document.getElementById('subtituloModalFatura').textContent = 'Fechamento ' + formatarDataExibicao(f.Data_Fechamento) + ' · Vencimento ' + formatarDataExibicao(f.Data_Vencimento);
   document.getElementById('statusModalFatura').textContent = f.Status;
   document.getElementById('statusModalFatura').className = 'badge ' + statusFaturaClasse(f.Status);
@@ -1642,7 +1847,10 @@ function abrirDetalheFatura(id) {
   ].map(([l,v]) => `<div class="bg-slate-50 rounded-xl p-3 border border-slate-100"><p class="text-[9px] font-bold text-slate-400 uppercase mb-1">${l}</p><p class="text-sm font-black text-slate-700">${fmt(v)}</p></div>`).join('');
 
   const lancs = STATE.lancamentos.filter(l => l.ID_Cartao===f.ID_Cartao && l.Mes_Fatura===f.Mes_Referencia);
-  document.getElementById('listaModalFatura').innerHTML = lancs.length ? lancs.map(itemLancamentoHtml).join('') : estadoVazioMini('Nenhum lançamento nesta fatura.');
+  const reajustesFatura = STATE.reajustes.filter(r => r.ID_Fatura===f.ID_Fatura);
+  const itensFatura = [...lancs, ...reajustesFatura]
+    .sort((a,b)=> new Date(parseDataBR(b.Data_Compra || b.Data)) - new Date(parseDataBR(a.Data_Compra || a.Data)));
+  document.getElementById('listaModalFatura').innerHTML = itensFatura.length ? itensFatura.map(item => item.ID_Reajuste ? itemReajusteHtml(item) : itemLancamentoHtml(item)).join('') : estadoVazioMini('Nenhum lançamento nesta fatura.');
   abrirModal('modalFatura');
 }
 function excluirFaturaClick() {
@@ -1661,10 +1869,23 @@ function abrirReajuste() {
   document.getElementById('reajusteValor').value = '';
   document.getElementById('reajusteMotivo').value = '';
   document.getElementById('reajusteTipo').value = 'Acréscimo';
+  atualizarAjudaReajuste();
   abrirModal('modalReajuste');
 }
+// Explica, conforme o tipo escolhido, o que o valor digitado significa —
+// já que "Ajuste" tem uma leitura diferente de Acréscimo/Desconto (é o
+// valor final da fatura, não o valor a somar/subtrair).
+function atualizarAjudaReajuste() {
+  const tipo = document.getElementById('reajusteTipo').value;
+  const textos = {
+    'Acréscimo': 'Esse valor será somado ao valor atual da fatura.',
+    'Desconto': 'Esse valor será subtraído do valor atual da fatura.',
+    'Ajuste': 'Informe o valor final desejado da fatura — o sistema calcula sozinho se isso é um acréscimo ou um desconto.'
+  };
+  document.getElementById('reajusteAjuda').textContent = textos[tipo] || '';
+}
 async function salvarReajuste() {
-  const valor = Number(document.getElementById('reajusteValor').value || 0);
+  const valor = valorInput('reajusteValor');
   if (valor <= 0) return toast('Informe um valor', 'erro');
   const payload = {
     ID_Fatura: document.getElementById('reajusteFaturaId').value,
@@ -1675,7 +1896,11 @@ async function salvarReajuste() {
   try {
     const r = await api('criarReajuste', payload);
     STATE.reajustes.push(r.data);
-    toast('Reajuste registrado', 'sucesso');
+    // O servidor devolve o reajuste já normalizado (Tipo/Valor refletem o
+    // impacto real na fatura — para "Ajuste" isso já vem convertido em
+    // Acréscimo ou Desconto com a diferença calculada).
+    const efeito = r.data.Tipo === 'Desconto' ? 'Desconto de' : 'Acréscimo de';
+    toast(`Reajuste registrado: ${efeito} ${fmt(r.data.Valor)}`, 'sucesso');
     fecharModal('modalReajuste');
     fecharModal('modalFatura');
     await aposMutacao();
@@ -1690,7 +1915,7 @@ function abrirPagamento() {
   abrirModal('modalPagamento');
 }
 async function salvarPagamento() {
-  const valor = Number(document.getElementById('pagamentoValor').value || 0);
+  const valor = valorInput('pagamentoValor');
   if (valor <= 0) return toast('Informe um valor', 'erro');
   const payload = {
     ID_Fatura: document.getElementById('pagamentoFaturaId').value,
@@ -1769,13 +1994,13 @@ function editarReembolsoClick(id) {
   document.getElementById('reembolsoFatura').value = r.ID_Fatura || '';
   document.getElementById('reembolsoDataSol').value = converterParaInputDate(r.Data_Solicitacao);
   document.getElementById('reembolsoDataReceb').value = converterParaInputDate(r.Data_Recebimento);
-  document.getElementById('reembolsoValor').value = r.Valor || '';
+  setValorInput('reembolsoValor', r.Valor);
   document.getElementById('reembolsoMotivo').value = r.Motivo || '';
   document.getElementById('reembolsoStatus').value = r.Status || 'Pendente';
   document.getElementById('reembolsoObs').value = r.Observacao || '';
 }
 async function salvarReembolso() {
-  const valor = Number(document.getElementById('reembolsoValor').value || 0);
+  const valor = valorInput('reembolsoValor');
   if (valor <= 0) return toast('Informe um valor', 'erro');
   const id = document.getElementById('reembolsoId').value;
   const payload = {
@@ -1851,18 +2076,18 @@ function preencherAntecipacao() {
   const l = STATE.lancamentos.find(x=>x.ID_Lancamento===id);
   if (!l) return;
   document.getElementById('antecipacaoCartao').value = l.ID_Cartao;
-  document.getElementById('antecipacaoValorOriginal').value = l.Valor;
+  setValorInput('antecipacaoValorOriginal', l.Valor);
 }
 async function salvarAntecipacao() {
-  const valorPago = Number(document.getElementById('antecipacaoValorPago').value || 0);
+  const valorPago = valorInput('antecipacaoValorPago');
   if (valorPago <= 0) return toast('Informe o valor pago', 'erro');
   const payload = {
     ID_Lancamento: document.getElementById('antecipacaoLancamento').value,
     ID_Cartao: document.getElementById('antecipacaoCartao').value,
     Data: converterParaBR(hojeISO()),
     Parcelas_Antecipadas: Number(document.getElementById('antecipacaoParcelas').value || 0),
-    Valor_Original: Number(document.getElementById('antecipacaoValorOriginal').value || 0),
-    Desconto: Number(document.getElementById('antecipacaoDesconto').value || 0),
+    Valor_Original: valorInput('antecipacaoValorOriginal'),
+    Desconto: valorInput('antecipacaoDesconto'),
     Valor_Pago: valorPago,
     Observacao: document.getElementById('antecipacaoObs').value.trim()
   };
@@ -2159,11 +2384,11 @@ function editarEstimativaClick(id) {
   document.getElementById('estimativaCartao').value = e.ID_Cartao || '';
   document.getElementById('estimativaCategoria').value = e.ID_Categoria || '';
   document.getElementById('estimativaPessoa').value = e.ID_Pessoa || '';
-  document.getElementById('estimativaValor').value = e.Valor_Estimado || '';
+  setValorInput('estimativaValor', e.Valor_Estimado);
   document.getElementById('estimativaObs').value = e.Observacao || '';
 }
 async function salvarEstimativa() {
-  const valor = Number(document.getElementById('estimativaValor').value || 0);
+  const valor = valorInput('estimativaValor');
   if (valor <= 0) return toast('Informe o valor estimado', 'erro');
   const id = document.getElementById('estimativaId').value;
   const payload = {
@@ -2330,8 +2555,8 @@ function renderCompromissos() {
   const idxAtual = mesCompararIndice(STATE.mesAtual);
   const proximaMes = somarMeses(STATE.mesAtual, 1);
 
-  const faturaAtual = STATE.faturas.find(f=>f.Mes_Referencia===STATE.mesAtual);
-  const faturaProxima = STATE.faturas.find(f=>f.Mes_Referencia===proximaMes);
+  const rFaturaAtual = resumoFaturasMes(STATE.mesAtual);
+  const rFaturaProxima = resumoFaturasMes(proximaMes);
 
   const futuras = STATE.lancamentos.filter(l => l.Parcelado==='SIM' && mesCompararIndice(l.Mes_Fatura) > idxAtual);
   const porMes = {};
@@ -2341,8 +2566,8 @@ function renderCompromissos() {
 
   el.innerHTML = `
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 slide-up">
-      ${cardResumo('Fatura Atual', faturaAtual?fmt(faturaAtual.Valor_Total):'—', 'fa-file-invoice-dollar', 'indigo')}
-      ${cardResumo('Próxima Fatura', faturaProxima?fmt(faturaProxima.Valor_Total):'—', 'fa-calendar-plus', 'sky')}
+      ${cardResumo('Fatura Atual', rFaturaAtual.lista.length?fmt(rFaturaAtual.total):'—', 'fa-file-invoice-dollar', 'indigo')}
+      ${cardResumo('Próxima Fatura', rFaturaProxima.lista.length?fmt(rFaturaProxima.total):'—', 'fa-calendar-plus', 'sky')}
       ${cardResumo('Total Comprometido', fmt(totalComprometido), 'fa-layer-group', 'violet')}
       ${cardResumo('Parcelas Futuras', String(futuras.length), 'fa-receipt', 'slate')}
     </div>
@@ -2391,8 +2616,18 @@ async function init() {
   montarNavDesktop();
   montarMenusRapidos();
   atualizarLabelMes();
-  mudarView('dashboard');
-  await carregarTudo(false);
+  aplicarMascarasMoeda();
+
+  // Mostra a moldura do dashboard (com esqueleto de carregamento) de
+  // imediato, mas só busca/renderiza os dados depois que cartões,
+  // pessoas e categorias já estiverem em STATE — assim os gráficos
+  // exibem os nomes corretos desde o primeiro carregamento, em vez de
+  // mostrar os IDs brutos por alguns segundos até uma renderização
+  // posterior corrigi-los.
+  aplicarMoldurasView('dashboard');
+  document.getElementById('viewDashboard').innerHTML = skeletonDashboard();
+
+  await carregarTudo(false); // ao final, carregarTudo() já chama renderView(STATE.view)
 }
 init();
 </script>
